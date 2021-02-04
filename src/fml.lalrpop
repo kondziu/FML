@@ -1,9 +1,9 @@
 use std::str::FromStr;
 use std::collections::VecDeque;
 
-use fml::ast::AST;
-use fml::ast::Operator;
-use fml::ast::Identifier;
+use crate::parser::AST;
+use crate::parser::Operator;
+use crate::parser::Identifier;
 
 grammar;
 

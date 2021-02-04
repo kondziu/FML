@@ -1,0 +1,346 @@
+use std::str::FromStr;
+use std::collections::VecDeque;
+
+use fml::ast::AST;
+use fml::ast::Operator;
+use fml::ast::Identifier;
+
+grammar;
+
+// Lexer
+match {
+    r"\s*" => { },                                                          // ignore whitespace
+    r"/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/|(//.*)" => { },             // comments: /**/ and //
+
+    // all keywords and fixed tokens
+    ";" => SEMICOLON,
+    "begin" => BEGIN,
+    "end" => END,
+    "|" => OR,
+    "&" => AND,
+    "==" => EQUAL,
+    "!=" => UNEQUAL,
+    ">" => GREATER,
+    "<" => LESS,
+    ">=" => GREATER_EQUAL,
+    "<=" => LESS_EQUAL,
+    "+" => PLUS,
+    "-" => MINUS,
+    "/" => DIVIDE,
+    "*" => MULTIPLY,
+    "%" => MODULE,
+    "if" => IF,
+    "then" => THEN,
+    "else" => ELSE,
+    "(" => LPAREN,
+    ")" => RPAREN,
+    "let" => LET,
+    "=" => BE,
+    "null" => UNIT,
+    "<-" => LARROW,
+    "->" => RARROW,
+    "print" => PRINT,
+    "object" => OBJECT,
+    "extends" => EXTENDS,
+    "." => DOT,
+    "[" => LBRACKET,
+    "]" => RBRACKET,
+    "while" => WHILE,
+    "do" => DO,
+    "function" => FUNCTION,
+    "array" => ARRAY,
+    "," => COMMA,
+    "true" => TRUE,
+    "false" => FALSE,
+    "this" => THIS,
+
+    // all fungible tokens
+    r"[_A-Za-z][_A-Za-z0-9]*" => IDENTIFIER,
+    r"[-]?[0-9]+" => NUMBER,
+    r#""([^\\"]|\\[~ntr\\])*""# => STRING_LITERAL,
+}
+
+// Parser
+
+pub TopLevel: AST = {
+    <expressions: Expressions> => AST::top(expressions),
+                               => AST::top(vec![AST::null()]),
+}
+
+Expressions: Vec<AST> = {
+    <element: Expression<"open">> <elements: (SEMICOLON <Expression<"open">>)*> SEMICOLON? => {
+        let mut all = VecDeque::from(elements);
+        all.push_front(element);
+        Vec::from(all)
+    }
+}
+
+Expression<openness>: AST = {
+    FunctionDefinition<openness>      => <>, // Feeny-style function definition, returns unit?
+    ObjectDefinition                  => <>, // prototype object definition
+    Assignment<openness>              => <>, // Feenified variable definition
+    //Field                           => <>, // field access
+    Conditional<openness>             => <>, // conditional expression
+    Loop<openness>                    => <>, // loop expression
+    Mutation<openness>                => <>, // variable/object member mutation
+    Print                             => <>, // call to the print built-in
+    Operation                         => <>, // operations, but this also leads to Accessible
+}
+
+
+Block: AST = {
+    BEGIN END                            => AST::null(),
+    BEGIN <expressions: Expressions> END => AST::block(expressions)
+}
+
+Accessible: AST = {
+    ParenthesizedExpression           => <>, // expression in parentheses
+    Block                             => <>, // expression block
+    Application                       => <>, // function application
+    ArrayDefinition                   => <>, // array definition
+    ArrayAccess                       => <>, // array access
+    VariableAccess                    => <>, // variable access
+    Literal                           => <>, // literal, duh
+}
+
+Operation: AST = {
+    Disjunction                       => <>, // Let's climb the operator precedence!
+}
+
+Disjunction: AST = {
+    <head: Conjunction> <tail: (<DisjunctionOperator> <Conjunction>)*> =>
+        AST::from_binary_expression(head, tail)
+}
+
+Conjunction: AST = {
+    <head: Comparison> <tail: (<ConjunctionOperator> <Comparison>)*> =>
+        AST::from_binary_expression(head, tail)
+}
+
+Comparison: AST = {
+    <head: Additive> <tail: (<EqualityOperator> <Additive>)*> =>
+        AST::from_binary_expression(head, tail)
+}
+
+Additive: AST = {
+    <head: Factor> <tail: (<AdditiveOperator> <Factor>)*> =>
+        AST::from_binary_expression(head, tail)
+}
+
+Operand: AST = {
+    Accessible => <>,
+    <object: Accessible> DOT <fields: (<Ident> DOT)*> <field: Ident> => {
+        let mut tail = Vec::from(fields);
+        tail.push(field);
+        tail.into_iter().fold(object, |left, right| AST::access_field(left, right))
+    },
+}
+
+Factor: AST = {
+    <head: Operand> <tail: (<FactorOperator> <Operand>)*> => AST::from_binary_expression(head, tail),
+}
+
+Operator: Operator = {
+    ConjunctionOperator => <>,
+    DisjunctionOperator => <>,
+    EqualityOperator    => <>,
+    AdditiveOperator    => <>,
+    FactorOperator      => <>,
+}
+
+ConjunctionOperator: Operator = {
+    AND => Operator::Conjunction,
+}
+
+DisjunctionOperator: Operator = {
+    OR => Operator::Disjunction,
+}
+
+EqualityOperator: Operator = {
+    EQUAL => Operator::Equality,
+    UNEQUAL => Operator::Inequality,
+    GREATER  => Operator::Greater,
+    GREATER_EQUAL => Operator::GreaterEqual,
+    LESS => Operator::Less,
+    LESS_EQUAL => Operator::LessEqual,
+}
+
+AdditiveOperator: Operator = {
+    PLUS => Operator::Addition,
+    MINUS => Operator::Subtraction,
+}
+
+FactorOperator: Operator = {
+    MULTIPLY => Operator::Multiplication,
+    DIVIDE => Operator::Division,
+    MODULE => Operator::Module,
+}
+
+Literal: AST = {
+    Number                  => <>,
+    Boolean                 => <>,
+    Unit                    => <>,
+}
+
+ParenthesizedExpression: AST = {
+    LPAREN <Expression<"open">> RPAREN    => <>
+}
+
+Member: AST = {
+    Assignment<"open">            => <>,
+    FunctionDefinition<"open">    => <>,
+    OperatorDefinition<"open">    => <>,
+}
+
+Conditional<openness>: AST = {
+    IF <condition: Expression<"open">> THEN <consequent: Expression<"closed">> ELSE <alternative: Expression<openness>> =>
+        AST::conditional(condition, consequent, alternative),
+    IF <condition: Expression<"open">> THEN <consequent: Expression<"open">> if openness == "open" =>
+        AST::conditional(condition, consequent, AST::null()),
+}
+
+Print: AST = { // TODO format string check
+    PRINT LPAREN <format: String> <arguments: (COMMA <Arguments>)?> RPAREN => {
+        // let boxed_arguments: Vec<Box<AST>> = match arguments {
+        //     Some(arguments) => arguments.into_iter().map( | e | Box::new(e)).collect(),
+        //     None => vec!(),
+        // };
+        AST::print(format, arguments.unwrap_or(vec![]))
+    }
+}
+
+ObjectDefinition: AST = {
+    OBJECT <extends: (EXTENDS <Expression<"open">>)?> <members: Members> =>
+        AST::object(extends.unwrap_or(AST::Null), members)
+}
+
+Members: Vec<AST> = {
+    BEGIN <elements: (<Member> SEMICOLON)*> <element: Member?> END => match element {
+        None => elements,
+        Some(e) => { let mut elements = elements; elements.push(e); elements }
+    }
+}
+
+Field: AST = {
+    <object: Accessible> DOT <objects: (<Ident> DOT)*> <field: Ident> => {
+        let mut tail = Vec::from(objects);
+        tail.push(field);
+        tail.into_iter().fold(object, |left, right| AST::access_field(left, right))
+    }
+}
+
+ArrayDefinition: AST = {
+    ARRAY LPAREN <size: Expression<"open">> COMMA <value: Expression<"open">> RPAREN => AST::array(size, value),
+}
+
+ArrayAccess: AST = {
+    <array: Accessible> LBRACKET <index: Expression<"open">> RBRACKET =>  AST::access_array(array, index),
+    <array: Field> LBRACKET <index: Expression<"open">> RBRACKET =>       AST::access_array(array, index),
+}
+
+Loop<openness>: AST = {
+    WHILE <condition: Expression<"open">> DO <body: Expression<openness>> => AST::loop_de_loop(condition, body)
+}
+
+FunctionDefinition<openness>: AST = {
+    FUNCTION <id: IdentOrPrint> <parameters: Parameters> RARROW <body: Expression<openness>> => {
+        AST::function(id, parameters, body)
+    }
+}
+
+//PrintMethodDefinition<openness>: AST = {
+//    FUNCTION PRINT <parameters: Parameters> RARROW <body: Expression<openness>> =>
+//        AST::Function{name: Identifier::from("print"),
+//                                parameters: parameters,
+//                                body: Box::new(body)}
+//}
+
+OperatorDefinition<openness>: AST = {
+    FUNCTION <operator: Operator> <parameters: Parameters> RARROW <body: Expression<openness>> =>
+        AST::operator(operator, parameters, body)
+}
+
+Parameters: Vec<Identifier> = {
+    LPAREN <elements: (<Ident> COMMA)*> <element: Ident?> RPAREN =>
+        match element {
+            None => elements,
+            Some(e) => { let mut elements = elements; elements.push(e); elements }
+        }
+}
+
+IdentOrPrint: Identifier = {
+    Ident => <>,
+    PRINT => Identifier::from("print"),
+}
+
+Application: AST = {
+    <function: Ident> LPAREN <arguments: Arguments> RPAREN => {
+        // let boxed_arguments: Vec<Box<AST>> =
+        //     arguments.into_iter().map(|e| Box::new(e)).collect();
+        AST::call_function(function, arguments)
+    },
+    <object: Accessible> DOT <fields: (<Ident> DOT)*> <method: IdentOrPrint> LPAREN <arguments: Arguments> RPAREN => {
+        let tail = Vec::from(fields);
+        let host: AST = tail.into_iter().fold(object, |left, right| AST::access_field(left, right));
+        // let boxed_arguments: Vec<Box<AST>> = arguments.into_iter().map(|e| Box::new(e)).collect();
+        AST::call_method(host, method, arguments)
+    },
+    <object: Accessible> DOT <fields: (<Ident> DOT)*> <operator: Operator> LPAREN <arguments: Arguments> RPAREN => {
+        let tail = Vec::from(fields);
+        let host: AST = tail.into_iter().fold(object, |left, right| AST::access_field (left, right));
+        //let boxed_arguments: Vec<Box<AST>> = arguments.into_iter().map(|e| Box::new(e)).collect();
+        AST::call_operator(host, operator, arguments)
+    }
+}
+
+Arguments: Vec<AST> = {
+    <elements: (<Expression<"open">> COMMA)*> <element: Expression<"open">?> => match element {
+        None => elements,
+        Some(e) => { let mut elements = elements; elements.push(e); elements }
+    }
+}
+
+Assignment<openness>: AST = {
+    LET <id: Ident> BE <v: Expression<openness>> =>
+        AST::Variable{name: id, value: Box::new(v)},
+}
+
+Mutation<openness>: AST = {
+    <id: Ident> LARROW <v: Expression<openness>> =>
+        AST::AssignVariable{name: id, value: Box::new(v)},
+    <object: Accessible> DOT <fields: (<Ident> DOT)*> <field: Ident> LARROW <v: Expression<openness>> => {
+        let tail = Vec::from(fields);
+        let host: AST = tail.into_iter().fold(object, |left, right| AST::AccessField {object: Box::new(left), field: right});
+        AST::AssignField {object: Box::new(host), field: field, value: Box::new(v)}
+    },
+    <array: Accessible> LBRACKET <index: Expression<"open">> RBRACKET LARROW <v: Expression<openness>> =>
+        AST::AssignArray{array: Box::new(array), index: Box::new(index), value: Box::new(v)},
+    <array: Field> LBRACKET <index: Expression<"open">> RBRACKET LARROW <v: Expression<openness>> =>
+        AST::AssignArray {array: Box::new(array), index: Box::new(index), value: Box::new(v)}
+}
+
+VariableAccess: AST = {
+    Ident                               => AST::access_variable(<>),
+}
+
+Ident: Identifier = {
+    IDENTIFIER                          => Identifier::from(<>),
+    THIS                                => Identifier::from(<>),
+}
+
+Number: AST = {
+    NUMBER                              => AST::integer(i32::from_str(<>).unwrap()),
+}
+
+String: String = {
+    <s:STRING_LITERAL>                   => s[1..s.len()-1].to_string(),
+}
+
+Boolean: AST = {
+    TRUE                                 => AST::boolean(true),
+    FALSE                                => AST::boolean(false),
+}
+
+Unit: AST = {
+    UNIT                                 => AST::null(),
+}

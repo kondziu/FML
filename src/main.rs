@@ -3,6 +3,7 @@
 lalrpop_mod!(pub fml); // load module synthesized by LALRPOP
 
 mod parser;
+mod compiler;
 
 use std::path::PathBuf;
 use std::collections::HashMap;
@@ -15,183 +16,196 @@ use anyhow::*;
 
 use crate::parser::AST;
 use crate::fml::TopLevelParser;
+use std::str::FromStr;
+
+use compiler::program::Program;
+use crate::compiler::serializable::Serializable;
+
+#[derive(Clap, Debug)]
+#[clap(version = "1.0", author = "Konrad Siek <konrad.siek@gmail.com>")]
+enum Action {
+    Parse(ParserAction),
+    Compile(CompilerAction),
+    //Run(Run),
+}
+
+impl Action {
+    pub fn execute(&self) {
+        match self {
+            Self::Parse(action) => action.parse(),
+            Self::Compile(action) => action.compile(),
+        }
+    }
+}
+
+#[derive(Clap, Debug)]
+#[clap(about = "Compiles an FML AST into bytecode")]
+struct CompilerAction {
+    #[clap(short = 'o', long = "output-path", alias = "output-dir", parse(from_os_str))]
+    pub output: Option<PathBuf>,
+
+    #[clap(name="FILE", parse(from_os_str))]
+    pub input: Option<PathBuf>,
+
+    #[clap(long = "output-format", alias = "bc", name = "AST_FORMAT",
+    about = "The output format for the bytecode: bytes or string")]
+    pub output_format: Option<BCSerializer>,
+
+    #[clap(long = "input-format", alias = "ast", name = "BC_FORMAT",
+    about = "The output format of the AST: JSON, LISP, YAML")]
+    pub input_format: Option<ASTSerializer>,
+}
 
 #[derive(Clap, Debug)]
 #[clap(about = "Parses FML source code and outputs an AST")]
 struct ParserAction {
     #[clap(short = 'o', long = "output-path", alias = "output-dir", parse(from_os_str))]
-    pub output_path: Option<PathBuf>,
+    pub output: Option<PathBuf>,
 
     #[clap(name="FILE", parse(from_os_str))]
-    pub inputs: Vec<PathBuf>,
+    pub input: Option<PathBuf>,
 
-    #[clap(long = "as-json")]
-    pub json: bool,
+    #[clap(long = "format", alias = "ast", name = "FORMAT",
+    about = "The output format of the AST: JSON, LISP, YAML, or Rust")]
+    pub format: Option<ASTSerializer>,
+}
 
-    #[clap(long = "as-yaml")]
-    pub yaml: bool,
+macro_rules! prepare_file_path_from_input_and_serializer {
+    ($self:expr) => {
+        $self.output.as_ref().map(|path| {
+            if path.is_dir() {
+                let mut file = path.clone();
+                let filename = match $self.selected_input().unwrap().name {
+                    Stream::File(file) => {
+                        PathBuf::from(file)
+                            .file_name().unwrap()
+                            .to_str().unwrap()
+                            .to_owned()
+                    }
+                    Stream::Console => { "ast".to_owned() }
+                };
+                let extension = $self.selected_output_format().extension();
+                file.push(filename);
+                file.set_extension(extension);
+                file
+            } else {
+                path.clone()
+            }
+        })
+    }
+}
 
-    #[clap(long = "as-sexpr", alias = "as-lisp")]
-    pub lisp: bool,
+impl CompilerAction {
+    pub fn compile(&self) {
+        let source = self.selected_input()
+            .expect("Cannot open an input for the compiler.");
+        let mut sink = self.selected_output()
+            .expect("Cannot open an output for the compiler.");
+        let input_serializer = self.selected_input_format()
+            .expect("Cannot derive input format from file path. Consider setting it explicitly.");
+        let output_serializer = self.selected_output_format();
 
-    #[clap(long = "as-internal", alias = "as-internal")]
-    pub internal: bool,
+        let source = source.into_string()
+            .expect("Error reading input file");
+        let ast = input_serializer.deserialize(&source)
+            .expect("Error parsing AST from input file");
+
+        let program = compiler::compile(&ast);
+
+        output_serializer.serialize(&program, &mut sink)
+            .expect("Cannot serialize program to output.");
+
+        // write!(sink, "{}", result)
+        //     .expect("Cannot write to output");
+    }
+
+    pub fn selected_input(&self) -> Result<NamedSource> {
+        NamedSource::from(self.input.as_ref())
+    }
+
+    pub fn selected_output_format(&self) -> BCSerializer {
+        self.output_format.unwrap_or(BCSerializer::BYTES)
+    }
+
+    pub fn selected_input_format(&self) -> Option<ASTSerializer> {
+        if self.input_format.is_some() {
+            self.input_format
+        } else {
+            self.selected_input().unwrap().extension().map(|s| {
+                ASTSerializer::from_extension(s.as_str())
+            }).flatten()
+        }
+    }
+
+    pub fn selected_output(&self) -> Result<NamedSink> {
+        let maybe_file = prepare_file_path_from_input_and_serializer!(self);
+        NamedSink::from(maybe_file)
+    }
 }
 
 impl ParserAction {
     pub fn parse(&self) {
-        let mut outputs: HashMap<(Stream, ASTSerializer), NamedSink> = self.selected_outputs()
-            .expect("Error creating outputs for parser")
-            .into_iter()
-            .map(|(key, output)| (key, output.expect("Error creating output")))
-            .collect();
+        let source = self.selected_input()
+            .expect("Cannot open an input for the parser.");
+        let mut sink = self.selected_output()
+            .expect("Cannot open an output for the parser.");
+        let serializer = self.selected_output_format();
 
-        for input in self.selected_inputs() {
-            let source: NamedSource = input
-                .expect("Error creating input");
+        let ast: AST = TopLevelParser::new()
+            .parse(&source.into_string()
+            .expect("Error reading input"))
+            .expect("Parse error");
 
-            let source_name = source.name.clone();
+        let result = serializer.serialize(&ast)
+            .expect("Cannot serialize AST");
 
-            let ast: AST = TopLevelParser::new()
-                .parse(&source.into_string().expect("Error reading input"))
-                .expect("Parse error");
-
-            // FIXME the extensions need to be set for different serializers too D:
-            let serializers: Vec<ASTSerializer> = self.selected_ast_serializers();
-            for serializer in serializers {
-                let sink_key = (source_name.clone(), serializer);
-                let sink = outputs.get_mut(&sink_key)
-                    .expect(&format!("No output found for input source {:?}", &source_name));
-
-                let ast_string = serializer.serialize(&ast)
-                    .expect("Could not serialize ASt to string");
-                write!(sink, "{}", ast_string)
-                    .expect(&format!("Error writing AST to \"{:?}\"", sink.name));
-            }
-        }
+        write!(sink, "{}", result)
+            .expect("Cannot write to output");
     }
 
-    pub fn selected_ast_serializers(&self) -> Vec<ASTSerializer> {
-        let mut serializers = Vec::new();
-        if self.json     { serializers.push(ASTSerializer::JSON)     }
-        if self.yaml     { serializers.push(ASTSerializer::YAML)     }
-        if self.lisp     { serializers.push(ASTSerializer::LISP)     }
-        if self.internal { serializers.push(ASTSerializer::INTERNAL) }
-        if serializers.is_empty() { serializers.push(ASTSerializer::INTERNAL) }
-        serializers
+    pub fn selected_input(&self) -> Result<NamedSource> {
+        NamedSource::from(self.input.as_ref())
     }
 
-    pub fn selected_inputs(&self) -> Vec<Result<NamedSource>> {
-        if self.inputs.is_empty() {
-            vec![NamedSource::console()]
-        } else {
-            self.inputs.iter().map(|path: &PathBuf| NamedSource::from_file(path)).collect()
-        }
+    pub fn selected_output_format(&self) -> ASTSerializer {
+        self.format.unwrap_or(ASTSerializer::INTERNAL)
     }
 
-    pub fn selected_outputs(&self) -> Result<HashMap<(Stream, ASTSerializer), Result<NamedSink>>> {
-        #[allow(dead_code)]
-        fn filename_from_path(path: &PathBuf) -> Result<String> {
-            if path.is_dir() {
-                bail!("Expected file, but {:?} is a directory.", path);
-            }
-            path.file_name().map(|os_str| os_str.to_str()).flatten()
-                .map_or(Err(anyhow!("Cannot extract filename from path {:?}.", path)),
-                        |string| Ok(string.to_owned()))
+    pub fn selected_output(&self) -> Result<NamedSink> {
+        let maybe_file = prepare_file_path_from_input_and_serializer!(self);
+        NamedSink::from(maybe_file)
+    }
+}
+
+#[derive(Debug, PartialOrd, PartialEq, Ord, Eq, Copy, Clone, Hash)]
+enum BCSerializer {
+    BYTES, STRING
+}
+
+impl BCSerializer {
+    pub fn serialize(&self, program: &Program, sink: &mut NamedSink) -> Result<()> {
+        match self {
+            BCSerializer::BYTES  => program.serialize(sink),
+            BCSerializer::STRING => unimplemented!(),
         }
+    }
+    pub fn extension(&self) -> &'static str {
+        match self {
+            BCSerializer::BYTES  => "bc",
+            BCSerializer::STRING => "bc.txt",
+        }
+    }
+}
 
-        enum Inputs<'a> { Empty, One(&'a PathBuf), Many(&'a [PathBuf]) }
-        let inputs = match self.inputs.len() {
-            0 => Inputs::Empty,
-            1 => Inputs::One(self.inputs.last().unwrap()),
-            _ => Inputs::Many(self.inputs.borrow()),
-        };
+impl std::str::FromStr for BCSerializer {
+    type Err = anyhow::Error;
 
-        let serializers = self.selected_ast_serializers();
-        // let extensions: Vec<String> = self.selected_ast_serializers()
-        //     .into_iter()
-        //     .map(|serializer| serializer.extension().to_owned())
-        //     .collect();
-
-        let mut map: HashMap<(Stream, ASTSerializer), Result<NamedSink>> = HashMap::new();
-        match (inputs, self.output_path.as_ref()) {
-            (Inputs::Empty, None) => {
-                for serializer in serializers {
-                    map.insert((Stream::Console, serializer), NamedSink::console());
-                }
-            },
-
-            (Inputs::One(input_path), None) => {
-                for serializer in serializers{
-                    let key = (Stream::from(input_path)?, serializer);
-                    map.insert(key, NamedSink::console());
-                }
-            },
-
-            (Inputs::Many(paths), None) => {
-                for serializer in serializers {
-                    for input_path in paths {
-                        let key = (Stream::from(input_path)?, serializer);
-                        map.insert(key, NamedSink::console());
-                    }
-                }
-            },
-
-            (Inputs::Empty, Some(output_path)) => {
-                let mut output_path = output_path.clone();
-                if output_path.is_dir() {
-                    output_path.push("ast");
-                }
-                for serializer in serializers {
-                    let key = (Stream::Console, serializer);
-                    let mut output_path = output_path.clone();
-                    output_path.set_extension(serializer.extension().to_owned());
-                    map.insert(key, NamedSink::from_file(&output_path));
-                }
-            }
-
-            (Inputs::One(path), Some(output_path)) => {
-                let mut output_path = output_path.clone();
-                if output_path.is_dir() {
-                    if let Some(filename) = path.file_name() {
-                        output_path.push(filename);
-                    } else {
-                        bail!("Cannot extract file name from path {:?}", path);
-                    }
-                }
-                for serializer in serializers {
-                    let key = (Stream::from(path)?, serializer);
-                    let mut output_path = output_path.clone();
-                    output_path.set_extension(serializer.extension().to_owned());
-                    map.insert(key, NamedSink::from_file(&output_path));
-                }
-            }
-
-            (Inputs::Many(paths), Some(dir)) if dir.is_dir() || !dir.exists() => {
-                create_dir_all(dir)?;
-                for path in paths {
-                    let mut output_path = dir.clone();
-                    if let Some(filename) = path.file_name() {
-                        output_path.push(filename);
-                    } else {
-                        bail!("Cannot extract file name from path {:?}", path);
-                    }
-                    for serializer in serializers.iter() {
-                        let key = (Stream::from(path)?, serializer.clone());
-                        let mut output_path = output_path.clone();
-                        output_path.set_extension(serializer.extension().to_owned());
-                        map.insert(key, NamedSink::from_file(&output_path));
-                    }
-                }
-            }
-
-            (Inputs::Many(paths), Some(output_path)) => {
-                bail!("Expected output path {:?} to be a directory since there are several inputs: {:?}.",
-                      output_path, paths)
-            }
-        };
-
-        return Ok(map);
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "bytes" | "bc" | "bytecode"                  => Ok(Self::BYTES),
+            "string" | "str" | "pp" | "pretty" | "print" => Ok(Self::STRING),
+            format => Err(anyhow::anyhow!("Unknown BC serialization format: {}", format))
+        }
     }
 }
 
@@ -209,12 +223,42 @@ impl ASTSerializer {
         };
         Ok(format!("{}\n",string))
     }
-    pub fn extension(&self) -> &str {
+    pub fn deserialize(&self, source: &str) -> Result<AST> {
+        match self {
+            ASTSerializer::LISP  => Ok(serde_lexpr::from_str(source)?),
+            ASTSerializer::JSON  => Ok(serde_json::from_str(source)?),
+            ASTSerializer::YAML  => Ok(serde_yaml::from_str(source)?),
+            ASTSerializer::INTERNAL => bail!("No deserializer implemented for Rust/INTERNAL format"),
+        }
+    }
+    pub fn extension(&self) -> &'static str {
         match self {
             ASTSerializer::LISP     => "lisp",
             ASTSerializer::JSON     => "json",
             ASTSerializer::YAML     => "yaml",
             ASTSerializer::INTERNAL => "internal",
+        }
+    }
+    pub fn from_extension(extension: &str) -> Option<Self> {
+        match extension.to_lowercase().as_str() {
+            "lisp" => Some(ASTSerializer::LISP),
+            "json" => Some(ASTSerializer::JSON),
+            "yaml" => Some(ASTSerializer::YAML),
+            _ => None,
+        }
+    }
+}
+
+impl std::str::FromStr for ASTSerializer {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "json"                          => Ok(Self::JSON),
+            "lisp" | "sexp" | "sexpr"       => Ok(Self::LISP),
+            "yaml"                          => Ok(Self::YAML),
+            "rust" | "internal" | "debug"   => Ok(Self::INTERNAL),
+
+            format => Err(anyhow::anyhow!("Unknown AST serialization format: {}", format))
         }
     }
 }
@@ -239,6 +283,12 @@ struct NamedSource {
     source: Box<dyn BufRead>
 }
 impl NamedSource {
+    fn from(maybe_file: Option<&PathBuf>) -> Result<NamedSource> {
+        match maybe_file {
+            Some(path) => NamedSource::from_file(path),
+            None => NamedSource::console(),
+        }
+    }
     fn console() -> Result<NamedSource> {
         let named_source = NamedSource {
             name: Stream::Console,
@@ -261,6 +311,15 @@ impl NamedSource {
         let mut string = String::new();
         self.source.read_to_string(&mut string)?;
         Ok(string)
+    }
+    fn extension(&self) -> Option<String> {
+        match &self.name {
+            Stream::File(file) => {
+                PathBuf::from(file).extension()
+                    .map(|s| s.to_str().unwrap().to_owned())
+            }
+            Stream::Console => None
+        }
     }
 }
 impl Read for NamedSource {
@@ -292,6 +351,12 @@ struct NamedSink {
     sink: Box<dyn Write>,
 }
 impl NamedSink {
+    fn from(maybe_file: Option<PathBuf>) -> Result<NamedSink> {
+        match maybe_file {
+            Some(path) => NamedSink::from_file(&path),
+            None => NamedSink::console(),
+        }
+    }
     fn console() -> Result<Self> {
         let named_sink = NamedSink {
             name: Stream::Console,
@@ -307,6 +372,15 @@ impl NamedSink {
             }).map_err(|error| anyhow!("Cannot open file for writing \"{}\": {}", name, error))
         } else {
             bail!("Cannot convert path into UTF string: {:?}", path)
+        }
+    }
+    fn extension(&self) -> Option<String> {
+        match &self.name {
+            Stream::File(file) => {
+                PathBuf::from(file).extension()
+                    .map(|s| s.to_str().unwrap().to_owned())
+            }
+            Stream::Console => None
         }
     }
 }
@@ -327,20 +401,6 @@ impl std::fmt::Debug for NamedSink {
             Stream::Console => f.write_str("stout"),
         }?;
         Ok(())
-    }
-}
-
-#[derive(Clap, Debug)]
-#[clap(version = "1.0", author = "Konrad Siek <konrad.siek@gmail.com>")]
-enum Action {
-    Parse(ParserAction)
-}
-
-impl Action {
-    pub fn execute(&self) {
-        match self {
-            Self::Parse(action) => action.parse()
-        }
     }
 }
 

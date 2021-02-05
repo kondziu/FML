@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 
-use crate::parser;
 use crate::parser::*;
 
 use super::types::*;
@@ -30,7 +29,7 @@ impl LocalFrame {
         LocalFrame { locals: HashMap::new(), scopes: vec!(0), scope_sequence: 0 }
     }
 
-    #[allow(dead_code)]
+
     fn from_locals(locals: Vec<String>) -> Self {
         let mut local_map: HashMap<(Scope, String), LocalFrameIndex> = HashMap::new();
 
@@ -41,7 +40,7 @@ impl LocalFrame {
         LocalFrame { locals: local_map, scopes: vec!(0), scope_sequence: 0 }
     }
 
-    #[allow(dead_code)]
+
     fn from_locals_at(locals: Vec<String>, level: usize) -> Self {
         let mut local_map: HashMap<(Scope, String), LocalFrameIndex> = HashMap::new();
 
@@ -85,9 +84,7 @@ impl LocalFrame {
     }
 
     fn has_local(&self, id: &str) -> bool {
-        //println!("    has local? ({:?}, {:?}) {} looking in {:?}", self.current_scope(), id.to_string(), self.locals.contains_key(&(self.current_scope(), id.to_string())), self.locals);
         for scope in self.scopes.iter().rev() {
-            println!("    scope {:?} ... {:?}", scope, self.scopes);
             if self.locals.contains_key(&(*scope, id.to_string())) {
                 return true;
             }
@@ -146,6 +143,7 @@ impl Bookkeeping {
         }
     }
 
+    #[allow(dead_code)]
     pub fn without_frame() -> Bookkeeping {
         Bookkeeping {
             frames: vec!(),
@@ -224,19 +222,15 @@ impl Bookkeeping {
     }
 
     fn has_local(&self, id: &str) -> bool {
-        println!("How many frames? {:?}", self.frames.len());
         match self.frames.last() {
             None => {
                 if self.top.in_outermost_scope() {
-                    println!("In outermost scope");
                     false
                 } else {
-                    println!("Not in outermost scope... {:?} has global? {}", self.top, self.top.has_local(id));
                     self.top.has_local(id)
                 }
             }
             Some(frame) => {
-                println!("Some(frame)... {:?} has local? {}", frame, frame.has_local(id));
                 frame.has_local(id)
             },
         }
@@ -300,7 +294,6 @@ pub trait Compiled {
 
 impl Compiled for AST {
     fn compile_into(&self, program: &mut Program, environment: &mut Bookkeeping, keep_result: bool) {
-        println!("AST: {:?}", self);
         match self {
             AST::Integer(value) => {
                 let constant = ProgramObject::Integer(*value);
@@ -341,7 +334,6 @@ impl Compiled for AST {
             }
 
             AST::AccessVariable { name: Identifier(name) } => {
-                println!("Has local? {:?} {}", name, environment.has_local(name));
                 if environment.has_local(name) {
                     let index = environment.register_local(name).clone();   // FIXME error if does not exists
                     program.emit_code(OpCode::GetLocal { index });      // FIXME scoping!!!
@@ -353,7 +345,6 @@ impl Compiled for AST {
             }
 
             AST::AssignVariable { name: Identifier(name), value } => {
-                println!("Has local? (mut) {:?} {}", name, environment.has_local(name));
                 if environment.has_local(name) {
                     let index = environment.register_local(name).clone(); // FIXME error if does not exists
                     value.deref().compile_into(program, environment, true);    // FIXME scoping!!!

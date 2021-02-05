@@ -3,12 +3,10 @@
 lalrpop_mod!(pub fml); // load module synthesized by LALRPOP
 
 mod parser;
-mod compiler;
+mod bytecode;
 
 use std::path::PathBuf;
-use std::collections::HashMap;
-use std::borrow::Borrow;
-use std::fs::{create_dir_all, File};
+use std::fs::File;
 use std::io::{Read, BufReader, BufRead, Write, BufWriter};
 
 use clap::Clap;
@@ -16,17 +14,18 @@ use anyhow::*;
 
 use crate::parser::AST;
 use crate::fml::TopLevelParser;
-use std::str::FromStr;
 
-use compiler::program::Program;
-use crate::compiler::serializable::Serializable;
+use crate::bytecode::program::Program;
+use crate::bytecode::serializable::Serializable;
+use crate::bytecode::interpreter;
 
 #[derive(Clap, Debug)]
 #[clap(version = "1.0", author = "Konrad Siek <konrad.siek@gmail.com>")]
 enum Action {
     Parse(ParserAction),
     Compile(CompilerAction),
-    //Run(Run),
+    Execute(BytecodeInterpreterAction),
+    Run(RunAction),
 }
 
 impl Action {
@@ -34,8 +33,24 @@ impl Action {
         match self {
             Self::Parse(action) => action.parse(),
             Self::Compile(action) => action.compile(),
+            Self::Execute(action) => action.interpret(),
+            Self::Run(action) => action.run(),
         }
     }
+}
+
+#[derive(Clap, Debug)]
+#[clap(about = "Run an FML program")]
+struct RunAction {
+    #[clap(name="FILE", parse(from_os_str))]
+    pub input: Option<PathBuf>,
+}
+
+#[derive(Clap, Debug)]
+#[clap(about = "Interpret FML bytecode")]
+struct BytecodeInterpreterAction {
+    #[clap(name="FILE", parse(from_os_str))]
+    pub input: Option<PathBuf>,
 }
 
 #[derive(Clap, Debug)]
@@ -95,6 +110,42 @@ macro_rules! prepare_file_path_from_input_and_serializer {
     }
 }
 
+
+impl RunAction {
+    pub fn run(&self) {
+        let source = self.selected_input()
+            .expect("Cannot open FML program.");
+
+        let ast: AST = TopLevelParser::new()
+            .parse(&source.into_string()
+            .expect("Error reading input"))
+            .expect("Parse error");
+
+        let program = bytecode::compile(&ast);
+        interpreter::evaluate(&program)
+    }
+
+    pub fn selected_input(&self) -> Result<NamedSource> {
+        NamedSource::from(self.input.as_ref())
+    }
+}
+
+impl BytecodeInterpreterAction {
+    pub fn interpret(&self) {
+        let mut source = self.selected_input()
+            .expect("Cannot open an input for the bytecode interpreter.");
+
+        let program = BCSerializer::BYTES.deserialize(&mut source)
+            .expect("Cannot parse bytecode from input.");
+
+        interpreter::evaluate(&program)
+    }
+
+    pub fn selected_input(&self) -> Result<NamedSource> {
+        NamedSource::from(self.input.as_ref())
+    }
+}
+
 impl CompilerAction {
     pub fn compile(&self) {
         let source = self.selected_input()
@@ -110,13 +161,10 @@ impl CompilerAction {
         let ast = input_serializer.deserialize(&source)
             .expect("Error parsing AST from input file");
 
-        let program = compiler::compile(&ast);
+        let program = bytecode::compile(&ast);
 
         output_serializer.serialize(&program, &mut sink)
             .expect("Cannot serialize program to output.");
-
-        // write!(sink, "{}", result)
-        //     .expect("Cannot write to output");
     }
 
     pub fn selected_input(&self) -> Result<NamedSource> {
@@ -168,7 +216,16 @@ impl ParserAction {
     }
 
     pub fn selected_output_format(&self) -> ASTSerializer {
-        self.format.unwrap_or(ASTSerializer::INTERNAL)
+        self.format.unwrap_or_else(|| {
+            self.output.as_ref()
+                .map(|path| path.extension())
+                .flatten()
+                .map(|extension| extension.to_str().map(|s| s.to_owned()))
+                .flatten()
+                .map(|extension| ASTSerializer::from_extension(extension.as_str()))
+                .flatten()
+                .unwrap_or(ASTSerializer::INTERNAL)
+        })
     }
 
     pub fn selected_output(&self) -> Result<NamedSink> {
@@ -189,6 +246,11 @@ impl BCSerializer {
             BCSerializer::STRING => unimplemented!(),
         }
     }
+
+    pub fn deserialize(&self, source: &mut NamedSource) -> Result<Program> {
+        Ok(Program::from_bytes(source))
+    }
+
     pub fn extension(&self) -> &'static str {
         match self {
             BCSerializer::BYTES  => "bc",
@@ -221,8 +283,9 @@ impl ASTSerializer {
             ASTSerializer::YAML  => serde_yaml::to_string(&ast)?,
             ASTSerializer::INTERNAL => format!("{:?}", ast),
         };
-        Ok(format!("{}\n",string))
+        Ok(format!("{}\n", string))
     }
+
     pub fn deserialize(&self, source: &str) -> Result<AST> {
         match self {
             ASTSerializer::LISP  => Ok(serde_lexpr::from_str(source)?),
@@ -231,6 +294,7 @@ impl ASTSerializer {
             ASTSerializer::INTERNAL => bail!("No deserializer implemented for Rust/INTERNAL format"),
         }
     }
+
     pub fn extension(&self) -> &'static str {
         match self {
             ASTSerializer::LISP     => "lisp",
@@ -239,6 +303,7 @@ impl ASTSerializer {
             ASTSerializer::INTERNAL => "internal",
         }
     }
+
     pub fn from_extension(extension: &str) -> Option<Self> {
         match extension.to_lowercase().as_str() {
             "lisp" => Some(ASTSerializer::LISP),
@@ -268,7 +333,9 @@ enum Stream {
     File(String),
     Console,
 }
+
 impl Stream {
+    #[allow(dead_code)]
     pub fn from(path: &PathBuf) -> Result<Self> {
         if let Some(str) = path.as_os_str().to_str() {
             Ok(Stream::File(str.to_owned()))
@@ -282,6 +349,7 @@ struct NamedSource {
     name: Stream,
     source: Box<dyn BufRead>
 }
+
 impl NamedSource {
     fn from(maybe_file: Option<&PathBuf>) -> Result<NamedSource> {
         match maybe_file {
@@ -322,11 +390,13 @@ impl NamedSource {
         }
     }
 }
+
 impl Read for NamedSource {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         self.source.read(buf)
     }
 }
+
 impl BufRead for NamedSource {
     fn fill_buf(&mut self) -> std::result::Result<&[u8], std::io::Error> {
         self.source.fill_buf()
@@ -335,6 +405,7 @@ impl BufRead for NamedSource {
         self.source.consume(amt)
     }
 }
+
 impl std::fmt::Debug for NamedSource {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str("<")?;
@@ -374,6 +445,8 @@ impl NamedSink {
             bail!("Cannot convert path into UTF string: {:?}", path)
         }
     }
+
+    #[allow(dead_code)]
     fn extension(&self) -> Option<String> {
         match &self.name {
             Stream::File(file) => {

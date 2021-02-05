@@ -18,12 +18,14 @@ impl Arity {
     }
 }
 impl Size {
-    #[allow(dead_code)] pub fn new(value: u16) -> Size {
+    #[allow(dead_code)]
+     pub fn new(value: u16) -> Size {
         Size(value)
     }
 }
 impl LocalFrameIndex {
-    #[allow(dead_code)] pub fn new(value: u16) -> LocalFrameIndex   {
+    #[allow(dead_code)]
+     pub fn new(value: u16) -> LocalFrameIndex   {
         LocalFrameIndex(value)
     }
 }
@@ -92,7 +94,6 @@ impl AddressRange {
 
 impl ConstantPoolIndex {
     pub fn read_cpi_vector<R: Read>(input: &mut R) -> Vec<ConstantPoolIndex> {
-        println!("ConstantPoolIndex::read_cpi_vector");
         serializable::read_u16_vector(input)
             .into_iter()
             .map(ConstantPoolIndex::new)
@@ -134,20 +135,20 @@ impl Serializable for Arity {
     }
 
     fn from_bytes<R: Read>(input: &mut R) -> Self {
-        println!("Arity::from_bytes");
         Arity(serializable::read_u8(input))
     }
 }
 
 impl Arity {
+
     #[allow(dead_code)]
     pub fn serialize_plus_one<W: Write> (&self, sink: &mut W) -> Result<()> {
         assert!(self.0 < 255u8);
         serializable::write_u8(sink, self.0 + 1)
     }
+
     #[allow(dead_code)]
     pub fn from_bytes_minus_one<R: Read>(input: &mut R) -> Self {
-        println!("Arity::from_bytes");
         let value = serializable::read_u8(input);
         assert!(value > 0);
         Arity(value - 1)
@@ -161,7 +162,6 @@ impl Serializable for Size {
     }
 
     fn from_bytes<R: Read>(input: &mut R) -> Self {
-        println!("Size::from_bytes");
         Size(serializable::read_u16(input))
     }
 }
@@ -171,7 +171,6 @@ impl Serializable for Address {
         serializable::write_u32(sink, self.0)
     }
     fn from_bytes<R: Read>(input: &mut R) -> Self {
-        println!("Address::from_bytes");
         Address(serializable::read_u32(input))
     }
 }
@@ -181,7 +180,6 @@ impl Serializable for ConstantPoolIndex {
         serializable::write_u16(sink, self.0)
     }
     fn from_bytes<R: Read>(input: &mut R) -> Self {
-        println!("ConstantPoolIndex::from_bytes");
         ConstantPoolIndex(serializable::read_u16(input))
     }
 }
@@ -191,7 +189,6 @@ impl Serializable for LocalFrameIndex {
         serializable::write_u16(sink, self.0)
     }
     fn from_bytes<R: Read>(input: &mut R) -> Self {
-        println!("LocalFrameIndex::from_bytes");
         LocalFrameIndex(serializable::read_u16(input))
     }
 }

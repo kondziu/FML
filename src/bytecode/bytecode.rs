@@ -265,31 +265,37 @@ pub enum OpCode {
 impl Serializable for OpCode {
 
     fn serialize<W: Write> (&self, sink: &mut W) -> anyhow::Result<()> {
-        serializable::write_u8(sink, self.to_hex());
+        serializable::write_u8(sink, self.to_hex())?;
 
         use OpCode::*;
         match self {
-            Label        { name                } => { name.serialize(sink)               },
-            Literal      { index               } => { index.serialize(sink)              },
-            Print        { format,   arguments } => { format.serialize(sink)?;
-                                                      arguments.serialize(sink)          },
-            Array                                => { Ok(())                                    },
-            Object       { class               } => { class.serialize(sink)              },
-            GetSlot      { name                } => { name.serialize(sink)               },
-            SetSlot      { name                } => { name.serialize(sink)               },
-            CallMethod   { name,     arguments } => { name.serialize(sink)?;
-                                                      arguments.serialize(sink)          },
-            CallFunction { name: function, arguments } => { function.serialize(sink)?;
-                                                      arguments.serialize(sink)          },
-            SetLocal     { index               } => { index.serialize(sink)              },
-            GetLocal     { index               } => { index.serialize(sink)              },
-            SetGlobal    { name                } => { name.serialize(sink)               },
-            GetGlobal    { name                } => { name.serialize(sink)               },
-            Branch       { label               } => { label.serialize(sink)              },
-            Jump         { label               } => { label.serialize(sink)              },
-            Return                               => {  Ok(())                                  },
-            Drop                                 => {  Ok(())                                  },
-            Skip                                 => {  Ok(())                                  },
+            Label { name } => { name.serialize(sink) },
+            Literal { index } => { index.serialize(sink) },
+            Print { format, arguments } => {
+                format.serialize(sink)?;
+                arguments.serialize(sink)
+            },
+            Array => { Ok(()) },
+            Object { class } => { class.serialize(sink) },
+            GetSlot { name } => { name.serialize(sink) },
+            SetSlot { name } => { name.serialize(sink) },
+            CallMethod { name, arguments } => {
+                name.serialize(sink)?;
+                arguments.serialize(sink)
+            },
+            CallFunction { name: function, arguments } => {
+                function.serialize(sink)?;
+                arguments.serialize(sink)
+            },
+            SetLocal { index } => { index.serialize(sink) },
+            GetLocal { index } => { index.serialize(sink) },
+            SetGlobal { name } => { name.serialize(sink) },
+            GetGlobal { name } => { name.serialize(sink) },
+            Branch { label } => { label.serialize(sink) },
+            Jump { label } => { label.serialize(sink) },
+            Return => { Ok(()) },
+            Drop => { Ok(()) },
+            Skip => { Ok(()) },
         }
     }
 
@@ -358,7 +364,7 @@ impl OpCode {
     }
 
     pub fn write_opcode_vector<W: Write>(sink: &mut W, vector: &Vec<&OpCode>) -> anyhow::Result<()> {
-        serializable::write_usize_as_u32(sink, vector.len());
+        serializable::write_usize_as_u32(sink, vector.len())?;
         for opcode in vector {
             opcode.serialize(sink)?;
         }

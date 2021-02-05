@@ -125,11 +125,11 @@ impl Code {
         self.opcodes.get(address.value_usize())
     }
 
-    pub fn dump(&self) { // TODO pretty print
-        for (i, opcode) in self.opcodes.iter().enumerate() {
-            println!("{}: {:?}", i, opcode);
-        }
-    }
+    // pub fn dump(&self) { // TODO pretty print
+    //     for (i, opcode) in self.opcodes.iter().enumerate() {
+    //         println!("{}: {:?}", i, opcode);
+    //     }
+    // }
 }
 
 #[derive(PartialEq,Debug,Clone)]
@@ -335,7 +335,7 @@ impl Program {
     }
 
     pub fn emit_code(&mut self, opcode: OpCode) {
-        println!("Emitting code: {:?}", opcode);
+        // println!("Emitting code: {:?}", opcode);
         match opcode {
             OpCode::Label {name: index} => {
                 let address = Address::from_usize(self.code.opcodes.len());
@@ -369,19 +369,17 @@ impl Program {
 impl Serializable for Program {
     fn serialize<W: Write>(&self, sink: &mut W) -> anyhow::Result<()> {
 
-        serializable::write_usize_as_u16(sink, self.constants.len());
+        serializable::write_usize_as_u16(sink, self.constants.len())?;
         for constant in self.constants.iter() {
             constant.serialize(sink, self.code())?;
         }
 
-        ConstantPoolIndex::write_cpi_vector(sink, &self.globals);
+        ConstantPoolIndex::write_cpi_vector(sink, &self.globals)?;
 
         self.entry.serialize(sink)
     }
 
     fn from_bytes<R: Read>(input: &mut R) -> Self {
-        println!("Program::from_bytes");
-
         let mut code = Code::new();
 
         let size = serializable::read_u16_as_usize(input);

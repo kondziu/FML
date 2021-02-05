@@ -118,7 +118,7 @@ impl ProgramObject {
 
 impl SerializableWithContext for ProgramObject {
     fn serialize<W: Write>(&self, sink: &mut W, code: &Code) -> anyhow::Result<()> {
-        serializable::write_u8(sink, self.tag());
+        serializable::write_u8(sink, self.tag())?;
         use ProgramObject::*;
         match &self {
             Null        => Ok(()),
@@ -129,16 +129,15 @@ impl SerializableWithContext for ProgramObject {
             Slot {name} => name.serialize(sink),
 
             Method {name, arguments, locals, code: range} => {
-                name.serialize(sink);
-                arguments.serialize(sink);
-                locals.serialize(sink);
+                name.serialize(sink)?;
+                arguments.serialize(sink)?;
+                locals.serialize(sink)?;
                 OpCode::write_opcode_vector(sink, &code.addresses_to_code_vector(range))
             }
         }
     }
 
     fn from_bytes<R: Read>(input: &mut R, code: &mut Code) -> Self {
-        println!("ProgramObject::from_bytes");
         let tag = serializable::read_u8(input);
         match tag {
             0x00 => ProgramObject::Integer(serializable::read_i32(input)),
@@ -157,6 +156,7 @@ impl SerializableWithContext for ProgramObject {
 }
 
 impl ProgramObject {
+
     #[allow(dead_code)]
     pub fn null() -> Self {
         ProgramObject::Null
@@ -216,6 +216,7 @@ impl Pointer {
 
 //pub type SharedRuntimeObject = Rc<RefCell<RuntimeObject>>;
 
+
 #[derive(PartialEq,Debug,Clone)]
 pub enum Object {
     Null,
@@ -231,8 +232,10 @@ pub enum Object {
 
 impl Object {
     pub fn from_pointers(v: Vec<Pointer>) -> Self { Object::Array(v)   }
-    pub fn from_i32(n :i32)               -> Self { Object::Integer(n) }
-    pub fn from_bool(b: bool)             -> Self { Object::Boolean(b) }
+
+    pub fn from_i32(n: i32) -> Self { Object::Integer(n) }
+
+    pub fn from_bool(b: bool) -> Self { Object::Boolean(b) }
 
     pub fn from_constant(constant: &ProgramObject) -> Self {
         match constant {
@@ -258,7 +261,7 @@ impl Object {
                 buffer.push('[');
                 for (i, e) in elements.iter().enumerate() {
                     buffer.push_str(&e.to_string());
-                    if i < elements.len() {
+                    if i < elements.len() - 1 {
                         buffer.push_str(", ")
                     }
                 }

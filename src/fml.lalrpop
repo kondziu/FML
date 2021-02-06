@@ -63,8 +63,28 @@ match {
 // Parser
 
 pub TopLevel: AST = {
-    <expressions: Expressions> => AST::top(expressions),
-                               => AST::top(vec![AST::null()]),
+    <expressions: TopLevelExpressions> => AST::top(expressions),
+                                       => AST::top(vec![]),
+}
+
+TopLevelExpressions: Vec<AST> = {
+    <element: TopLevelExpression<"open">> <elements: (SEMICOLON <TopLevelExpression<"open">>)*> SEMICOLON? => {
+        let mut all = VecDeque::from(elements);
+        all.push_front(element);
+        Vec::from(all)
+    }
+}
+
+TopLevelExpression<openness>: AST = {
+    FunctionDefinition<openness>      => <>, // Feeny-style function definition, returns unit?
+    ObjectDefinition                  => <>, // prototype object definition
+    Assignment<openness>              => <>, // Feenified variable definition
+    //Field                           => <>, // field access
+    Conditional<openness>             => <>, // conditional expression
+    Loop<openness>                    => <>, // loop expression
+    Mutation<openness>                => <>, // variable/object member mutation
+    Print                             => <>, // call to the print built-in
+    Operation                         => <>, // operations, but this also leads to Accessible
 }
 
 Expressions: Vec<AST> = {
@@ -76,7 +96,7 @@ Expressions: Vec<AST> = {
 }
 
 Expression<openness>: AST = {
-    FunctionDefinition<openness>      => <>, // Feeny-style function definition, returns unit?
+    //FunctionDefinition<openness>      => <>, // Feeny-style function definition, returns unit?
     ObjectDefinition                  => <>, // prototype object definition
     Assignment<openness>              => <>, // Feenified variable definition
     //Field                           => <>, // field access

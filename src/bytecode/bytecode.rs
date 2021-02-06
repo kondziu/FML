@@ -371,3 +371,46 @@ impl OpCode {
         Ok(())
     }
 }
+
+impl std::fmt::Display for OpCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OpCode::Literal { index } =>
+                write!(f, "lit {}", index),
+            OpCode::GetLocal { index } =>
+                write!(f, "get local {}", index),
+            OpCode::SetLocal { index } =>
+                write!(f, "set local {}", index),
+            OpCode::GetGlobal { name } =>
+                write!(f, "get global {}", name),
+            OpCode::SetGlobal { name } =>
+                write!(f, "set global {}", name),
+            OpCode::Object { class } =>
+                write!(f, "object {}", class),
+            OpCode::Array =>
+                write!(f, "array"),
+            OpCode::GetSlot { name } =>
+                write!(f, "get slot {}", name),
+            OpCode::SetSlot { name } =>
+                write!(f, "set slot {}", name),
+            OpCode::CallMethod { name, arguments } =>
+                write!(f, "call slot {} {}", name, arguments),
+            OpCode::CallFunction { name, arguments } =>
+                write!(f, "call {} {}", name, arguments),
+            OpCode::Print { format, arguments } =>
+                write!(f, "printf {} {}", format, arguments),
+            OpCode::Label { name } =>
+                write!(f, "label {}", name),
+            OpCode::Jump { label } =>
+                write!(f, "goto {}", label),
+            OpCode::Branch { label } =>
+                write!(f, "branch {}", label),
+            OpCode::Return =>
+                write!(f, "return"),
+            OpCode::Drop =>
+                write!(f, "drop"),
+            OpCode::Skip =>
+                write!(f, "nop"),
+        }
+    }
+}

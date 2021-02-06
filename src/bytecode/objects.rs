@@ -7,6 +7,7 @@ use super::bytecode::OpCode;
 
 use super::serializable;
 use super::serializable::*;
+use serde::__private::Formatter;
 
 #[derive(PartialEq,Debug,Clone)]
 pub enum ProgramObject {
@@ -102,19 +103,27 @@ impl ProgramObject {
     }
 }
 
-// impl std::fmt::Display for ProgramObject {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             ProgramObject::Integer(n) => write!(f, "{}", n),
-//             ProgramObject::Boolean(b) => write!(f, "{}", b),
-//             ProgramObject::Null => write!(f, "null"),
-//             ProgramObject::String(s) => write!(f, "\"{}\"", s),
-//             ProgramObject::Slot { name } => write!(f, "slot {}", name),
-//             ProgramObject::Method { .. } => write!(f, "method"),
-//             ProgramObject::Class(_) => write!(f, "class"),
-//         }
-//     }
-// }
+impl std::fmt::Display for ProgramObject {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProgramObject::Integer(n) => write!(f, "{}", n),
+            ProgramObject::Boolean(b) => write!(f, "{}", b),
+            ProgramObject::Null => write!(f, "null"),
+            ProgramObject::String(s) => write!(f, "\"{}\"", s),
+            ProgramObject::Slot { name } => write!(f, "slot {}", name),
+            ProgramObject::Method { name, locals, arguments, code } => {
+                write!(f, "method {} args:{} locals:{} {}", name, arguments, locals, code)
+            },
+            ProgramObject::Class(members) => {
+                let members = members.iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<String>>()
+                    .join(",");
+                write!(f, "class {}", members)
+            },
+        }
+    }
+}
 
 impl SerializableWithContext for ProgramObject {
     fn serialize<W: Write>(&self, sink: &mut W, code: &Code) -> anyhow::Result<()> {
@@ -208,9 +217,11 @@ impl Pointer {
     pub fn from(p: usize) -> Self {
         Pointer(p)
     }
+}
 
-    pub fn to_string(&self) -> String {
-        format!("{:x}", self.0)
+impl std::fmt::Display for Pointer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{:x>8}", self.0)
     }
 }
 
@@ -249,43 +260,44 @@ impl Object {
     pub fn from(parent: Pointer, fields: HashMap<String, Pointer>, methods: HashMap<String, ProgramObject>) -> Self {
         Object::Object { parent, fields, methods }
     }
+}
 
-    #[allow(dead_code)]
-    pub fn to_string(&self) -> String {
+impl std::fmt::Display for Object {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Object::Null => "null".to_string(),
-            Object::Integer(n) => n.to_string(),
-            Object::Boolean(b) => b.to_string(),
+            Object::Null => write!(f, "null"),
+            Object::Integer(n) => write!(f, "{}", n),
+            Object::Boolean(b) => write!(f, "{}", b),
             Object::Array(elements) => {
                 let mut buffer = String::new();
-                buffer.push('[');
                 for (i, e) in elements.iter().enumerate() {
                     buffer.push_str(&e.to_string());
                     if i < elements.len() - 1 {
                         buffer.push_str(", ")
                     }
                 }
-                buffer.push(']');
-                buffer
+                write!(f, "[{}]", buffer)
             },
             Object::Object { parent, fields, methods:_ } => {
-                let mut buffer = String::from("object(");
+                // let mut buffer = String::new();
 
-                buffer.push_str("..=");
-                buffer.push_str(&parent.to_string());
-                buffer.push_str(", ");
+                // buffer.push_str("..=");
+                // buffer.push_str(&parent.to_string());
+                // buffer.push_str(", ");
+                //
+                // for (i, (name, field)) in fields.iter().enumerate() {
+                //     buffer.push_str(name);
+                //     buffer.push_str("=");
+                //     buffer.push_str(&field.to_string());
+                //     if i < fields.len() - 1 {
+                //         buffer.push_str(", ")
+                //     }
+                // }
 
-                for (i, (name, field)) in fields.iter().enumerate() {
-                    buffer.push_str(name);
-                    buffer.push_str("=");
-                    buffer.push_str(&field.to_string());
-                    if i < fields.len() {
-                        buffer.push_str(", ")
-                    }
-                }
-
-                buffer.push_str(")");
-                buffer
+                write!(f, "object(..={}, {})", parent, fields.iter()
+                    .map(|(name, field)| format!("{}={}", name, field))
+                    .collect::<Vec<String>>()
+                    .join(","))
             }
         }
     }

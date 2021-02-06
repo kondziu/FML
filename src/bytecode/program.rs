@@ -89,6 +89,12 @@ impl Code {
         Code { opcodes }
     }
 
+    pub fn all_opcodes(&self) -> Vec<(Address, OpCode)> {
+        self.opcodes.iter().enumerate().map(|(i, opcode)| {
+            (Address::from_usize(i), opcode.clone())
+        }).collect()
+    }
+
     pub fn register_opcodes(&mut self, opcodes: Vec<OpCode>) -> AddressRange {
         let start = self.opcodes.len();
         let length = opcodes.len();

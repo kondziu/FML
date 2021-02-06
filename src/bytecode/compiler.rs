@@ -512,9 +512,9 @@ impl Compiled for AST {
 
             AST::Operator { operator, parameters, body } => {
                 let name = operator.as_str();
-                let end_label_index = unpack!((_) from program.generate_new_label_names(vec!["function_guard"])); // FIXME merge with FunctionDefinition
+                //let end_label_index = unpack!((_) from program.generate_new_label_names(vec!["function_guard"])); // FIXME merge with FunctionDefinition
 
-                program.emit_code(OpCode::Jump { label: end_label_index });
+                //program.emit_code(OpCode::Jump { label: end_label_index });
                 let start_address = program.get_upcoming_address();
 
                 environment.add_frame();
@@ -528,7 +528,7 @@ impl Compiled for AST {
                 environment.remove_frame();
 
                 program.emit_code(OpCode::Return);
-                program.emit_code(OpCode::Label { name: end_label_index });
+                //program.emit_code(OpCode::Label { name: end_label_index });
                 let end_address = program.get_current_address();
 
                 let name = ProgramObject::String(name.to_string());
@@ -544,9 +544,10 @@ impl Compiled for AST {
             }
 
             AST::Function { name: Identifier(name), parameters, body } => {
-                let end_label_index = unpack!((_) from program.generate_new_label_names(vec!["function_guard"]));
+                // Since the functions are only allowed at top level, the guards are no longer needed
+                // let end_label_index = unpack!((_) from program.generate_new_label_names(vec!["function_guard"]));
 
-                program.emit_code(OpCode::Jump { label: end_label_index });
+                //program.emit_code(OpCode::Jump { label: end_label_index });
                 let start_address = program.get_upcoming_address();
 
                 environment.add_frame();
@@ -560,7 +561,9 @@ impl Compiled for AST {
                 environment.remove_frame();
 
                 program.emit_code(OpCode::Return);
-                program.emit_code(OpCode::Label { name: end_label_index });
+
+                // Since the functions are only allowed at top level, the guards are no longer needed
+                // program.emit_code(OpCode::Label { name: end_label_index });
                 let end_address = program.get_current_address();
 
                 let name = ProgramObject::String(name.to_string());
@@ -573,7 +576,7 @@ impl Compiled for AST {
                     code: AddressRange::from_addresses(start_address, end_address),
                 };
                 let constant = program.register_constant(method);
-                program.register_global(constant)  // FIXME local functions should not be visible globally
+                program.register_global(constant)
             }
 
             AST::CallFunction { name: Identifier(name), arguments } => {
@@ -672,10 +675,14 @@ impl Compiled for AST {
             }
 
             AST::Top (children) => {
-                let (function_name_index, end_label_index )
-                    = unpack!((_,_) from program.generate_new_label_names(vec!["^", "$"]));
+                // let (function_name_index, end_label_index )
+                //     = unpack!((_,_) from program.generate_new_label_names(vec!["^", "$"]));
 
-                program.emit_code(OpCode::Jump { label: end_label_index });
+                let function_name_index=
+                    //unpack!((_) from program.generate_new_label_names(vec!["::main::"]));
+                    program.register_constant(ProgramObject::from_string("::main::".to_owned()));
+
+                // program.emit_code(OpCode::Jump { label: end_label_index });
                 let start_address = program.get_upcoming_address();
 
                 let children_count = children.len();
@@ -685,7 +692,7 @@ impl Compiled for AST {
                     // TODO could be cute to pop exit status off of stack
                 }
 
-                program.emit_code(OpCode::Label { name: end_label_index });
+                // program.emit_code(OpCode::Label { name: end_label_index });
                 let end_address = program.get_current_address();
 
                 let method = ProgramObject::Method {
@@ -709,9 +716,9 @@ fn compile_function_definition(name: &str,
                                program: &mut Program,
                                environment: &mut Bookkeeping) -> ConstantPoolIndex {
 
-    let end_label_index =
-        unpack!((_) from program.generate_new_label_names(vec!["function_guard"]));
-    program.emit_code(OpCode::Jump { label: end_label_index });
+    //let end_label_index =
+    //    unpack!((_) from program.generate_new_label_names(vec!["function_guard"]));
+    //program.emit_code(OpCode::Jump { label: end_label_index });
 
     let expected_arguments = parameters.len() + if receiver { 1 } else { 0 };
 
@@ -735,7 +742,7 @@ fn compile_function_definition(name: &str,
     program.emit_code(OpCode::Return);
     let end_address = program.get_current_address();
 
-    program.emit_code(OpCode::Label { name: end_label_index });
+    //program.emit_code(OpCode::Label { name: end_label_index });
 
     let name = ProgramObject::String(name.to_string());
     let name_index = program.register_constant(name);

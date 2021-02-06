@@ -192,3 +192,40 @@ impl Serializable for LocalFrameIndex {
         LocalFrameIndex(serializable::read_u16(input))
     }
 }
+
+impl std::fmt::Display for Address {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{number:>0width$}", number=self.0, width=4)
+    }
+}
+
+impl std::fmt::Display for ConstantPoolIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "#{}", self.0)
+    }
+}
+
+impl std::fmt::Display for LocalFrameIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "::{}", self.0)
+    }
+}
+
+impl std::fmt::Display for Arity {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Display for Size {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Display for AddressRange {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}-{}", self.start,
+               Address::from_usize(self.start.value_usize() + self.length - 1))
+    }
+}

@@ -64,7 +64,7 @@ match {
 
 pub TopLevel: AST = {
     <expressions: TopLevelExpressions> => AST::top(expressions),
-                                       => AST::top(vec![]),
+                                       => AST::top(vec![AST::null()]),
 }
 
 TopLevelExpressions: Vec<AST> = {

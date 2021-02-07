@@ -89,6 +89,7 @@ impl Code {
         Code { opcodes }
     }
 
+    #[allow(dead_code)]
     pub fn all_opcodes(&self) -> Vec<(Address, OpCode)> {
         self.opcodes.iter().enumerate().map(|(i, opcode)| {
             (Address::from_usize(i), opcode.clone())

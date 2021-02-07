@@ -318,16 +318,16 @@ impl Compiled for AST {
 
             AST::Variable { name: Identifier(name), value } => {
                 if environment.has_frame() {
+                    value.deref().compile_into(program, environment, true); // FIXME scoping!!!
                     let index = environment.register_new_local(name)
                         .expect(&format!("Cannot register new variable {}", &name))
-                        .clone();   // FIXME error if not new
-                    value.deref().compile_into(program, environment, true);    // FIXME scoping!!!
+                        .clone(); // FIXME error if not new
                     program.emit_code(OpCode::SetLocal { index });
 
                 } else {
-                    let index = program.register_constant(ProgramObject::from_str(name));
                     environment.register_global(name);                  // TODO necessary?
                     value.deref().compile_into(program, environment, true);
+                    let index = program.register_constant(ProgramObject::from_str(name));
                     program.emit_code(OpCode::SetGlobal { name: index });
                 }
                 program.emit_conditionally(OpCode::Drop, !keep_result);
@@ -714,9 +714,9 @@ fn compile_function_definition(name: &str,
                                program: &mut Program,
                                environment: &mut Bookkeeping) -> ConstantPoolIndex {
 
-    //let end_label_index =
-    //    unpack!((_) from program.generate_new_label_names(vec!["function_guard"]));
-    //program.emit_code(OpCode::Jump { label: end_label_index });
+    let end_label_index =
+        unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
+    program.emit_code(OpCode::Jump { label: end_label_index });
 
     let expected_arguments = parameters.len() + if receiver { 1 } else { 0 };
 
@@ -740,7 +740,7 @@ fn compile_function_definition(name: &str,
     program.emit_code(OpCode::Return);
     let end_address = program.get_current_address();
 
-    //program.emit_code(OpCode::Label { name: end_label_index });
+    program.emit_code(OpCode::Label { name: end_label_index });
 
     let name = ProgramObject::String(name.to_string());
     let name_index = program.register_constant(name);

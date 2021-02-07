@@ -269,35 +269,18 @@ impl std::fmt::Display for Object {
             Object::Integer(n) => write!(f, "{}", n),
             Object::Boolean(b) => write!(f, "{}", b),
             Object::Array(elements) => {
-                let mut buffer = String::new();
-                for (i, e) in elements.iter().enumerate() {
-                    buffer.push_str(&e.to_string());
-                    if i < elements.len() - 1 {
-                        buffer.push_str(", ")
-                    }
-                }
-                write!(f, "[{}]", buffer)
+                write!(f, "[{}]", {
+                    elements.iter()
+                        .map(|p| p.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                })
             },
             Object::Object { parent, fields, methods:_ } => {
-                // let mut buffer = String::new();
-
-                // buffer.push_str("..=");
-                // buffer.push_str(&parent.to_string());
-                // buffer.push_str(", ");
-                //
-                // for (i, (name, field)) in fields.iter().enumerate() {
-                //     buffer.push_str(name);
-                //     buffer.push_str("=");
-                //     buffer.push_str(&field.to_string());
-                //     if i < fields.len() - 1 {
-                //         buffer.push_str(", ")
-                //     }
-                // }
-
                 write!(f, "object(..={}, {})", parent, fields.iter()
                     .map(|(name, field)| format!("{}={}", name, field))
                     .collect::<Vec<String>>()
-                    .join(","))
+                    .join(", "))
             }
         }
     }

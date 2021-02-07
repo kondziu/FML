@@ -230,35 +230,27 @@ impl Memory {
             Object::Integer(n) => n.to_string(),
             Object::Boolean(b) => b.to_string(),
             Object::Array(elements) => {
-                let mut buffer = String::new();
-                buffer.push('[');
-                for (i, e) in elements.iter().enumerate() {
-                    buffer.push_str(&self.dereference_to_string(e));
-                    if i < elements.len() {
-                        buffer.push_str(", ")
-                    }
-                }
-                buffer.push(']');
-                buffer
+                let element_string = elements.iter()
+                    .map(|p| self.dereference_to_string(p))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+
+                format!("[{}]", element_string)
             },
             Object::Object { parent, fields, methods:_ } => {
-                let mut buffer = String::from("object(");
-
-                buffer.push_str("..=");
-                buffer.push_str(&self.dereference_to_string(parent));
-                buffer.push_str(", ");
-
-                for (i, (name, field)) in fields.iter().enumerate() {
-                    buffer.push_str(name);
-                    buffer.push_str("=");
-                    buffer.push_str(&self.dereference_to_string(field));
-                    if i < fields.len() {
-                        buffer.push_str(", ")
-                    }
-                }
-
-                buffer.push_str(")");
-                buffer
+                let parent_string = self.dereference_to_string(parent);
+                let parent_string = if parent_string == "null" {
+                    String::new()
+                } else {
+                    format!("..={}, ", parent_string)
+                };
+                let fields_string = fields.iter()
+                    .map(|(name, field)| {
+                        format!("{}={}", name, self.dereference_to_string(field))
+                    })
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                format!("object({}{})", parent_string, fields_string)
             }
         }
     }
@@ -542,7 +534,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
     };
 
     //eprintln!("{ :<width$}", "-", width=80);
-
+/*
     eprintln!("| {: <code$} |", "CODE", code=30);
     for (address, opcode) in program.code().all_opcodes() {
         let here = if state.instruction_pointer().unwrap() == address { "*" } else { " " };
@@ -567,7 +559,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
     for (i, pointer) in state.operands.iter().enumerate() {
         eprintln!("| {: >4} {} |", i, pointer);
     }
-    eprintln!();
+    eprintln!();*/
 
     match opcode {
         OpCode::Literal { index } => {

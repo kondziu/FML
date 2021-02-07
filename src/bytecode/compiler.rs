@@ -48,7 +48,7 @@ impl LocalFrame {
             local_map.insert((level, local), LocalFrameIndex::from_usize(i));
         }
 
-        LocalFrame { locals: local_map, scopes: vec!(0), scope_sequence: 0 }
+        LocalFrame { locals: local_map, scopes: vec!(0), scope_sequence: level + 1 }
     }
 
     fn current_scope(&self) -> Scope {

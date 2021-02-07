@@ -151,7 +151,7 @@ impl Labels {
     }
     pub fn from(labels: HashMap<String, Address>) -> Self {
         let groups = labels.iter().flat_map(|(label, _)| {
-            label.split("_").last().map(|s| {
+            label.split(":").last().map(|s| {
                 s.parse::<usize>().map_or(None, |n| Some(n))
             }).flatten()
         }).max().map_or(0, |n| n + 1);

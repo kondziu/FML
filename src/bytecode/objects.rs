@@ -125,6 +125,28 @@ impl std::fmt::Display for ProgramObject {
     }
 }
 
+// impl Serializable for ProgramObject {
+//     fn serialize<W: Write>(&self, sink: &mut W) -> anyhow::Result<()> {
+//         serializable::write_u8(sink, self.tag())?;
+//         use ProgramObject::*;
+//         match &self {
+//             Null        => Ok(()),
+//             Integer(n)  => serializable::write_i32(sink, *n),
+//             Boolean(b)  => serializable::write_bool(sink, *b),
+//             String(s)   => serializable::write_utf8(sink, s),
+//             Class(v)    => ConstantPoolIndex::write_cpi_vector(sink, v),
+//             Slot {name} => name.serialize(sink),
+//
+//             Method {name, arguments, locals, code: range} => {
+//                 name.serialize(sink)?;
+//                 arguments.serialize(sink)?;
+//                 locals.serialize(sink)?;
+//                 OpCode::write_opcode_vector(sink, &code.addresses_to_code_vector(range))
+//             }
+//         }
+//     }
+// }
+
 impl SerializableWithContext for ProgramObject {
     fn serialize<W: Write>(&self, sink: &mut W, code: &Code) -> anyhow::Result<()> {
         serializable::write_u8(sink, self.tag())?;

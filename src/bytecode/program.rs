@@ -157,7 +157,7 @@ impl Labels {
         Labels { labels, groups }
     }
     pub fn generate_label<S>(&mut self, name: S) -> Option<String> where S: Into<String> {
-        let label = format!("{}_{}", name.into(), self.groups);
+        let label = format!("{}:{}", name.into(), self.groups);
         if self.labels.contains_key(&label) {
             None
         } else {

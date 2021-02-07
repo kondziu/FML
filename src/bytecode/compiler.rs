@@ -360,7 +360,7 @@ impl Compiled for AST {
 
             AST::Conditional { condition, consequent, alternative } => {
                 let (consequent_label_index, end_label_index) =
-                    unpack!((_,_) from program.generate_new_label_names(vec!["if_consequent", "if_end"]));
+                    unpack!((_,_) from program.generate_new_label_names(vec!["if:consequent", "if:end"]));
 
                 (**condition).compile_into(program, environment, true);
                 program.emit_code(OpCode::Branch { label: consequent_label_index} );
@@ -373,7 +373,7 @@ impl Compiled for AST {
 
             AST::Loop { condition, body } => {
                 let (body_label_index, condition_label_index)
-                    = unpack!((_,_) from program.generate_new_label_names(vec!["loop_body", "loop_condition"]));
+                    = unpack!((_,_) from program.generate_new_label_names(vec!["loop:body", "loop:condition"]));
 
                 program.emit_code(OpCode::Jump { label: condition_label_index });
                 program.emit_code(OpCode::Label { name: body_label_index });
@@ -512,9 +512,9 @@ impl Compiled for AST {
 
             AST::Operator { operator, parameters, body } => {
                 let name = operator.as_str();
-                //let end_label_index = unpack!((_) from program.generate_new_label_names(vec!["function_guard"])); // FIXME merge with FunctionDefinition
+                let end_label_index = unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
 
-                //program.emit_code(OpCode::Jump { label: end_label_index });
+                program.emit_code(OpCode::Jump { label: end_label_index });
                 let start_address = program.get_upcoming_address();
 
                 environment.add_frame();
@@ -528,7 +528,7 @@ impl Compiled for AST {
                 environment.remove_frame();
 
                 program.emit_code(OpCode::Return);
-                //program.emit_code(OpCode::Label { name: end_label_index });
+                program.emit_code(OpCode::Label { name: end_label_index });
                 let end_address = program.get_current_address();
 
                 let name = ProgramObject::String(name.to_string());
@@ -544,10 +544,9 @@ impl Compiled for AST {
             }
 
             AST::Function { name: Identifier(name), parameters, body } => {
-                // Since the functions are only allowed at top level, the guards are no longer needed
-                // let end_label_index = unpack!((_) from program.generate_new_label_names(vec!["function_guard"]));
+                let end_label_index = unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
 
-                //program.emit_code(OpCode::Jump { label: end_label_index });
+                program.emit_code(OpCode::Jump { label: end_label_index });
                 let start_address = program.get_upcoming_address();
 
                 environment.add_frame();
@@ -562,8 +561,7 @@ impl Compiled for AST {
 
                 program.emit_code(OpCode::Return);
 
-                // Since the functions are only allowed at top level, the guards are no longer needed
-                // program.emit_code(OpCode::Label { name: end_label_index });
+                program.emit_code(OpCode::Label { name: end_label_index });
                 let end_address = program.get_current_address();
 
                 let name = ProgramObject::String(name.to_string());
@@ -680,7 +678,7 @@ impl Compiled for AST {
 
                 let function_name_index=
                     //unpack!((_) from program.generate_new_label_names(vec!["::main::"]));
-                    program.register_constant(ProgramObject::from_string("::main::".to_owned()));
+                    program.register_constant(ProgramObject::from_string("λ:".to_owned()));
 
                 // program.emit_code(OpCode::Jump { label: end_label_index });
                 let start_address = program.get_upcoming_address();

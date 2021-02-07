@@ -21,12 +21,12 @@ pub enum AST {
     AssignArray { array: Box<AST>, index: Box<AST>, value: Box<AST> },
 
     Function { name: Identifier, parameters: Vec<Identifier>, body: Box<AST> },
-    Operator { operator: Operator, parameters: Vec<Identifier>, body: Box<AST> },    // TODO Consider merging with function
+    //Operator { operator: Operator, parameters: Vec<Identifier>, body: Box<AST> },    // TODO Consider merging with function
 
     CallFunction { name: Identifier, arguments: Vec<Box<AST>> },
     CallMethod { object: Box<AST>, name: Identifier, arguments: Vec<Box<AST>> },
-    CallOperator { object: Box<AST>, operator: Operator, arguments: Vec<Box<AST>> }, // TODO Consider removing
-    Operation { operator: Operator, left: Box<AST>, right: Box<AST> },               // TODO Consider removing
+    //CallOperator { object: Box<AST>, operator: Operator, arguments: Vec<Box<AST>> }, // TODO Consider removing
+    //Operation { operator: Operator, left: Box<AST>, right: Box<AST> },               // TODO Consider removing
 
     Top (Vec<Box<AST>>),
     Block (Vec<Box<AST>>),
@@ -94,12 +94,12 @@ impl AST {
     }
 
     pub fn function(name: Identifier, parameters: Vec<Identifier>, body: AST) -> Self {
-        Self::Function { name, parameters, body: body.into_boxed()}
+        Self::Function { name, parameters, body: body.into_boxed() }
     }
 
     pub fn operator(operator: Operator, parameters: Vec<Identifier>, body: AST) -> Self {
-        Self::Operator { operator, parameters, body: body.into_boxed()}
-    } // TODO Consider merging with function
+        Self::Function { name: Identifier::from(operator), parameters, body: body.into_boxed() }
+    }
 
     pub fn call_function(name: Identifier, arguments: Vec<AST>) -> Self {
         Self::CallFunction { name, arguments: arguments.into_boxed() }
@@ -113,16 +113,21 @@ impl AST {
     }
 
     pub fn call_operator(object: AST, operator: Operator, arguments: Vec<AST>) -> Self {
-        Self::CallOperator {
+        Self::CallMethod {
             object: object.into_boxed(),
-            operator,
+            name: Identifier::from(operator),
             arguments: arguments.into_boxed()
         }
-    } // TODO Consider removing
+    }
 
     pub fn operation(operator: Operator, left: AST, right: AST) -> Self {
-        Self::Operation { operator, left: left.into_boxed(), right: right.into_boxed() }
-    } // TODO Consider removing
+        //Self::Operation { operator, left: left.into_boxed(), right: right.into_boxed() }
+        Self::CallMethod {
+            object: left.into_boxed(),
+            name: Identifier::from(operator),
+            arguments: vec![right.into_boxed()]
+        }
+    }
 
     pub fn top (statements: Vec<AST>) -> Self {
         Self::Top(statements.into_boxed())
@@ -151,6 +156,12 @@ impl AST {
 
 #[derive(PartialEq,Eq,Hash,Debug,Clone,Serialize,Deserialize)]
 pub struct Identifier(pub String);
+
+impl From<Operator> for Identifier {
+    fn from(op: Operator) -> Self {
+        Identifier(op.to_string())
+    }
+}
 
 impl From<&str> for Identifier {
     fn from(s: &str) -> Self {
@@ -262,7 +273,7 @@ impl AST {
     pub fn from_binary_expression(first_operand: AST, other_operators_and_operands: Vec<(Operator, AST)>) -> Self {
         other_operators_and_operands.into_iter()
             .fold(first_operand, |left, (operator, right)| {
-                AST::Operation { operator, left: Box::new(left), right: Box::new(right) }
+                AST::operation(operator, left, right)
             })
     }
 }

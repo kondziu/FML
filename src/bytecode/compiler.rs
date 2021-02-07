@@ -404,63 +404,51 @@ impl Compiled for AST {
                         let array_id = Identifier::from("::array");
 
                         // let ::size = eval SIZE;
-                        let size_definition = AST::Variable {
-                            name: size_id.clone(), value: size.clone(),
-                        };
+                        let size_definition =
+                            AST::variable(size_id.clone(), *size.clone());
 
                         // let ::array = array(::size, null);
-                        let array_definition = AST::Variable {
-                            name: array_id.clone(),
-                            value: Box::new(AST::Array {
-                                size: Box::new(AST::AccessVariable { name: size_id.clone() }),
-                                value: Box::new(AST::Null),
-                            })
-                        };
+                        let array_definition = AST::variable(
+                            array_id.clone(),
+                            AST::array(
+                                AST::access_variable(size_id.clone()),
+                                AST::null()));
 
                         // let ::i = 0;
-                        let i_definition = AST::Variable {
-                            name: i_id.clone(), value: Box::new(AST::Integer(0)),
-                        };
+                        let i_definition = AST::variable(
+                            i_id.clone(), AST::integer(0));
 
                         // ::array[::i] <- eval VALUE;
-                        let set_array = AST::AssignArray {
-                            array: Box::new(AST::AccessVariable { name: array_id.clone() }),
-                            index: Box::new(AST::AccessVariable { name: i_id.clone() }),
-                            value: value.clone(),
-                        };
+                        let set_array = AST::assign_array(
+                            AST::access_variable(array_id.clone()),
+                            AST::access_variable(i_id.clone()),
+                            *value.clone());
 
                         // ::i <- ::i + 1;
-                        let increment_i = AST::AssignVariable {
-                            name: i_id.clone(),
-                            value: Box::new(AST::Operation {
-                                operator: Operator::Addition,
-                                left: Box::new(AST::AccessVariable { name: i_id.clone() }),
-                                right: Box::new(AST::Integer(1) )
-                            })
-                        };
+                        let increment_i = AST::assign_variable(
+                            i_id.clone(),
+                            AST::operation(
+                                Operator::Addition,
+                                AST::access_variable(i_id.clone()),
+                                AST::Integer(1)));
 
                         // ::i < ::size
-                        let comparison = AST::Operation {
-                            operator: Operator::Less,
-                            left: Box::new(AST::AccessVariable { name: i_id }),
-                            right: Box::new(AST::AccessVariable { name: size_id }),
-                        };
+                        let comparison = AST::operation(
+                            Operator::Less,
+                            AST::access_variable(i_id),
+                            AST::access_variable(size_id));
 
                         // while ::i < ::size do
                         // begin
                         //   ::array[::i] <- eval VALUE;
                         //   ::i <- ::i + 1;
                         // end;
-                        let loop_de_loop = AST::Loop {
-                            condition: Box::new(comparison),
-                            body: Box::new(AST::Block(vec![
-                                Box::new(set_array),
-                                Box::new(increment_i),
-                            ]))
-                        };
+                        let loop_de_loop = AST::loop_de_loop(
+                            comparison,
+                            AST::block(vec![set_array, increment_i]));
 
                         // ::array
-                        let array = AST::AccessVariable { name: array_id };
+                        let array = AST::access_variable(array_id);
 
                         // let ::size = eval SIZE;
                         // let ::array = array(::size, null);
@@ -510,38 +498,38 @@ impl Compiled for AST {
                 program.emit_conditionally(OpCode::Drop, !keep_result);
             }
 
-            AST::Operator { operator, parameters, body } => {
-                let name = operator.as_str();
-                let end_label_index = unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
-
-                program.emit_code(OpCode::Jump { label: end_label_index });
-                let start_address = program.get_upcoming_address();
-
-                environment.add_frame();
-                for parameter in parameters.into_iter() {
-                    environment.register_local(parameter.as_str());
-                }
-
-                (**body).compile_into(program, environment, true);
-
-                let locals_in_frame = environment.count_locals();
-                environment.remove_frame();
-
-                program.emit_code(OpCode::Return);
-                program.emit_code(OpCode::Label { name: end_label_index });
-                let end_address = program.get_current_address();
-
-                let name = ProgramObject::String(name.to_string());
-                let name_index = program.register_constant(name);
-
-                let method = ProgramObject::Method {
-                    name: name_index,
-                    locals: Size::from_usize(locals_in_frame - parameters.len()),
-                    arguments: Arity::from_usize(parameters.len()),
-                    code: AddressRange::from_addresses(start_address, end_address),
-                };
-                program.register_constant(method);
-            }
+            // AST::Operator { operator, parameters, body } => {
+            //     let name = operator.as_str();
+            //     let end_label_index = unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
+            //
+            //     program.emit_code(OpCode::Jump { label: end_label_index });
+            //     let start_address = program.get_upcoming_address();
+            //
+            //     environment.add_frame();
+            //     for parameter in parameters.into_iter() {
+            //         environment.register_local(parameter.as_str());
+            //     }
+            //
+            //     (**body).compile_into(program, environment, true);
+            //
+            //     let locals_in_frame = environment.count_locals();
+            //     environment.remove_frame();
+            //
+            //     program.emit_code(OpCode::Return);
+            //     program.emit_code(OpCode::Label { name: end_label_index });
+            //     let end_address = program.get_current_address();
+            //
+            //     let name = ProgramObject::String(name.to_string());
+            //     let name_index = program.register_constant(name);
+            //
+            //     let method = ProgramObject::Method {
+            //         name: name_index,
+            //         locals: Size::from_usize(locals_in_frame - parameters.len()),
+            //         arguments: Arity::from_usize(parameters.len()),
+            //         code: AddressRange::from_addresses(start_address, end_address),
+            //     };
+            //     program.register_constant(method);
+            // }
 
             AST::Function { name: Identifier(name), parameters, body } => {
                 let end_label_index = unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
@@ -596,11 +584,11 @@ impl Compiled for AST {
                                                     program, environment)
 
                     }
-                    AST::Operator { operator, parameters, body } => {
-                        compile_function_definition(operator.as_str(), true, parameters, body.deref(),
-                                                    program, environment)
-
-                    }
+                    // AST::Operator { operator, parameters, body } => {
+                    //     compile_function_definition(operator.as_str(), true, parameters, body.deref(),
+                    //                                 program, environment)
+                    //
+                    // }
                     AST::Variable { name: Identifier(name), value } => {
                         (*value).compile_into(program, environment, true);
                         let index = program.register_constant(ProgramObject::from_str(name));
@@ -653,24 +641,24 @@ impl Compiled for AST {
                 program.emit_conditionally(OpCode::Drop, !keep_result);
             }
 
-            AST::CallOperator { object, operator, arguments } => {
-                let index = program.register_constant(ProgramObject::from_str(operator.as_str()));
-                object.deref().compile_into(program, environment, true);
-                for argument in arguments.iter() {
-                    argument.compile_into(program, environment, true);
-                }
-                let arity = Arity::from_usize(arguments.len() + 1);
-                program.emit_code(OpCode::CallMethod { name: index, arguments: arity });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
-            }
+            // AST::CallOperator { object, operator, arguments } => {
+            //     let index = program.register_constant(ProgramObject::from_str(operator.as_str()));
+            //     object.deref().compile_into(program, environment, true);
+            //     for argument in arguments.iter() {
+            //         argument.compile_into(program, environment, true);
+            //     }
+            //     let arity = Arity::from_usize(arguments.len() + 1);
+            //     program.emit_code(OpCode::CallMethod { name: index, arguments: arity });
+            //     program.emit_conditionally(OpCode::Drop, !keep_result);
+            // }
 
-            AST::Operation { operator, left, right } => {
-                let index = program.register_constant(ProgramObject::from_str(operator.as_str()));
-                left.deref().compile_into(program, environment, true);
-                right.deref().compile_into(program, environment, true);
-                let arity = Arity::from_usize(2);
-                program.emit_code(OpCode::CallMethod { name: index, arguments: arity });
-            }
+            // AST::Operation { operator, left, right } => {
+            //     let index = program.register_constant(ProgramObject::from_str(operator.as_str()));
+            //     left.deref().compile_into(program, environment, true);
+            //     right.deref().compile_into(program, environment, true);
+            //     let arity = Arity::from_usize(2);
+            //     program.emit_code(OpCode::CallMethod { name: index, arguments: arity });
+            // }
 
             AST::Top (children) => {
                 // let (function_name_index, end_label_index )

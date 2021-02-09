@@ -242,7 +242,7 @@ impl Memory {
                 let parent_string = if parent_string == "null" {
                     String::new()
                 } else {
-                    format!("..={}, ", parent_string)
+                    format!("..={}{}", parent_string, if fields.len() == 0 { "" } else { ", " })
                 };
                 let fields_string = fields.iter()
                     .map(|(name, field)| {
@@ -969,6 +969,11 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                     }
                     ('n', true)  => {
                         output.write_char('\n')
+                            .expect("Print error: Could not write to output stream.");
+                        escape = false;
+                    }
+                    ('"', true)  => {
+                        output.write_char('"')
                             .expect("Print error: Could not write to output stream.");
                         escape = false;
                     }

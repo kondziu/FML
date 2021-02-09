@@ -57,7 +57,7 @@ match {
     // all fungible tokens
     r"[_A-Za-z][_A-Za-z0-9]*" => IDENTIFIER,
     r"[-]?[0-9]+" => NUMBER,
-    r#""([^\\"]|\\[~ntr\\])*""# => STRING_LITERAL,
+    r#""([^\\"]|\\[~ntr\\"])*""# => STRING_LITERAL,
 }
 
 // Parser

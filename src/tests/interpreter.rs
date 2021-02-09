@@ -557,8 +557,8 @@ macro_rules! hashmap {
 #[test] fn call_function_three() {
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
-        /*1*/ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(3) },
-        /*2*/ OpCode::Skip,
+        /*1*/ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(3) }//,
+        ///*2*/ OpCode::Skip,
     ));
 
     let constants: Vec<ProgramObject> = vec!(

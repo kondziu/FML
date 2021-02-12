@@ -125,28 +125,6 @@ impl std::fmt::Display for ProgramObject {
     }
 }
 
-// impl Serializable for ProgramObject {
-//     fn serialize<W: Write>(&self, sink: &mut W) -> anyhow::Result<()> {
-//         serializable::write_u8(sink, self.tag())?;
-//         use ProgramObject::*;
-//         match &self {
-//             Null        => Ok(()),
-//             Integer(n)  => serializable::write_i32(sink, *n),
-//             Boolean(b)  => serializable::write_bool(sink, *b),
-//             String(s)   => serializable::write_utf8(sink, s),
-//             Class(v)    => ConstantPoolIndex::write_cpi_vector(sink, v),
-//             Slot {name} => name.serialize(sink),
-//
-//             Method {name, arguments, locals, code: range} => {
-//                 name.serialize(sink)?;
-//                 arguments.serialize(sink)?;
-//                 locals.serialize(sink)?;
-//                 OpCode::write_opcode_vector(sink, &code.addresses_to_code_vector(range))
-//             }
-//         }
-//     }
-// }
-
 impl SerializableWithContext for ProgramObject {
     fn serialize<W: Write>(&self, sink: &mut W, code: &Code) -> anyhow::Result<()> {
         serializable::write_u8(sink, self.tag())?;
@@ -233,7 +211,7 @@ impl ProgramObject {
 }
 
 #[derive(PartialEq,Eq,Debug,Hash,Clone,Copy)]
-pub struct Pointer(usize);
+pub struct Pointer(usize); // FIXME add pointer tagging
 
 impl Pointer {
     pub fn from(p: usize) -> Self {
@@ -248,11 +226,9 @@ impl std::fmt::Display for Pointer {
     }
 }
 
-//pub type SharedRuntimeObject = Rc<RefCell<RuntimeObject>>;
-
 
 #[derive(PartialEq,Debug,Clone)]
-pub enum Object {
+pub enum RuntimeObject {
     Null,
     Integer(i32),
     Boolean(bool),
@@ -264,34 +240,34 @@ pub enum Object {
     },
 }
 
-impl Object {
-    pub fn from_pointers(v: Vec<Pointer>) -> Self { Object::Array(v)   }
+impl RuntimeObject {
+    pub fn from_pointers(v: Vec<Pointer>) -> Self { RuntimeObject::Array(v)   }
 
-    pub fn from_i32(n: i32) -> Self { Object::Integer(n) }
+    pub fn from_i32(n: i32) -> Self { RuntimeObject::Integer(n) }
 
-    pub fn from_bool(b: bool) -> Self { Object::Boolean(b) }
+    pub fn from_bool(b: bool) -> Self { RuntimeObject::Boolean(b) }
 
     pub fn from_constant(constant: &ProgramObject) -> Self {
         match constant {
-            ProgramObject::Null => Object::Null,
-            ProgramObject::Integer(value) => Object::Integer(*value),
-            ProgramObject::Boolean(value) => Object::Boolean(*value),
+            ProgramObject::Null => RuntimeObject::Null,
+            ProgramObject::Integer(value) => RuntimeObject::Integer(*value),
+            ProgramObject::Boolean(value) => RuntimeObject::Boolean(*value),
             _ => unimplemented!(),
         }
     }
 
     pub fn from(parent: Pointer, fields: HashMap<String, Pointer>, methods: HashMap<String, ProgramObject>) -> Self {
-        Object::Object { parent, fields, methods }
+        RuntimeObject::Object { parent, fields, methods }
     }
 }
 
-impl std::fmt::Display for Object {
+impl std::fmt::Display for RuntimeObject {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Object::Null => write!(f, "null"),
-            Object::Integer(n) => write!(f, "{}", n),
-            Object::Boolean(b) => write!(f, "{}", b),
-            Object::Array(elements) => {
+            RuntimeObject::Null => write!(f, "null"),
+            RuntimeObject::Integer(n) => write!(f, "{}", n),
+            RuntimeObject::Boolean(b) => write!(f, "{}", b),
+            RuntimeObject::Array(elements) => {
                 write!(f, "[{}]", {
                     elements.iter()
                         .map(|p| p.to_string())
@@ -299,7 +275,7 @@ impl std::fmt::Display for Object {
                         .join(", ")
                 })
             },
-            Object::Object { parent, fields, methods:_ } => {
+            RuntimeObject::Object { parent, fields, methods:_ } => {
                 write!(f, "object(..={}, {})", parent, fields.iter()
                     .map(|(name, field)| format!("{}={}", name, field))
                     .collect::<Vec<String>>()

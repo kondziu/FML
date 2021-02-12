@@ -41,7 +41,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(42))), "test memory");
 }
 
 #[test] fn label() {
@@ -82,7 +82,7 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let pointer = state.allocate(Object::from_i32(42));
+    let pointer = state.allocate(RuntimeObject::from_i32(42));
     state.current_frame_mut().unwrap().push_local(pointer);
 
     interpret(&mut state, &mut output, &program);
@@ -92,7 +92,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::from(None, vec!(Pointer::from(0)))), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42))), "test memory")
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(42))), "test memory")
 }
 
 #[test] fn set_local() {
@@ -109,8 +109,8 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate_and_push_operand(Object::from_i32(42));
-    let pointer = state.allocate(Object::from_i32(0));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(42));
+    let pointer = state.allocate(RuntimeObject::from_i32(0));
     state.current_frame_mut().unwrap().push_local(pointer);
 
     interpret(&mut state, &mut output, &program);
@@ -120,8 +120,8 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::from(None, vec!(Pointer::from(0)))), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42),
-                                             Object::from_i32(0))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(42),
+                                             RuntimeObject::from_i32(0))), "test memory");
 }
 
 #[test] fn get_global() {
@@ -138,7 +138,7 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let pointer = state.allocate(Object::from_i32(666));
+    let pointer = state.allocate(RuntimeObject::from_i32(666));
     state.register_global("skippy".to_string(), pointer).unwrap();
 
     interpret(&mut state, &mut output, &program);
@@ -148,7 +148,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, hashmap!("skippy".to_string(), Pointer::from(0)), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(666))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(666))), "test memory");
 }
 
 #[test] fn set_global() {
@@ -165,8 +165,8 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate_and_push_operand(Object::from_i32(42));
-    state.allocate_and_register_global("skippy".to_string(), Object::from_i32(666)).unwrap();
+    state.allocate_and_push_operand(RuntimeObject::from_i32(42));
+    state.allocate_and_register_global("skippy".to_string(), RuntimeObject::from_i32(666)).unwrap();
 
     interpret(&mut state, &mut output, &program);
 
@@ -175,7 +175,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, hashmap!("skippy".to_string(), Pointer::from(0)), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42), Object::from_i32(666))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(42), RuntimeObject::from_i32(666))), "test memory");
 }
 
 #[test] fn drop() {
@@ -192,7 +192,7 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate_and_push_operand(Object::from_i32(7));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(7));
 
     interpret(&mut state, &mut output, &program);
 
@@ -201,7 +201,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(7))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(7))), "test memory");
 }
 
 #[test] fn jump() {
@@ -249,7 +249,7 @@ macro_rules! hashmap {
     let mut output: String = String::new();
 
     state.set_instruction_pointer(Some(Address::from_usize(2)));
-    state.allocate_and_push_operand(Object::from_bool(true));
+    state.allocate_and_push_operand(RuntimeObject::from_bool(true));
 
     interpret(&mut state, &mut output, &program);
 
@@ -258,7 +258,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_bool(true))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_bool(true))), "test memory");
 }
 
 #[test] fn branch_false() {
@@ -278,7 +278,7 @@ macro_rules! hashmap {
     let mut output: String = String::new();
 
     state.set_instruction_pointer(Some(Address::from_usize(2)));
-    state.allocate_and_push_operand(Object::from_bool(false));
+    state.allocate_and_push_operand(RuntimeObject::from_bool(false));
 
     interpret(&mut state, &mut output, &program);
 
@@ -287,7 +287,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(3)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_bool(false))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_bool(false))), "test memory");
 }
 
 #[test] fn print() {
@@ -311,7 +311,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null)), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null)), "test memory");
 }
 
 #[test] fn print_one() {
@@ -328,7 +328,7 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate_and_push_operand(Object::from_i32(42));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(42));
 
     interpret(&mut state, &mut output, &program);
 
@@ -337,7 +337,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42), Object::Null)), "test memory")
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(42), RuntimeObject::Null)), "test memory")
 }
 
 #[test] fn print_two() {
@@ -354,8 +354,8 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate_and_push_operand(Object::from_i32(0));
-    state.allocate_and_push_operand(Object::from_i32(42));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(0));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(42));
 
     interpret(&mut state, &mut output, &program);
 
@@ -364,7 +364,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(0), Object::from_i32(42), Object::Null)), "test memory")
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(0), RuntimeObject::from_i32(42), RuntimeObject::Null)), "test memory")
 }
 
 #[test] fn array_zero() {
@@ -381,8 +381,8 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate_and_push_operand(Object::from_i32(0));
-    state.allocate_and_push_operand(Object::Null);
+    state.allocate_and_push_operand(RuntimeObject::from_i32(0));
+    state.allocate_and_push_operand(RuntimeObject::Null);
 
     interpret(&mut state, &mut output, &program);
 
@@ -391,8 +391,8 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(0), Object::Null,
-                                             Object::from_pointers(vec!()))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(0), RuntimeObject::Null,
+                                             RuntimeObject::from_pointers(vec!()))), "test memory");
 }
 
 #[test] fn array_one() {
@@ -409,8 +409,8 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate_and_push_operand(Object::from_i32(1));
-    state.allocate_and_push_operand(Object::Null);
+    state.allocate_and_push_operand(RuntimeObject::from_i32(1));
+    state.allocate_and_push_operand(RuntimeObject::Null);
 
     interpret(&mut state, &mut output, &program);
 
@@ -419,8 +419,8 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1), Object::Null, Object::Null,
-                                             Object::from_pointers(vec!(Pointer::from(2))))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(1), RuntimeObject::Null, RuntimeObject::Null,
+                                             RuntimeObject::from_pointers(vec!(Pointer::from(2))))), "test memory");
 }
 
 #[test] fn array_three() {
@@ -437,8 +437,8 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate_and_push_operand(Object::from_i32(3));
-    state.allocate_and_push_operand(Object::from_i32(0));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(3));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(0));
 
     interpret(&mut state, &mut output, &program);
 
@@ -447,14 +447,14 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(3),
-                                             Object::from_i32(0),
-                                             Object::from_i32(0),
-                                             Object::from_i32(0),
-                                             Object::from_i32(0),
-                                             Object::from_pointers(vec!(Pointer::from(2),
-                                                                          Pointer::from(3),
-                                                                          Pointer::from(4))))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(3),
+                                             RuntimeObject::from_i32(0),
+                                             RuntimeObject::from_i32(0),
+                                             RuntimeObject::from_i32(0),
+                                             RuntimeObject::from_i32(0),
+                                             RuntimeObject::from_pointers(vec!(Pointer::from(2),
+                                                                               Pointer::from(3),
+                                                                               Pointer::from(4))))), "test memory");
 }
 
 #[test] fn call_function_zero() {
@@ -509,7 +509,7 @@ macro_rules! hashmap {
 
     let mut state = State::minimal();
     state.functions.insert("foo".to_string(), constants.get(1).unwrap().clone());
-    state.allocate_and_push_operand(Object::from_i32(42));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(42));
     state.set_instruction_pointer(Some(Address::from_usize(1)));
 
     let globals: Vec<ConstantPoolIndex> = vec!();
@@ -527,7 +527,7 @@ macro_rules! hashmap {
     assert_eq!(state.frames, vec!(LocalFrame::empty(),
                                   LocalFrame::from(Some(Address::from_usize(2)),
                                                    vec!(Pointer::from(0)))), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(42))), "test memory");
 }
 
 #[test] fn call_function_three() {
@@ -547,9 +547,9 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     state.functions.insert("fun".to_string(), constants.get(1).unwrap().clone());
 
-    state.allocate_and_push_operand(Object::from_i32(1));
-    state.allocate_and_push_operand(Object::from_i32(2));
-    state.allocate_and_push_operand(Object::from_i32(3));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(1));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(2));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(3));
 
     state.set_instruction_pointer(Some(Address::from_usize(1)));
 
@@ -570,9 +570,9 @@ macro_rules! hashmap {
                                                    vec!(Pointer::from(0),
                                                         Pointer::from(1),
                                                         Pointer::from(2),))), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1),
-                                             Object::from_i32(2),
-                                             Object::from_i32(3),
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(1),
+                                             RuntimeObject::from_i32(2),
+                                             RuntimeObject::from_i32(3),
     )))
 }
 
@@ -598,9 +598,9 @@ macro_rules! hashmap {
 
     //state.set_instruction_pointer(Some(Address::from_usize(0)));
 
-    let pointer1 = state.allocate(Object::from_i32(1));
-    let pointer2 = state.allocate(Object::from_i32(2));
-    let pointer3 = state.allocate(Object::from_i32(3));
+    let pointer1 = state.allocate(RuntimeObject::from_i32(1));
+    let pointer2 = state.allocate(RuntimeObject::from_i32(2));
+    let pointer3 = state.allocate(RuntimeObject::from_i32(3));
     state.new_frame(Some(Address::from_usize(2)),
                     vec!(pointer1, pointer2, pointer3));
 
@@ -611,9 +611,9 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1),
-                                             Object::from_i32(2),
-                                             Object::from_i32(3))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(1),
+                                             RuntimeObject::from_i32(2),
+                                             RuntimeObject::from_i32(3))), "test memory");
 }
 
 #[test] fn object_zero() {
@@ -640,7 +640,7 @@ macro_rules! hashmap {
     let mut output: String = String::new();
 
     state.set_instruction_pointer(Some(Address::from_usize(1)));
-    state.allocate_and_push_operand(Object::Null);
+    state.allocate_and_push_operand(RuntimeObject::Null);
 
     interpret(&mut state, &mut output, &program);
 
@@ -649,10 +649,10 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
-                                             Object::from(Pointer::from(0),
-                                                            HashMap::new(),
-                                                            hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null,
+                                             RuntimeObject::from(Pointer::from(0),
+                                                                 HashMap::new(),
+                                                                 hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
                                                                                                                   arguments: Arity::new(1),
                                                                                                                   locals: Size::new(0),
                                                                                                                   code: AddressRange::from(0, 1)})))), "test memory");
@@ -686,8 +686,8 @@ macro_rules! hashmap {
     let mut output: String = String::new();
 
     state.set_instruction_pointer(Some(Address::from_usize(1)));
-    state.allocate_and_push_operand(Object::Null);          // parent
-    state.allocate_and_push_operand(Object::from_i32(0));     // x
+    state.allocate_and_push_operand(RuntimeObject::Null);          // parent
+    state.allocate_and_push_operand(RuntimeObject::from_i32(0));     // x
 
     interpret(&mut state, &mut output, &program);
 
@@ -696,11 +696,11 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
-                                             Object::from_i32(0),
-                                             Object::from(Pointer::from(0),
-                                                            hashmap!("x".to_string(), Pointer::from(1)),
-                                                            hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(2),
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null,
+                                             RuntimeObject::from_i32(0),
+                                             RuntimeObject::from(Pointer::from(0),
+                                                                 hashmap!("x".to_string(), Pointer::from(1)),
+                                                                 hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(2),
                                                                                                                   arguments: Arity::new(1),
                                                                                                                   locals: Size::new(0),
                                                                                                                   code: AddressRange::from(0, 1)})))));
@@ -738,9 +738,9 @@ macro_rules! hashmap {
     let mut output: String = String::new();
 
     state.set_instruction_pointer(Some(Address::from_usize(1)));
-    state.allocate_and_push_operand(Object::Null);                 // parent
-    state.allocate_and_push_operand(Object::from_i32(0));       // x
-    state.allocate_and_push_operand(Object::from_i32(42));      // y
+    state.allocate_and_push_operand(RuntimeObject::Null);                 // parent
+    state.allocate_and_push_operand(RuntimeObject::from_i32(0));       // x
+    state.allocate_and_push_operand(RuntimeObject::from_i32(42));      // y
 
 
     interpret(&mut state, &mut output, &program);
@@ -750,12 +750,12 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
-                                             Object::from_i32(0),
-                                             Object::from_i32(42),
-                                             Object::from(Pointer::from(0),
-                                                            hashmap!("x".to_string(), Pointer::from(1), "y".to_string(), Pointer::from(2)),
-                                                            hashmap!("+".to_string(), ProgramObject::Method {
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null,
+                                             RuntimeObject::from_i32(0),
+                                             RuntimeObject::from_i32(42),
+                                             RuntimeObject::from(Pointer::from(0),
+                                                                 hashmap!("x".to_string(), Pointer::from(1), "y".to_string(), Pointer::from(2)),
+                                                                 hashmap!("+".to_string(), ProgramObject::Method {
                                                                                             name: ConstantPoolIndex::new(4),
                                                                                             arguments: Arity::new(1),
                                                                                             locals: Size::new(0),
@@ -776,11 +776,11 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.allocate(Object::Null);
-    state.allocate(Object::from_i32(42));
-    state.allocate_and_push_operand(Object::from(Pointer::from(0),
-                                                 hashmap!("value".to_string(), Pointer::from(1)),
-                                                 HashMap::new()));
+    state.allocate(RuntimeObject::Null);
+    state.allocate(RuntimeObject::from_i32(42));
+    state.allocate_and_push_operand(RuntimeObject::from(Pointer::from(0),
+                                                        hashmap!("value".to_string(), Pointer::from(1)),
+                                                        HashMap::new()));
 
     interpret(&mut state, &mut output, &program);
 
@@ -789,11 +789,11 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
-                                             Object::from_i32(42),
-                                             Object::from(Pointer::from(0),
-                                                            hashmap!("value".to_string(), Pointer::from(1)),
-                                                            HashMap::new()))));
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null,
+                                             RuntimeObject::from_i32(42),
+                                             RuntimeObject::from(Pointer::from(0),
+                                                                 hashmap!("value".to_string(), Pointer::from(1)),
+                                                                 HashMap::new()))));
 }
 
 #[test] fn set_slot() {
@@ -810,14 +810,14 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let object = Object::from(Pointer::from(0),
-                              hashmap!("value".to_string(), Pointer::from(1)),
-                              HashMap::new());
+    let object = RuntimeObject::from(Pointer::from(0),
+                                     hashmap!("value".to_string(), Pointer::from(1)),
+                                     HashMap::new());
 
 //        state.allocate_and_push_operand(Object::from_i32(42));
-    state.allocate(Object::Null);
+    state.allocate(RuntimeObject::Null);
     state.allocate_and_push_operand(object.clone());
-    state.allocate_and_push_operand(Object::from_i32(666));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(666));
 
     interpret(&mut state, &mut output, &program);
 
@@ -826,15 +826,15 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
-                                             Object::from(Pointer::from(0),
-                                                            hashmap!("value".to_string(), Pointer::from(2)),
-                                                            HashMap::new()),
-                                             Object::from_i32(666))));
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null,
+                                             RuntimeObject::from(Pointer::from(0),
+                                                                 hashmap!("value".to_string(), Pointer::from(2)),
+                                                                 HashMap::new()),
+                                             RuntimeObject::from_i32(666))));
 
-    assert_eq!(object, Object::from(Pointer::from(0),
-                                    hashmap!("value".to_string(), Pointer::from(1)),
-                                    HashMap::new()));
+    assert_eq!(object, RuntimeObject::from(Pointer::from(0),
+                                           hashmap!("value".to_string(), Pointer::from(1)),
+                                           HashMap::new()));
 }
 
 #[test] fn call_method_zero() {
@@ -852,15 +852,15 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let receiver = Object::from(Pointer::from(0),
-                                HashMap::new(),
-                                hashmap!("f".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
+    let receiver = RuntimeObject::from(Pointer::from(0),
+                                       HashMap::new(),
+                                       hashmap!("f".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
                                                                                       arguments: Arity::new(0 + 1),
                                                                                       locals: Size::new(0),
                                                                                       code: AddressRange::from(0, 1) }));
 
     state.set_instruction_pointer(Some(Address::from_usize(1)));
-    state.allocate(Object::Null);
+    state.allocate(RuntimeObject::Null);
     state.allocate_and_push_operand(receiver.clone());
 
     interpret(&mut state, &mut output, &program);
@@ -872,7 +872,7 @@ macro_rules! hashmap {
     assert_eq!(state.frames, vec!(LocalFrame::empty(),
                                   LocalFrame::from(Some(Address::from_usize(2)),
                                                    vec!(Pointer::from(1)))), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null, receiver.clone())))
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null, receiver.clone())))
 }
 
 #[test] fn call_method_one() {
@@ -890,17 +890,17 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let receiver = Object::from(Pointer::from(0),
-                                HashMap::new(),
-                                hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
+    let receiver = RuntimeObject::from(Pointer::from(0),
+                                       HashMap::new(),
+                                       hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
                                                                                       arguments: Arity::new(1 + 1),
                                                                                       locals: Size::new(0),
                                                                                       code: AddressRange::from(0, 1) }));
 
     state.set_instruction_pointer(Some(Address::from_usize(1)));
-    state.allocate(Object::Null);
+    state.allocate(RuntimeObject::Null);
     state.allocate_and_push_operand(receiver.clone());
-    state.allocate_and_push_operand(Object::from_i32(1));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(1));
 
     interpret(&mut state, &mut output, &program);
 
@@ -912,9 +912,9 @@ macro_rules! hashmap {
                                   LocalFrame::from(Some(Address::from_usize(2)),
                                                    vec!(Pointer::from(1),
                                                         Pointer::from(2)))), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null,
                                              receiver.clone(),
-                                             Object::from_i32(1))))
+                                             RuntimeObject::from_i32(1))))
 }
 
 #[test] fn call_method_three() {
@@ -932,19 +932,19 @@ macro_rules! hashmap {
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let receiver = Object::from(Pointer::from(0),
-                                HashMap::new(),
-                                hashmap!("g".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
+    let receiver = RuntimeObject::from(Pointer::from(0),
+                                       HashMap::new(),
+                                       hashmap!("g".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
                                                                                       arguments: Arity::new(3 + 1),
                                                                                       locals: Size::new(0),
                                                                                       code: AddressRange::from(0, 1) }));
 
     state.set_instruction_pointer(Some(Address::from_usize(1)));
-    state.allocate(Object::Null);
+    state.allocate(RuntimeObject::Null);
     state.allocate_and_push_operand(receiver.clone());
-    state.allocate_and_push_operand(Object::from_i32(1));
-    state.allocate_and_push_operand(Object::from_i32(2));
-    state.allocate_and_push_operand(Object::from_i32(3));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(1));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(2));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(3));
 
     interpret(&mut state, &mut output, &program);
 
@@ -958,14 +958,14 @@ macro_rules! hashmap {
                                                         Pointer::from(2),
                                                         Pointer::from(3),
                                                         Pointer::from(4),))), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::Null,
                                              receiver.clone(),
-                                             Object::from_i32(1),
-                                             Object::from_i32(2),
-                                             Object::from_i32(3))))
+                                             RuntimeObject::from_i32(1),
+                                             RuntimeObject::from_i32(2),
+                                             RuntimeObject::from_i32(3))))
 }
 
-fn call_method(receiver: Object, argument: Object, operation: &str, result: Object) {
+fn call_method(receiver: RuntimeObject, argument: RuntimeObject, operation: &str, result: RuntimeObject) {
     let code = Code::from(vec!(
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1 + 1) },
         OpCode::Return,
@@ -999,24 +999,24 @@ fn call_method(receiver: Object, argument: Object, operation: &str, result: Obje
 }
 
 fn call_method_integer(receiver: i32, argument: i32, operation: &str, result: i32) {
-    call_method(Object::from_i32(receiver),
-                Object::from_i32(argument),
+    call_method(RuntimeObject::from_i32(receiver),
+                RuntimeObject::from_i32(argument),
                 operation,
-                Object::from_i32(result));
+                RuntimeObject::from_i32(result));
 }
 
 fn call_method_integer_cmp(receiver: i32, argument: i32, operation: &str, result: bool) {
-    call_method(Object::from_i32(receiver),
-                Object::from_i32(argument),
+    call_method(RuntimeObject::from_i32(receiver),
+                RuntimeObject::from_i32(argument),
                 operation,
-                Object::from_bool(result));
+                RuntimeObject::from_bool(result));
 }
 
 fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: bool) {
-    call_method(Object::from_bool(receiver),
-                Object::from_bool(argument),
+    call_method(RuntimeObject::from_bool(receiver),
+                RuntimeObject::from_bool(argument),
                 operation,
-                Object::from_bool(result));
+                RuntimeObject::from_bool(result));
 }
 
 #[test] fn call_method_integer_add() {
@@ -1141,13 +1141,13 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     let mut output: String = String::new();
 
     state.set_instruction_pointer(Some(Address::from_usize(0)));
-    state.allocate(Object::from_i32(1));
-    state.allocate(Object::from_i32(2));
-    state.allocate(Object::from_i32(3));
-    state.allocate_and_push_operand(Object::from_pointers(vec!(Pointer::from(0),
-                                                               Pointer::from(1),
-                                                               Pointer::from(2))));
-    state.allocate_and_push_operand(Object::from_i32(1));
+    state.allocate(RuntimeObject::from_i32(1));
+    state.allocate(RuntimeObject::from_i32(2));
+    state.allocate(RuntimeObject::from_i32(3));
+    state.allocate_and_push_operand(RuntimeObject::from_pointers(vec!(Pointer::from(0),
+                                                                      Pointer::from(1),
+                                                                      Pointer::from(2))));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(1));
 
     interpret(&mut state, &mut output, &program);
 
@@ -1156,13 +1156,13 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1),
-                                             Object::from_i32(2),
-                                             Object::from_i32(3),
-                                             Object::from_pointers(vec!(Pointer::from(0),
-                                                                          Pointer::from(1),
-                                                                          Pointer::from(2))),
-                                             Object::from_i32(1))), "test memory")
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(1),
+                                             RuntimeObject::from_i32(2),
+                                             RuntimeObject::from_i32(3),
+                                             RuntimeObject::from_pointers(vec!(Pointer::from(0),
+                                                                               Pointer::from(1),
+                                                                               Pointer::from(2))),
+                                             RuntimeObject::from_i32(1))), "test memory")
 }
 
 // before: array(1,2,3)
@@ -1182,17 +1182,17 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let array = Object::from_pointers(vec!(Pointer::from(0),
-                                           Pointer::from(1),
-                                           Pointer::from(2)));
+    let array = RuntimeObject::from_pointers(vec!(Pointer::from(0),
+                                                  Pointer::from(1),
+                                                  Pointer::from(2)));
 
     state.set_instruction_pointer(Some(Address::from_usize(0)));
-    state.allocate(Object::from_i32(1));
-    state.allocate(Object::from_i32(2));
-    state.allocate(Object::from_i32(3));
+    state.allocate(RuntimeObject::from_i32(1));
+    state.allocate(RuntimeObject::from_i32(2));
+    state.allocate(RuntimeObject::from_i32(3));
     state.allocate_and_push_operand(array.clone());
-    state.allocate_and_push_operand(Object::from_i32(1));
-    state.allocate_and_push_operand(Object::from_i32(42));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(1));
+    state.allocate_and_push_operand(RuntimeObject::from_i32(42));
 
     interpret(&mut state, &mut output, &program);
 
@@ -1201,38 +1201,38 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1),
-                                             Object::from_i32(2),
-                                             Object::from_i32(3),
-                                             Object::from_pointers(vec!(Pointer::from(0),
-                                                                          Pointer::from(5),
-                                                                          Pointer::from(2))),
-                                             Object::from_i32(1),
-                                             Object::from_i32(42),
-                                             Object::Null)), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(RuntimeObject::from_i32(1),
+                                             RuntimeObject::from_i32(2),
+                                             RuntimeObject::from_i32(3),
+                                             RuntimeObject::from_pointers(vec!(Pointer::from(0),
+                                                                               Pointer::from(5),
+                                                                               Pointer::from(2))),
+                                             RuntimeObject::from_i32(1),
+                                             RuntimeObject::from_i32(42),
+                                             RuntimeObject::Null)), "test memory");
 
-    assert_eq!(array, Object::from_pointers(vec!(Pointer::from(0),
-                                                 Pointer::from(1),
-                                                 Pointer::from(2))), "test object state");
+    assert_eq!(array, RuntimeObject::from_pointers(vec!(Pointer::from(0),
+                                                        Pointer::from(1),
+                                                        Pointer::from(2))), "test object state");
 }
 
 #[test] fn call_method_null_equals() {
-    call_method(Object::Null, Object::Null, "==", Object::from_bool(true));
-    call_method(Object::Null, Object::from_i32(1), "==", Object::from_bool(false));
-    call_method(Object::from_i32(1), Object::Null, "==", Object::from_bool(false));
+    call_method(RuntimeObject::Null, RuntimeObject::Null, "==", RuntimeObject::from_bool(true));
+    call_method(RuntimeObject::Null, RuntimeObject::from_i32(1), "==", RuntimeObject::from_bool(false));
+    call_method(RuntimeObject::from_i32(1), RuntimeObject::Null, "==", RuntimeObject::from_bool(false));
 
-    call_method(Object::Null, Object::Null, "eq", Object::from_bool(true));
-    call_method(Object::Null, Object::from_i32(1), "eq", Object::from_bool(false));
-    call_method(Object::from_i32(1), Object::Null, "eq", Object::from_bool(false));
+    call_method(RuntimeObject::Null, RuntimeObject::Null, "eq", RuntimeObject::from_bool(true));
+    call_method(RuntimeObject::Null, RuntimeObject::from_i32(1), "eq", RuntimeObject::from_bool(false));
+    call_method(RuntimeObject::from_i32(1), RuntimeObject::Null, "eq", RuntimeObject::from_bool(false));
 }
 
 #[test] fn call_method_null_unequals() {
-    call_method(Object::Null, Object::Null, "!=", Object::from_bool(false));
-    call_method(Object::Null, Object::from_i32(1), "!=", Object::from_bool(true));
-    call_method(Object::from_i32(1), Object::Null, "!=", Object::from_bool(true));
+    call_method(RuntimeObject::Null, RuntimeObject::Null, "!=", RuntimeObject::from_bool(false));
+    call_method(RuntimeObject::Null, RuntimeObject::from_i32(1), "!=", RuntimeObject::from_bool(true));
+    call_method(RuntimeObject::from_i32(1), RuntimeObject::Null, "!=", RuntimeObject::from_bool(true));
 
-    call_method(Object::Null, Object::Null, "neq", Object::from_bool(false));
-    call_method(Object::Null, Object::from_i32(1), "neq", Object::from_bool(true));
-    call_method(Object::from_i32(1), Object::Null, "neq", Object::from_bool(true));
+    call_method(RuntimeObject::Null, RuntimeObject::Null, "neq", RuntimeObject::from_bool(false));
+    call_method(RuntimeObject::Null, RuntimeObject::from_i32(1), "neq", RuntimeObject::from_bool(true));
+    call_method(RuntimeObject::from_i32(1), RuntimeObject::Null, "neq", RuntimeObject::from_bool(true));
 }
 

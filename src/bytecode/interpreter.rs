@@ -39,7 +39,7 @@ pub fn evaluate(program: &Program) {
 
     let mut slots = Vec::new();
     for _ in 0..locals.to_usize() {
-        slots.push(state.allocate(Object::Null));
+        slots.push(state.allocate(RuntimeObject::Null));
     }
 
     state.new_frame(None, slots);
@@ -102,7 +102,7 @@ impl LocalFrame {
 }
 
 #[derive(PartialEq,Debug)]
-pub struct Heap(Vec<Object>);
+pub struct Heap(Vec<RuntimeObject>);
 
 impl Heap {
     pub fn new() -> Self {
@@ -110,17 +110,17 @@ impl Heap {
     }
 
     #[allow(dead_code)]
-    pub fn from(objects: Vec<Object>) -> Self {
+    pub fn from(objects: Vec<RuntimeObject>) -> Self {
         Heap(objects)
     }
 
-    pub fn allocate(&mut self, object: Object) -> Pointer {
+    pub fn allocate(&mut self, object: RuntimeObject) -> Pointer {
         let pointer = Pointer::from(self.0.len());
         self.0.push(object);
         pointer
     }
 
-    pub fn dereference(&self, pointer: &Pointer) -> Option<&Object> {
+    pub fn dereference(&self, pointer: &Pointer) -> Option<&RuntimeObject> {
         let index = pointer.as_usize();
         if self.0.len() > index {
             Some(&self.0[index])
@@ -129,7 +129,7 @@ impl Heap {
         }
     }
 
-    pub fn dereference_mut(&mut self, pointer: &Pointer) -> Option<&mut Object> {
+    pub fn dereference_mut(&mut self, pointer: &Pointer) -> Option<&mut RuntimeObject> {
         let index = pointer.as_usize();
         if self.0.len() > index {
             Some(&mut self.0[index])
@@ -145,7 +145,7 @@ impl Heap {
     }
 
     #[allow(dead_code)]
-    pub fn write_over(&mut self, pointer: Pointer, object: Object) -> anyhow::Result<()> {
+    pub fn write_over(&mut self, pointer: Pointer, object: RuntimeObject) -> anyhow::Result<()> {
         let index = pointer.as_usize();
         if index < self.0.len() {
             anyhow::bail!("Expected an object at {:?} to write over, but none was found", pointer)
@@ -160,10 +160,10 @@ impl Heap {
                               pointer));
 
         match object {
-            Object::Null => "null".to_string(),
-            Object::Integer(n) => n.to_string(),
-            Object::Boolean(b) => b.to_string(),
-            Object::Array(elements) => {
+            RuntimeObject::Null => "null".to_string(),
+            RuntimeObject::Integer(n) => n.to_string(),
+            RuntimeObject::Boolean(b) => b.to_string(),
+            RuntimeObject::Array(elements) => {
                 let element_string = elements.iter()
                     .map(|p| self.dereference_to_string(p))
                     .collect::<Vec<String>>()
@@ -171,7 +171,7 @@ impl Heap {
 
                 format!("[{}]", element_string)
             },
-            Object::Object { parent, fields, methods:_ } => {
+            RuntimeObject::Object { parent, fields, methods:_ } => {
                 let parent_string = self.dereference_to_string(parent);
                 let parent_string = if parent_string == "null" {
                     String::new()
@@ -234,7 +234,7 @@ impl State {
                         panic!("State init error: duplicate name for global {:?}", name)
                     }
 
-                    let pointer = memory.allocate(Object::Null);
+                    let pointer = memory.allocate(RuntimeObject::Null);
                     globals.insert(name.to_string(), pointer);
                 }
 
@@ -339,14 +339,13 @@ impl State {
         self.operands.push(object)
     }
 
-    pub fn allocate_and_push_operand(&mut self, object: Object) {
+    pub fn allocate_and_push_operand(&mut self, object: RuntimeObject) {
         self.operands.push(self.memory.allocate(object))
     }
 
     pub fn get_function(&self, name: &str) -> Option<&ProgramObject> {
         self.functions.get(name)
     }
-
 
     pub fn get_global(&self, name: &str) -> Option<&Pointer> {
         self.globals.get(name)
@@ -364,7 +363,7 @@ impl State {
     }
 
     #[allow(dead_code)]
-    pub fn allocate_and_register_global(&mut self, name: String, object: Object) -> Result<(), String> {
+    pub fn allocate_and_register_global(&mut self, name: String, object: RuntimeObject) -> Result<(), String> {
         let pointer = self.allocate(object);
         self.register_global(name, pointer)
     }
@@ -401,15 +400,15 @@ impl State {
         self.memory.dereference_to_string(pointer)
     }
 
-    pub fn dereference_mut(&mut self, pointer: &Pointer) -> Option<&mut Object> {
+    pub fn dereference_mut(&mut self, pointer: &Pointer) -> Option<&mut RuntimeObject> {
         self.memory.dereference_mut(pointer)
     }
 
-    pub fn dereference(&self, pointer: &Pointer) -> Option<&Object> {
+    pub fn dereference(&self, pointer: &Pointer) -> Option<&RuntimeObject> {
         self.memory.dereference(pointer)
     }
 
-    pub fn allocate(&mut self, object: Object) -> Pointer {
+    pub fn allocate(&mut self, object: RuntimeObject) -> Pointer {
         self.memory.allocate(object)
     }
 
@@ -426,11 +425,11 @@ impl State {
         }
 
         let pass_by_value = object.as_ref().map_or(false, |e| match e {
-            Object::Object { parent:_, methods:_, fields:_ } => false,
-            Object::Array(_) => false,
-            Object::Integer(_) => true,
-            Object::Boolean(_) => true,
-            Object::Null => true,
+            RuntimeObject::Object { parent:_, methods:_, fields:_ } => false,
+            RuntimeObject::Array(_) => false,
+            RuntimeObject::Integer(_) => true,
+            RuntimeObject::Boolean(_) => true,
+            RuntimeObject::Null => true,
         });
 
         if pass_by_value {
@@ -508,7 +507,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                              or Boolean, but is {:?}", index, constant),
             }
 
-            state.allocate_and_push_operand(Object::from_constant(constant));
+            state.allocate_and_push_operand(RuntimeObject::from_constant(constant));
             state.bump_instruction_pointer(program);
         }
 
@@ -657,7 +656,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             let parent = state.pop_operand()
                 .expect("Object error: cannot pop operand (parent) from empty operand stack");
 
-            state.allocate_and_push_operand(Object::from(parent, fields, method_map));
+            state.allocate_and_push_operand(RuntimeObject::from(parent, fields, method_map));
             state.bump_instruction_pointer(program);
         }
 
@@ -668,12 +667,12 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             let size_pointer = state.pop_operand()
                 .expect(&format!("Array error: cannot pop size from empty operand stack"));
 
-            let size_object: &Object = state.dereference(&size_pointer)
+            let size_object: &RuntimeObject = state.dereference(&size_pointer)
                 .expect(&format!("Array error: pointer does not reference an object in memory {:?}",
                                  size_pointer));
 
             let size: usize = match size_object {
-                Object::Integer(n) => {
+                RuntimeObject::Integer(n) => {
                     if *n < 0 {
                         panic!("Array error: negative value cannot be used to specify the size of \
                                 an array {:?}", size_object);
@@ -693,7 +692,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 elements.push(pointer);
             }
 
-            state.allocate_and_push_operand(Object::from_pointers(elements));
+            state.allocate_and_push_operand(RuntimeObject::from_pointers(elements));
             state.bump_instruction_pointer(program);
         }
 
@@ -715,7 +714,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 .expect(&format!("Get slot error: no operand object at {:?}", operand_pointer));
 
             match operand {
-                Object::Object { parent:_, fields, methods:_ } => {
+                RuntimeObject::Object { parent:_, fields, methods:_ } => {
                     let slot: Pointer = fields.get(name)
                         .expect(&format!("Get slot error: no field {} in object", name))
                         .clone();
@@ -752,7 +751,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 .expect(&format!("Set slot error: no operand object at {:?}", host_pointer));
 
             match host {
-                Object::Object { parent:_, fields, methods:_ } => {
+                RuntimeObject::Object { parent:_, fields, methods:_ } => {
                     if !(fields.contains_key(name)) {
                         panic!("Set slot error: no field {} in object {:?}", name, host)
                     }
@@ -794,20 +793,20 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                              {:?}", index, constant),
             };
 
-            let object: &mut Object = state.dereference_mut(&object_pointer)
+            let object: &mut RuntimeObject = state.dereference_mut(&object_pointer)
                 .expect(&format!("Call method error: no operand object at {:?}", object_pointer));
 
 
             match object {
-                Object::Null =>
+                RuntimeObject::Null =>
                     interpret_null_method(object_pointer, name, &Vec::from(arguments), state, program),
-                Object::Integer(_) =>
+                RuntimeObject::Integer(_) =>
                     interpret_integer_method(object_pointer, name, &Vec::from(arguments), state, program),
-                Object::Boolean(_) =>
+                RuntimeObject::Boolean(_) =>
                     interpret_boolean_method(object_pointer, name, &Vec::from(arguments), state, program),
-                Object::Array(_) =>
+                RuntimeObject::Array(_) =>
                     interpret_array_method(object_pointer, name, &Vec::from(arguments), *parameters, state, program),
-                Object::Object { parent:_, fields:_, methods:_ } =>
+                RuntimeObject::Object { parent:_, fields:_, methods:_ } =>
                     dispatch_object_method(object_pointer, name, &Vec::from(arguments), *parameters, state, program),
             };
         }
@@ -848,7 +847,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                     }
 
                     for _ in 0..locals.value() {
-                        slots.push_back(state.allocate(Object::Null))
+                        slots.push_back(state.allocate(RuntimeObject::Null))
                     }
 
                     state.bump_instruction_pointer(program);
@@ -930,7 +929,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 panic!("Print error: Unused arguments for format {}", format)
             }
 
-            state.allocate_and_push_operand(Object::Null);
+            state.allocate_and_push_operand(RuntimeObject::Null);
             state.bump_instruction_pointer(program);
         }
 
@@ -961,8 +960,8 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
 
             let jump_condition = {
                 match jump_condition_object {
-                    Object::Boolean(value) => *value,
-                    Object::Null => false,
+                    RuntimeObject::Boolean(value) => *value,
+                    RuntimeObject::Null => false,
                     _ => true,
                 }
             };
@@ -1037,14 +1036,14 @@ pub fn interpret_null_method(pointer: Pointer, name: &str, arguments: &Vec<Point
 
     let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
     let result = match (name, operand) {
-        ("==", Object::Null)  => Object::from_bool(true),
-        ("==", _)             => Object::from_bool(false),
-        ("!=", Object::Null)  => Object::from_bool(false),
-        ("!=", _)             => Object::from_bool(true),
-        ("eq", Object::Null)  => Object::from_bool(true),
-        ("eq", _)             => Object::from_bool(false),
-        ("neq", Object::Null) => Object::from_bool(false),
-        ("neq", _)            => Object::from_bool(true),
+        ("==", RuntimeObject::Null)  => RuntimeObject::from_bool(true),
+        ("==", _)             => RuntimeObject::from_bool(false),
+        ("!=", RuntimeObject::Null)  => RuntimeObject::from_bool(false),
+        ("!=", _)             => RuntimeObject::from_bool(true),
+        ("eq", RuntimeObject::Null)  => RuntimeObject::from_bool(true),
+        ("eq", _)             => RuntimeObject::from_bool(false),
+        ("neq", RuntimeObject::Null) => RuntimeObject::from_bool(false),
+        ("neq", _)            => RuntimeObject::from_bool(true),
 
         _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
                      object, name, operand),
@@ -1057,33 +1056,33 @@ pub fn interpret_integer_method(pointer: Pointer, name: &str, arguments: &Vec<Po
 
     let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
     let result = match (object, name, operand) {
-        (Object::Integer(i), "+",   Object::Integer(j)) => Object::from_i32 (*i +  *j),
-        (Object::Integer(i), "-",   Object::Integer(j)) => Object::from_i32 (*i -  *j),
-        (Object::Integer(i), "*",   Object::Integer(j)) => Object::from_i32 (*i *  *j),
-        (Object::Integer(i), "/",   Object::Integer(j)) => Object::from_i32 (*i /  *j),
-        (Object::Integer(i), "%",   Object::Integer(j)) => Object::from_i32 (*i %  *j),
-        (Object::Integer(i), "<=",  Object::Integer(j)) => Object::from_bool(*i <= *j),
-        (Object::Integer(i), ">=",  Object::Integer(j)) => Object::from_bool(*i >= *j),
-        (Object::Integer(i), "<",   Object::Integer(j)) => Object::from_bool(*i <  *j),
-        (Object::Integer(i), ">",   Object::Integer(j)) => Object::from_bool(*i >  *j),
-        (Object::Integer(i), "==",  Object::Integer(j)) => Object::from_bool(*i == *j),
-        (Object::Integer(i), "!=",  Object::Integer(j)) => Object::from_bool(*i != *j),
-        (Object::Integer(_), "==",  _)                  => Object::from_bool(false),
-        (Object::Integer(_), "!=",  _)                  => Object::from_bool(true),
+        (RuntimeObject::Integer(i), "+",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i +  *j),
+        (RuntimeObject::Integer(i), "-",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i -  *j),
+        (RuntimeObject::Integer(i), "*",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i *  *j),
+        (RuntimeObject::Integer(i), "/",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i /  *j),
+        (RuntimeObject::Integer(i), "%",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i %  *j),
+        (RuntimeObject::Integer(i), "<=",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i <= *j),
+        (RuntimeObject::Integer(i), ">=",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i >= *j),
+        (RuntimeObject::Integer(i), "<",   RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i <  *j),
+        (RuntimeObject::Integer(i), ">",   RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i >  *j),
+        (RuntimeObject::Integer(i), "==",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i == *j),
+        (RuntimeObject::Integer(i), "!=",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i != *j),
+        (RuntimeObject::Integer(_), "==",  _)                  => RuntimeObject::from_bool(false),
+        (RuntimeObject::Integer(_), "!=",  _)                  => RuntimeObject::from_bool(true),
 
-        (Object::Integer(i), "add", Object::Integer(j)) => Object::from_i32 (*i +  *j),
-        (Object::Integer(i), "sub", Object::Integer(j)) => Object::from_i32 (*i -  *j),
-        (Object::Integer(i), "mul", Object::Integer(j)) => Object::from_i32 (*i *  *j),
-        (Object::Integer(i), "div", Object::Integer(j)) => Object::from_i32 (*i /  *j),
-        (Object::Integer(i), "mod", Object::Integer(j)) => Object::from_i32 (*i %  *j),
-        (Object::Integer(i), "le",  Object::Integer(j)) => Object::from_bool(*i <= *j),
-        (Object::Integer(i), "ge",  Object::Integer(j)) => Object::from_bool(*i >= *j),
-        (Object::Integer(i), "lt",  Object::Integer(j)) => Object::from_bool(*i <  *j),
-        (Object::Integer(i), "gt",  Object::Integer(j)) => Object::from_bool(*i >  *j),
-        (Object::Integer(i), "eq",  Object::Integer(j)) => Object::from_bool(*i == *j),
-        (Object::Integer(i), "neq", Object::Integer(j)) => Object::from_bool(*i != *j),
-        (Object::Integer(_), "eq",  _)                  => Object::from_bool(false),
-        (Object::Integer(_), "neq", _)                  => Object::from_bool(true),
+        (RuntimeObject::Integer(i), "add", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i +  *j),
+        (RuntimeObject::Integer(i), "sub", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i -  *j),
+        (RuntimeObject::Integer(i), "mul", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i *  *j),
+        (RuntimeObject::Integer(i), "div", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i /  *j),
+        (RuntimeObject::Integer(i), "mod", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i %  *j),
+        (RuntimeObject::Integer(i), "le",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i <= *j),
+        (RuntimeObject::Integer(i), "ge",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i >= *j),
+        (RuntimeObject::Integer(i), "lt",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i <  *j),
+        (RuntimeObject::Integer(i), "gt",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i >  *j),
+        (RuntimeObject::Integer(i), "eq",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i == *j),
+        (RuntimeObject::Integer(i), "neq", RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i != *j),
+        (RuntimeObject::Integer(_), "eq",  _)                  => RuntimeObject::from_bool(false),
+        (RuntimeObject::Integer(_), "neq", _)                  => RuntimeObject::from_bool(true),
 
         _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
                      object, name, operand),
@@ -1096,19 +1095,19 @@ pub fn interpret_boolean_method(pointer: Pointer, name: &str, arguments: &Vec<Po
 
     let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
     let result = match (object, name, operand) {
-        (Object::Boolean(p), "and", Object::Boolean(q)) => Object::from_bool(*p && *q),
-        (Object::Boolean(p), "or",  Object::Boolean(q)) => Object::from_bool(*p || *q),
-        (Object::Boolean(p), "eq",  Object::Boolean(q)) => Object::from_bool(*p == *q),
-        (Object::Boolean(p), "neq", Object::Boolean(q)) => Object::from_bool(*p != *q),
-        (Object::Boolean(_), "eq",  _)                  => Object::from_bool(false),
-        (Object::Boolean(_), "neq", _)                  => Object::from_bool(true),
+        (RuntimeObject::Boolean(p), "and", RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p && *q),
+        (RuntimeObject::Boolean(p), "or",  RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p || *q),
+        (RuntimeObject::Boolean(p), "eq",  RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p == *q),
+        (RuntimeObject::Boolean(p), "neq", RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p != *q),
+        (RuntimeObject::Boolean(_), "eq",  _)                  => RuntimeObject::from_bool(false),
+        (RuntimeObject::Boolean(_), "neq", _)                  => RuntimeObject::from_bool(true),
 
-        (Object::Boolean(p), "&",   Object::Boolean(q)) => Object::from_bool(*p && *q),
-        (Object::Boolean(p), "|",   Object::Boolean(q)) => Object::from_bool(*p || *q),
-        (Object::Boolean(p), "==",  Object::Boolean(q)) => Object::from_bool(*p == *q),
-        (Object::Boolean(p), "!=",  Object::Boolean(q)) => Object::from_bool(*p != *q),
-        (Object::Boolean(_), "==",  _)                  => Object::from_bool(false),
-        (Object::Boolean(_), "!=",  _)                  => Object::from_bool(true),
+        (RuntimeObject::Boolean(p), "&",   RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p && *q),
+        (RuntimeObject::Boolean(p), "|",   RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p || *q),
+        (RuntimeObject::Boolean(p), "==",  RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p == *q),
+        (RuntimeObject::Boolean(p), "!=",  RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p != *q),
+        (RuntimeObject::Boolean(_), "==",  _)                  => RuntimeObject::from_bool(false),
+        (RuntimeObject::Boolean(_), "!=",  _)                  => RuntimeObject::from_bool(true),
 
         _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
                     object, name, operand),
@@ -1128,7 +1127,7 @@ pub fn interpret_array_method(pointer: Pointer, name: &str, arguments: &Vec<Poin
     if name == "get" {
         let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
         let result = match (object, operand) {
-            (Object::Array(element_pointers), Object::Integer(index)) => {
+            (RuntimeObject::Array(element_pointers), RuntimeObject::Integer(index)) => {
                 if (*index as usize) >= element_pointers.len() {
                     panic!("Call method error: array index {} is out of bounds (should be < {})",
                             index, element_pointers.len())
@@ -1148,20 +1147,20 @@ pub fn interpret_array_method(pointer: Pointer, name: &str, arguments: &Vec<Poin
         let operand_2_pointer: &Pointer = &arguments[1];
 
         let index: usize = match state.dereference(operand_1_pointer) {
-            Some(Object::Integer(index)) => *index as usize,
+            Some(RuntimeObject::Integer(index)) => *index as usize,
             Some(object) => panic!("Call method error: cannot index array with {:?}", object),
             None => panic!("Call method error: no operand (1) object at {:?}", operand_1_pointer),
         };
 
-        let object : &mut Object = state.dereference_mut(&pointer).unwrap(); /* pre-checked elsewhere */
+        let object : &mut RuntimeObject = state.dereference_mut(&pointer).unwrap(); /* pre-checked elsewhere */
         let result = match object {
-            Object::Array(element_pointers) => {
+            RuntimeObject::Array(element_pointers) => {
                 if index >= element_pointers.len() {
                     panic!("Call method error: array index {} is out of bounds (should be < {})",
                            index, element_pointers.len())
                 }
                 element_pointers[index] = *operand_2_pointer;
-                Object::Null
+                RuntimeObject::Null
             },
             _ => panic!("Call method error: object {:?} has no method {}", object, name),
         };
@@ -1180,7 +1179,7 @@ fn dispatch_object_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>
             .expect("Call method error: no object at {:?}");
 
         let method: ProgramObject = match object {
-            Object::Object { parent, fields: _, methods } => {
+            RuntimeObject::Object { parent, fields: _, methods } => {
                 if let Some(method) = methods.get(name) {
                     method.clone()
                 } else {
@@ -1188,19 +1187,19 @@ fn dispatch_object_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>
                     continue
                 }
             },
-            Object::Null => {
+            RuntimeObject::Null => {
                 interpret_null_method(cursor, name, arguments, state, program);
                 break
             },
-            Object::Boolean(_) => {
+            RuntimeObject::Boolean(_) => {
                 interpret_boolean_method(cursor, name, arguments, state, program);
                 break
             },
-            Object::Integer(_) => {
+            RuntimeObject::Integer(_) => {
                 interpret_integer_method(cursor, name, arguments, state, program);
                 break
             },
-            Object::Array(_) => {
+            RuntimeObject::Array(_) => {
                 interpret_array_method(cursor, name, arguments, arity, state, program);
                 break
             },
@@ -1230,7 +1229,7 @@ fn interpret_object_method(method: ProgramObject, pointer: Pointer, name: &str,
             slots.extend(arguments); // TODO passes by reference... correct?
 
             for _ in 0..locals.to_usize() {
-                slots.push(state.allocate(Object::Null))
+                slots.push(state.allocate(RuntimeObject::Null))
             }
 
             state.bump_instruction_pointer(program);

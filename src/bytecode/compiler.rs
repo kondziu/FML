@@ -618,7 +618,7 @@ impl Compiled for AST {
             AST::AccessField { object, field: Identifier(name) } => {
                 object.deref().compile_into(program, environment, true);
                 let index = program.register_constant(ProgramObject::from_str(name));
-                program.emit_code(OpCode::GetSlot { name: index });
+                program.emit_code(OpCode::GetField { name: index });
                 program.emit_conditionally(OpCode::Drop, !keep_result);
             }
 
@@ -626,7 +626,7 @@ impl Compiled for AST {
                 object.deref().compile_into(program, environment, true);
                 value.deref().compile_into(program, environment, true);
                 let index = program.register_constant(ProgramObject::from_str(name));
-                program.emit_code(OpCode::SetSlot { name: index });
+                program.emit_code(OpCode::SetField { name: index });
                 program.emit_conditionally(OpCode::Drop, !keep_result);
             }
 

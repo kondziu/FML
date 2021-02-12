@@ -122,7 +122,7 @@ pub enum OpCode {
      *
      * Serialized as opcode `0x05`.
      */
-    GetSlot { name: ConstantPoolIndex },
+    GetField { name: ConstantPoolIndex },
 
     /**
      * ## Set the value of an object's field member variable to the top value from stack
@@ -135,7 +135,7 @@ pub enum OpCode {
      *
      * Serialized as opcode `0x06`.
      */
-    SetSlot { name: ConstantPoolIndex },
+    SetField { name: ConstantPoolIndex },
 
     /**
      * ## Call a member method
@@ -248,18 +248,6 @@ pub enum OpCode {
      * Serialized as opcode `0x10`.
      */
     Drop,
-
-    /**
-     * ## Does nothing
-     *
-     * A classic NOP.
-     *
-     * This is an extension to Feeny's bytecode.
-     *
-     * Serialized as opcode `0xFF`.
-     */
-    #[allow(dead_code)]
-    Skip,
 }
 
 impl Serializable for OpCode {
@@ -277,8 +265,8 @@ impl Serializable for OpCode {
             },
             Array => { Ok(()) },
             Object { class } => { class.serialize(sink) },
-            GetSlot { name } => { name.serialize(sink) },
-            SetSlot { name } => { name.serialize(sink) },
+            GetField { name } => { name.serialize(sink) },
+            SetField { name } => { name.serialize(sink) },
             CallMethod { name, arguments } => {
                 name.serialize(sink)?;
                 arguments.serialize(sink)
@@ -295,7 +283,7 @@ impl Serializable for OpCode {
             Jump { label } => { label.serialize(sink) },
             Return => { Ok(()) },
             Drop => { Ok(()) },
-            Skip => { Ok(()) },
+            // Skip => { Ok(()) },
         }
     }
 
@@ -310,8 +298,8 @@ impl Serializable for OpCode {
                                    arguments: Arity::from_bytes(input)              },
             0x03 => Array        {                                                  },
             0x04 => Object       { class:     ConstantPoolIndex::from_bytes(input)  },
-            0x05 => GetSlot      { name:      ConstantPoolIndex::from_bytes(input)  },
-            0x06 => SetSlot      { name:      ConstantPoolIndex::from_bytes(input)  },
+            0x05 => GetField { name:      ConstantPoolIndex::from_bytes(input)  },
+            0x06 => SetField { name:      ConstantPoolIndex::from_bytes(input)  },
             0x07 => CallMethod   { name:      ConstantPoolIndex::from_bytes(input),
                                    arguments: Arity::from_bytes(input)              },
             0x08 => CallFunction { name:  ConstantPoolIndex::from_bytes(input),
@@ -338,8 +326,8 @@ impl OpCode {
             Print        { format: _,   arguments: _ } => 0x02,
             Array        {                           } => 0x03,
             Object       { class: _                  } => 0x04,
-            GetSlot      { name: _                   } => 0x05,
-            SetSlot      { name: _                   } => 0x06,
+            GetField { name: _                   } => 0x05,
+            SetField { name: _                   } => 0x06,
             CallMethod   { name: _,     arguments: _ } => 0x07,
             CallFunction { name: _, arguments: _ } => 0x08,
             SetLocal     { index: _                  } => 0x09,
@@ -350,7 +338,7 @@ impl OpCode {
             Jump         { label: _                  } => 0x0E,
             Return                                     => 0x0F,
             Drop                                       => 0x10,
-            Skip => 0xFF,
+            // Skip => 0xFF,
         }
     }
 
@@ -389,9 +377,9 @@ impl std::fmt::Display for OpCode {
                 write!(f, "object {}", class),
             OpCode::Array =>
                 write!(f, "array"),
-            OpCode::GetSlot { name } =>
+            OpCode::GetField { name } =>
                 write!(f, "get slot {}", name),
-            OpCode::SetSlot { name } =>
+            OpCode::SetField { name } =>
                 write!(f, "set slot {}", name),
             OpCode::CallMethod { name, arguments } =>
                 write!(f, "call slot {} {}", name, arguments),
@@ -409,8 +397,6 @@ impl std::fmt::Display for OpCode {
                 write!(f, "return"),
             OpCode::Drop =>
                 write!(f, "drop"),
-            OpCode::Skip =>
-                write!(f, "nop"),
         }
     }
 }

@@ -204,11 +204,11 @@ impl UglyPrint for OpCode {
             OpCode::Array => {
                 write_string!(sink, indent, "array");
             },
-            OpCode::GetSlot { name } => {
+            OpCode::GetField { name } => {
                 write_string!(sink, indent, "get slot ");
                 name.pretty_print_no_indent(sink);
             },
-            OpCode::SetSlot { name } => {
+            OpCode::SetField { name } => {
                 write_string!(sink, indent, "set slot ");
                 name.pretty_print_no_indent(sink);
             },
@@ -244,9 +244,6 @@ impl UglyPrint for OpCode {
             },
             OpCode::Drop => {
                 write_string!(sink, indent, "drop");
-            },
-            OpCode::Skip => {
-                write_string!(sink, indent, "nop");
             },
         }
     }

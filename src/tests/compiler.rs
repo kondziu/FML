@@ -1062,7 +1062,7 @@ use crate::bytecode::compiler::*;
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },
-        /* 1 */ OpCode::GetSlot { name: ConstantPoolIndex::new(0) },
+        /* 1 */ OpCode::GetField { name: ConstantPoolIndex::new(0) },
     ));
 
     let expected_constants: Vec<ProgramObject> = vec!(
@@ -1096,7 +1096,7 @@ use crate::bytecode::compiler::*;
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },
         /* 1 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },
-        /* 2 */ OpCode::SetSlot { name: ConstantPoolIndex::new(1) },
+        /* 2 */ OpCode::SetField { name: ConstantPoolIndex::new(1) },
     ));
 
     let expected_constants: Vec<ProgramObject> = vec!(

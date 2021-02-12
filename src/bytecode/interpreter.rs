@@ -763,7 +763,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             state.bump_instruction_pointer(program);
         }
 
-        OpCode::GetSlot { name: index } => {
+        OpCode::GetField { name: index } => {
             let constant: &ProgramObject = program.get_constant(index)
                 .expect(&format!("Get slot error: no constant to serve as label name at index {:?}",
                                  index.value()));
@@ -795,7 +795,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             state.bump_instruction_pointer(program);
         }
 
-        OpCode::SetSlot { name: index } => {
+        OpCode::SetField { name: index } => {
             let constant: &ProgramObject = program.get_constant(index)
                 .expect(&format!("Set slot error: no constant to serve as label name at index {:?}",
                                  index.value()));
@@ -1065,10 +1065,6 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 .expect("Drop error: cannot pop operand from empty operand stack");
             state.bump_instruction_pointer(program);
         },
-
-        OpCode::Skip => {
-            state.bump_instruction_pointer(program);
-        }
     }
 }
 

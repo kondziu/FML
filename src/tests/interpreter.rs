@@ -23,7 +23,7 @@ macro_rules! hashmap {
 #[test] fn literal() {
     let code = Code::from(vec!(
         OpCode::Literal { index: ConstantPoolIndex::new(0) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::Integer(42));
@@ -47,7 +47,7 @@ macro_rules! hashmap {
 #[test] fn label() {
     let code = Code::from(vec!(
         OpCode::Label { name: ConstantPoolIndex::new(0) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("o.o".to_string()));
@@ -71,7 +71,7 @@ macro_rules! hashmap {
 #[test] fn get_local() {
     let code = Code::from(vec!(
         OpCode::GetLocal { index: LocalFrameIndex::new(0) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!();
@@ -98,7 +98,7 @@ macro_rules! hashmap {
 #[test] fn set_local() {
     let code = Code::from(vec!(
         OpCode::SetLocal { index: LocalFrameIndex::new(0) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!();
@@ -127,7 +127,7 @@ macro_rules! hashmap {
 #[test] fn get_global() {
     let code = Code::from(vec!(
         OpCode::GetGlobal { name: ConstantPoolIndex::new(0) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("skippy".to_string()));
@@ -154,7 +154,7 @@ macro_rules! hashmap {
 #[test] fn set_global() {
     let code = Code::from(vec!(
         OpCode::SetGlobal { name: ConstantPoolIndex::new(0) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("skippy".to_string()));
@@ -181,7 +181,7 @@ macro_rules! hashmap {
 #[test] fn drop() {
     let code = Code::from(vec!(
         OpCode::Drop,
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!();
@@ -207,9 +207,9 @@ macro_rules! hashmap {
 #[test] fn jump() {
     let code = Code::from(vec!(
         /*0*/ OpCode::Label { name: ConstantPoolIndex::new(0) },
-        /*1*/ OpCode::Skip,
+        /*1*/ OpCode::Return,
         /*2*/ OpCode::Jump { label: ConstantPoolIndex::new(0) },
-        /*3*/ OpCode::Skip,
+        /*3*/ OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("^.^".to_string()));
@@ -235,9 +235,9 @@ macro_rules! hashmap {
 #[test] fn branch_true() {
     let code = Code::from(vec!(
         /*0*/ OpCode::Label { name: ConstantPoolIndex::new(0) },
-        /*1*/ OpCode::Skip,
+        /*1*/ OpCode::Return,
         /*2*/ OpCode::Branch { label: ConstantPoolIndex::new(0) },
-        /*3*/ OpCode::Skip,
+        /*3*/ OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("x.x".to_string()));
@@ -264,9 +264,9 @@ macro_rules! hashmap {
 #[test] fn branch_false() {
     let code = Code::from(vec!(
         /*0*/ OpCode::Label { name: ConstantPoolIndex::new(0) },
-        /*1*/ OpCode::Skip,
+        /*1*/ OpCode::Return,
         /*2*/ OpCode::Branch { label: ConstantPoolIndex::new(0) },
-        /*3*/ OpCode::Skip,
+        /*3*/ OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("butt".to_string()));
@@ -293,7 +293,7 @@ macro_rules! hashmap {
 #[test] fn print() {
     let code = Code::from(vec!(
         OpCode::Print { format: ConstantPoolIndex::new(0), arguments: Arity::new(0) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("Ahoj przygodo!\n".to_string()));
@@ -317,7 +317,7 @@ macro_rules! hashmap {
 #[test] fn print_one() {
     let code = Code::from(vec!(
         OpCode::Print { format: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("~!\n".to_string()));
@@ -343,7 +343,7 @@ macro_rules! hashmap {
 #[test] fn print_two() {
     let code = Code::from(vec!(
         OpCode::Print { format: ConstantPoolIndex::new(0), arguments: Arity::new(2) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("~x~!\n".to_string()));
@@ -367,34 +367,10 @@ macro_rules! hashmap {
     assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(0), Object::from_i32(42), Object::Null)), "test memory")
 }
 
-#[test] fn skip() {
-    let code = Code::from(vec!(
-        OpCode::Skip,
-        OpCode::Skip,
-    ));
-
-    let constants: Vec<ProgramObject> = vec!();
-    let globals: Vec<ConstantPoolIndex> = vec!();
-    let entry = ConstantPoolIndex::new(0);
-    let program = Program::new(code, constants, globals, entry);
-
-    let mut state = State::minimal();
-    let mut output: String = String::new();
-
-    interpret(&mut state, &mut output, &program);
-
-    assert_eq!(&output, "", "test output");
-    assert_eq!(state.operands, Vec::new(), "test operands");
-    assert_eq!(state.globals, HashMap::new(), "test globals");
-    assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::new())
-}
-
 #[test] fn array_zero() {
     let code = Code::from(vec!(
         OpCode::Array,
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!();
@@ -422,7 +398,7 @@ macro_rules! hashmap {
 #[test] fn array_one() {
     let code = Code::from(vec!(
         OpCode::Array,
-        OpCode::Skip,
+        OpCode::Return
     ));
 
     let constants: Vec<ProgramObject> = vec!();
@@ -450,7 +426,7 @@ macro_rules! hashmap {
 #[test] fn array_three() {
     let code = Code::from(vec!(
         OpCode::Array,
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!();
@@ -485,7 +461,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
         /*1*/ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(0) },
-        /*2*/ OpCode::Skip,
+        /*2*/ OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(
@@ -521,7 +497,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
         /*1*/ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
-        /*2*/ OpCode::Skip,
+        /*2*/ OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(
@@ -557,8 +533,8 @@ macro_rules! hashmap {
 #[test] fn call_function_three() {
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
-        /*1*/ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(3) }//,
-        ///*2*/ OpCode::Skip,
+        /*1*/ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(3) },
+        /*2*/ OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(
@@ -604,7 +580,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
         /*1*/ OpCode::CallFunction { name: ConstantPoolIndex::new(1), arguments: Arity::new(3) },
-        /*2*/ OpCode::Skip,
+        // /*2*/ OpCode::Skip,
     ));
 
     let constants: Vec<ProgramObject> = vec!(
@@ -644,7 +620,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
         /*1*/ OpCode::Object { class: ConstantPoolIndex::new(2) },
-        /*2*/ OpCode::Skip
+        /*2*/ OpCode::Return
     ));
 
     let constants: Vec<ProgramObject> = vec!(
@@ -686,7 +662,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
         /*1*/ OpCode::Object { class: ConstantPoolIndex::new(4) },
-        /*2*/ OpCode::Skip
+        /*2*/ OpCode::Return
     ));
 
     let constants: Vec<ProgramObject> = vec!(
@@ -734,7 +710,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
         /*1*/ OpCode::Object { class: ConstantPoolIndex::new(6) },
-        /*2*/ OpCode::Skip
+        /*2*/ OpCode::Return
     ));
 
     let constants: Vec<ProgramObject> = vec!(
@@ -788,8 +764,8 @@ macro_rules! hashmap {
 
 #[test] fn get_slot() {
     let code = Code::from(vec!(
-        OpCode::GetSlot { name: ConstantPoolIndex::new(0) },
-        OpCode::Skip,
+        OpCode::GetField { name: ConstantPoolIndex::new(0) },
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("value".to_string()));
@@ -822,8 +798,8 @@ macro_rules! hashmap {
 
 #[test] fn set_slot() {
     let code = Code::from(vec!(
-        OpCode::SetSlot { name: ConstantPoolIndex::new(0) },
-        OpCode::Skip,
+        OpCode::SetField { name: ConstantPoolIndex::new(0) },
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("value".to_string()));
@@ -865,7 +841,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         OpCode::Return,
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(0 + 1) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("f".to_string()));
@@ -903,7 +879,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         OpCode::Return,
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1 + 1) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("+".to_string()));
@@ -945,7 +921,7 @@ macro_rules! hashmap {
     let code = Code::from(vec!(
         OpCode::Return,
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(3 + 1) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("g".to_string()));
@@ -992,7 +968,7 @@ macro_rules! hashmap {
 fn call_method(receiver: Object, argument: Object, operation: &str, result: Object) {
     let code = Code::from(vec!(
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1 + 1) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String(operation.to_string()));
@@ -1153,7 +1129,7 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
 #[test] fn call_method_array_get() {
     let code = Code::from(vec!(
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1 + 1) },
-        OpCode::Skip,
+        OpCode::Return,
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::from_str("get"));
@@ -1195,7 +1171,7 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
 #[test] fn call_method_array_set() {
     let code = Code::from(vec!(
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(3) },
-        OpCode::Skip,
+        OpCode::Return
     ));
 
     let constants: Vec<ProgramObject> = vec!(ProgramObject::String("set".to_string()));

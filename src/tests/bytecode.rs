@@ -78,13 +78,13 @@ fn serialize_with_context_test<S>(expected: Vec<u8>, object: S, code: Code) wher
 }
 
 #[test] fn deserialize_get_slot () {
-    let expected = OpCode::GetSlot { name: ConstantPoolIndex::new(1) };
+    let expected = OpCode::GetField { name: ConstantPoolIndex::new(1) };
     let bytes = vec!(0x05, 0x01, 0x00, 0x00, 0x00);
     deserialize_test(expected, bytes);
 }
 
 #[test] fn deserialize_set_slot () {
-    let expected = OpCode::SetSlot { name: ConstantPoolIndex::new(1) };
+    let expected = OpCode::SetField { name: ConstantPoolIndex::new(1) };
     let bytes = vec!(0x06, 0x01, 0x00, 0x00, 0x00);
     deserialize_test(expected, bytes);
 }
@@ -181,13 +181,13 @@ fn serialize_with_context_test<S>(expected: Vec<u8>, object: S, code: Code) wher
 
 #[test] fn serialize_get_slot () {
     let expected = vec!(0x05, 0x01, 0x00, );
-    let object = OpCode::GetSlot { name: ConstantPoolIndex::new(1) };
+    let object = OpCode::GetField { name: ConstantPoolIndex::new(1) };
     serialize_test(expected, object);
 }
 
 #[test] fn serialize_set_slot () {
     let expected = vec!(0x06, 0x01, 0x00, );
-    let object = OpCode::SetSlot { name: ConstantPoolIndex::new(1) };
+    let object = OpCode::SetField { name: ConstantPoolIndex::new(1) };
     serialize_test(expected, object);
 }
 

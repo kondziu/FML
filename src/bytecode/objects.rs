@@ -239,6 +239,7 @@ impl Pointer {
     pub fn from(p: usize) -> Self {
         Pointer(p)
     }
+    pub fn as_usize(&self) -> usize { self.0 }
 }
 
 impl std::fmt::Display for Pointer {

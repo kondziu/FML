@@ -41,7 +41,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(42))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42))), "test memory");
 }
 
 #[test] fn label() {
@@ -65,7 +65,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!()), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!()), "test memory");
 }
 
 #[test] fn get_local() {
@@ -92,7 +92,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::from(None, vec!(Pointer::from(0)))), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(42))), "test memory")
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42))), "test memory")
 }
 
 #[test] fn set_local() {
@@ -120,8 +120,8 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::from(None, vec!(Pointer::from(0)))), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(42),
-                                               Object::from_i32(0))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42),
+                                             Object::from_i32(0))), "test memory");
 }
 
 #[test] fn get_global() {
@@ -148,7 +148,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, hashmap!("skippy".to_string(), Pointer::from(0)), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(666))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(666))), "test memory");
 }
 
 #[test] fn set_global() {
@@ -175,7 +175,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, hashmap!("skippy".to_string(), Pointer::from(0)), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(42), Object::from_i32(666))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42), Object::from_i32(666))), "test memory");
 }
 
 #[test] fn drop() {
@@ -201,7 +201,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(7))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(7))), "test memory");
 }
 
 #[test] fn jump() {
@@ -229,7 +229,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::new(), "test memory")
+    assert_eq!(state.memory, Heap::new(), "test memory")
 }
 
 #[test] fn branch_true() {
@@ -258,7 +258,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_bool(true))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_bool(true))), "test memory");
 }
 
 #[test] fn branch_false() {
@@ -287,7 +287,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(3)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_bool(false))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_bool(false))), "test memory");
 }
 
 #[test] fn print() {
@@ -311,7 +311,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null)), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null)), "test memory");
 }
 
 #[test] fn print_one() {
@@ -337,7 +337,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(42), Object::Null)), "test memory")
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42), Object::Null)), "test memory")
 }
 
 #[test] fn print_two() {
@@ -364,7 +364,7 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(0), Object::from_i32(42), Object::Null)), "test memory")
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(0), Object::from_i32(42), Object::Null)), "test memory")
 }
 
 #[test] fn array_zero() {
@@ -391,8 +391,8 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(0), Object::Null,
-                                               Object::from_pointers(vec!()))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(0), Object::Null,
+                                             Object::from_pointers(vec!()))), "test memory");
 }
 
 #[test] fn array_one() {
@@ -419,8 +419,8 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(1), Object::Null, Object::Null,
-                                               Object::from_pointers(vec!(Pointer::from(2))))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1), Object::Null, Object::Null,
+                                             Object::from_pointers(vec!(Pointer::from(2))))), "test memory");
 }
 
 #[test] fn array_three() {
@@ -447,12 +447,12 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(3),
-                                               Object::from_i32(0),
-                                               Object::from_i32(0),
-                                               Object::from_i32(0),
-                                               Object::from_i32(0),
-                                               Object::from_pointers(vec!(Pointer::from(2),
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(3),
+                                             Object::from_i32(0),
+                                             Object::from_i32(0),
+                                             Object::from_i32(0),
+                                             Object::from_i32(0),
+                                             Object::from_pointers(vec!(Pointer::from(2),
                                                                           Pointer::from(3),
                                                                           Pointer::from(4))))), "test memory");
 }
@@ -490,7 +490,7 @@ macro_rules! hashmap {
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty(),
                                   LocalFrame::from(Some(Address::from_usize(2)), vec!())), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!()))
+    assert_eq!(state.memory, Heap::from(vec!()))
 }
 
 #[test] fn call_function_one() {
@@ -527,7 +527,7 @@ macro_rules! hashmap {
     assert_eq!(state.frames, vec!(LocalFrame::empty(),
                                   LocalFrame::from(Some(Address::from_usize(2)),
                                                    vec!(Pointer::from(0)))), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(42))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(42))), "test memory");
 }
 
 #[test] fn call_function_three() {
@@ -570,9 +570,9 @@ macro_rules! hashmap {
                                                    vec!(Pointer::from(0),
                                                         Pointer::from(1),
                                                         Pointer::from(2),))), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(1),
-                                               Object::from_i32(2),
-                                               Object::from_i32(3),
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1),
+                                             Object::from_i32(2),
+                                             Object::from_i32(3),
     )))
 }
 
@@ -611,9 +611,9 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(1),
-                                               Object::from_i32(2),
-                                               Object::from_i32(3))), "test memory");
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1),
+                                             Object::from_i32(2),
+                                             Object::from_i32(3))), "test memory");
 }
 
 #[test] fn object_zero() {
@@ -649,8 +649,8 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null,
-                                               Object::from(Pointer::from(0),
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+                                             Object::from(Pointer::from(0),
                                                             HashMap::new(),
                                                             hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
                                                                                                                   arguments: Arity::new(1),
@@ -696,9 +696,9 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null,
-                                               Object::from_i32(0),
-                                               Object::from(Pointer::from(0),
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+                                             Object::from_i32(0),
+                                             Object::from(Pointer::from(0),
                                                             hashmap!("x".to_string(), Pointer::from(1)),
                                                             hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(2),
                                                                                                                   arguments: Arity::new(1),
@@ -750,10 +750,10 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null,
-                                               Object::from_i32(0),
-                                               Object::from_i32(42),
-                                               Object::from(Pointer::from(0),
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+                                             Object::from_i32(0),
+                                             Object::from_i32(42),
+                                             Object::from(Pointer::from(0),
                                                             hashmap!("x".to_string(), Pointer::from(1), "y".to_string(), Pointer::from(2)),
                                                             hashmap!("+".to_string(), ProgramObject::Method {
                                                                                             name: ConstantPoolIndex::new(4),
@@ -789,9 +789,9 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null,
-                                               Object::from_i32(42),
-                                               Object::from(Pointer::from(0),
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+                                             Object::from_i32(42),
+                                             Object::from(Pointer::from(0),
                                                             hashmap!("value".to_string(), Pointer::from(1)),
                                                             HashMap::new()))));
 }
@@ -826,11 +826,11 @@ macro_rules! hashmap {
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null,
-                                               Object::from(Pointer::from(0),
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+                                             Object::from(Pointer::from(0),
                                                             hashmap!("value".to_string(), Pointer::from(2)),
                                                             HashMap::new()),
-                                               Object::from_i32(666))));
+                                             Object::from_i32(666))));
 
     assert_eq!(object, Object::from(Pointer::from(0),
                                     hashmap!("value".to_string(), Pointer::from(1)),
@@ -872,7 +872,7 @@ macro_rules! hashmap {
     assert_eq!(state.frames, vec!(LocalFrame::empty(),
                                   LocalFrame::from(Some(Address::from_usize(2)),
                                                    vec!(Pointer::from(1)))), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null, receiver.clone())))
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null, receiver.clone())))
 }
 
 #[test] fn call_method_one() {
@@ -912,9 +912,9 @@ macro_rules! hashmap {
                                   LocalFrame::from(Some(Address::from_usize(2)),
                                                    vec!(Pointer::from(1),
                                                         Pointer::from(2)))), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null,
-                                               receiver.clone(),
-                                               Object::from_i32(1))))
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+                                             receiver.clone(),
+                                             Object::from_i32(1))))
 }
 
 #[test] fn call_method_three() {
@@ -958,11 +958,11 @@ macro_rules! hashmap {
                                                         Pointer::from(2),
                                                         Pointer::from(3),
                                                         Pointer::from(4),))), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::Null,
-                                               receiver.clone(),
-                                               Object::from_i32(1),
-                                               Object::from_i32(2),
-                                               Object::from_i32(3))))
+    assert_eq!(state.memory, Heap::from(vec!(Object::Null,
+                                             receiver.clone(),
+                                             Object::from_i32(1),
+                                             Object::from_i32(2),
+                                             Object::from_i32(3))))
 }
 
 fn call_method(receiver: Object, argument: Object, operation: &str, result: Object) {
@@ -985,7 +985,7 @@ fn call_method(receiver: Object, argument: Object, operation: &str, result: Obje
 
     interpret(&mut state, &mut output, &program);
 
-    let mut expected_memory = Memory::new();
+    let mut expected_memory = Heap::new();
     expected_memory.allocate(receiver.clone());
     expected_memory.allocate(argument.clone());
     let result_pointer = expected_memory.allocate(result.clone());
@@ -1156,13 +1156,13 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(1),
-                                               Object::from_i32(2),
-                                               Object::from_i32(3),
-                                               Object::from_pointers(vec!(Pointer::from(0),
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1),
+                                             Object::from_i32(2),
+                                             Object::from_i32(3),
+                                             Object::from_pointers(vec!(Pointer::from(0),
                                                                           Pointer::from(1),
                                                                           Pointer::from(2))),
-                                               Object::from_i32(1))), "test memory")
+                                             Object::from_i32(1))), "test memory")
 }
 
 // before: array(1,2,3)
@@ -1201,15 +1201,15 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     assert_eq!(state.globals, HashMap::new(), "test globals");
     assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
     assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    assert_eq!(state.memory, Memory::from(vec!(Object::from_i32(1),
-                                               Object::from_i32(2),
-                                               Object::from_i32(3),
-                                               Object::from_pointers(vec!(Pointer::from(0),
+    assert_eq!(state.memory, Heap::from(vec!(Object::from_i32(1),
+                                             Object::from_i32(2),
+                                             Object::from_i32(3),
+                                             Object::from_pointers(vec!(Pointer::from(0),
                                                                           Pointer::from(5),
                                                                           Pointer::from(2))),
-                                               Object::from_i32(1),
-                                               Object::from_i32(42),
-                                               Object::Null)), "test memory");
+                                             Object::from_i32(1),
+                                             Object::from_i32(42),
+                                             Object::Null)), "test memory");
 
     assert_eq!(array, Object::from_pointers(vec!(Pointer::from(0),
                                                  Pointer::from(1),

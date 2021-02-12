@@ -7,6 +7,8 @@ use super::objects::*;
 use super::bytecode::*;
 use super::program::Program;
 
+use anyhow;
+
 pub struct Output {}
 
 impl Output {
@@ -47,37 +49,10 @@ pub fn evaluate(program: &Program) {
     }
 }
 
-/**
- * A name-to-value table that holds the current value of all the global variables used in the
- * program.
- *
- * Operations:
- *  - a value associated with a given name can be retrieved,
- *  - a new value can be assigned to a given name.
- */
-//pub struct GlobalVariables {
-//    table: HashMap<String, RuntimeObject>
-//}
-
-/**
- * The current local frame represents the context in which a function or method is executing.
-
- * It contains the following slots:
- *  - the values of the arguments to the function,
- *  - the values of all local variables defined in the function,
- *
- * In total, the local frame has as many slots as the sum of the number of the functions arguments
- * and the number of the locals defined within it.
- *
- * The local frame also contains:
- *  - the address of instruction that called the current function,
- *  - the index of the parent frame, ie. the local frame of the calling instruction.
- */
 #[derive(PartialEq,Debug)]
 pub struct LocalFrame {
     slots: Vec<Pointer>, /* ProgramObject::Slot */
     return_address: Option<Address>, /* address */
-    //parent_frame: u64, /* index to local frame stack */
 }
 
 impl LocalFrame {
@@ -126,98 +101,57 @@ impl LocalFrame {
     }
 }
 
-/**
- * The stack of `LocalFrame`s.
- *
- * Note: this is a structure used to track parenthood which I added to avoid having a
- * self-referential `LocalFrame` struct type.
- */
-//pub struct LocalFrameStack {
-//
-//}
-
-/**
- * A single  stack that holds the temporary values of all intermediate results needed during the
- * evaluation of a compound expression.
- *
- * It supports the following operations:
- *  - pushing a value to the stack,
- *  - popping a value from the stack,
- *  - peeking at the top value of the stack.
- */
-//pub struct OperandStack {
-//    stack: Vec<Operand>,
-//}
-//enum Operand {
-//    ProgramObject(ProgramObject),
-//    RuntimeObject(RuntimeObject),
-//}
-
-//pub trait Interpretable {
-//    fn interpret(&self);
-//}
-
 #[derive(PartialEq,Debug)]
-pub struct Memory {
-    objects: HashMap<Pointer, Object>, // FIXME vec
-    sequence: usize,
-}
+pub struct Heap(Vec<Object>);
 
-impl Memory {
+impl Heap {
     pub fn new() -> Self {
-        Memory { objects: HashMap::new(), sequence: 0 }
+        Heap(Vec::new())
     }
 
     #[allow(dead_code)]
     pub fn from(objects: Vec<Object>) -> Self {
-        let mut sequence = 0;
-        let mut object_map = HashMap::new();
-        for object in objects {
-            let pointer = Pointer::from(sequence);
-            sequence += 1;
-            let result = object_map.insert(pointer, object);
-            assert!(result.is_none());
-        }
-        Memory { sequence, objects: object_map }
+        Heap(objects)
     }
 
     pub fn allocate(&mut self, object: Object) -> Pointer {
-        let pointer = Pointer::from(self.sequence);
-        self.sequence += 1;
-        let result = self.objects.insert(pointer.clone(), object);
-        assert!(result.is_none());
+        let pointer = Pointer::from(self.0.len());
+        self.0.push(object);
         pointer
     }
 
     pub fn dereference(&self, pointer: &Pointer) -> Option<&Object> {
-        self.objects.get(pointer)
+        let index = pointer.as_usize();
+        if self.0.len() > index {
+            Some(&self.0[index])
+        } else {
+            None
+        }
     }
 
     pub fn dereference_mut(&mut self, pointer: &Pointer) -> Option<&mut Object> {
-        self.objects.get_mut(pointer)
+        let index = pointer.as_usize();
+        if self.0.len() > index {
+            Some(&mut self.0[index])
+        } else {
+            None
+        }
     }
 
     pub fn copy(&mut self, pointer: &Pointer) -> Option<Pointer> {
-        let new_object = match self.objects.get(pointer) {
-            Some(object) => Some(object.clone()),
-            None => None,
-        };
-
-        match new_object {
-            Some(object) => Some(self.allocate(object)),
-            None => None,
-        }
+        self.dereference(pointer)
+            .map(|object| object.clone())
+            .map(|object| self.allocate(object))
     }
 
     #[allow(dead_code)]
-    pub fn write_over(&mut self, pointer: Pointer, object: Object) -> Result<(),String> {
-        let previous_value = self.objects.insert(pointer, object);
-        match previous_value {
-            Some(_) => Ok(()),
-            None =>
-                Err(format!("Expected an object at {:?} to write over, but none was found",
-                             pointer)),
+    pub fn write_over(&mut self, pointer: Pointer, object: Object) -> anyhow::Result<()> {
+        let index = pointer.as_usize();
+        if index < self.0.len() {
+            anyhow::bail!("Expected an object at {:?} to write over, but none was found", pointer)
         }
+        self.0.push(object.clone());
+        Ok(())
     }
 
     pub fn dereference_to_string(&self, pointer: &Pointer) -> String {
@@ -262,7 +196,7 @@ pub struct State {
     pub operands: Vec<Pointer>,
     pub globals: HashMap<String, Pointer>,
     pub functions: HashMap<String, ProgramObject>,
-    pub memory: Memory,
+    pub memory: Heap,
 }
 
 impl State {
@@ -280,7 +214,7 @@ impl State {
 
         let mut globals: HashMap<String, Pointer> = HashMap::new();
         let mut functions: HashMap<String, ProgramObject> = HashMap::new();
-        let mut memory: Memory = Memory::new();
+        let mut memory: Heap = Heap::new();
 
         for index in program.globals() {
             let thing = program.get_constant(index)
@@ -343,7 +277,7 @@ impl State {
             operands: Vec::new(),
             globals: HashMap::new(),
             functions: HashMap::new(),
-            memory: Memory::new(),
+            memory: Heap::new(),
         }
     }
 
@@ -355,7 +289,7 @@ impl State {
             operands: Vec::new(),
             globals: HashMap::new(),
             functions: HashMap::new(),
-            memory: Memory::new(),
+            memory: Heap::new(),
         }
     }
 

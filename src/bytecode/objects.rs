@@ -211,21 +211,62 @@ impl ProgramObject {
 }
 
 #[derive(PartialEq,Eq,Debug,Hash,Clone,Copy)]
-pub struct Pointer(usize); // FIXME add pointer tagging
+pub struct HeapPointer(usize);
 
-impl Pointer {
-    pub fn from(p: usize) -> Self {
-        Pointer(p)
+impl From<usize> for HeapPointer {
+    fn from(n: usize) -> Self {
+        HeapPointer(n)
     }
+}
+
+impl From<&Pointer> for HeapPointer {
+    fn from(p: &Pointer) -> Self {
+        HeapPointer(p.0)
+    }
+}
+
+impl From<&HeapPointer> for Pointer {
+    fn from(p: &HeapPointer) -> Self {
+        Pointer(p.0)
+    }
+}
+
+impl From<Pointer> for HeapPointer {
+    fn from(p: Pointer) -> Self {
+        HeapPointer(p.0)
+    }
+}
+
+impl From<HeapPointer> for Pointer {
+    fn from(p: HeapPointer) -> Self {
+        Pointer(p.0)
+    }
+}
+
+impl From<usize> for Pointer {
+    fn from(n: usize) -> Self {
+        Pointer(n)
+    }
+}
+
+impl HeapPointer {
     pub fn as_usize(&self) -> usize { self.0 }
 }
+
+impl std::fmt::Display for HeapPointer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{:x>8}", self.0)
+    }
+}
+
+#[derive(PartialEq,Eq,Debug,Hash,Clone,Copy)]
+pub struct Pointer(usize);
 
 impl std::fmt::Display for Pointer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{:x>8}", self.0)
     }
 }
-
 
 #[derive(PartialEq,Debug,Clone)]
 pub enum RuntimeObject {
@@ -241,11 +282,17 @@ pub enum RuntimeObject {
 }
 
 impl RuntimeObject {
-    pub fn from_pointers(v: Vec<Pointer>) -> Self { RuntimeObject::Array(v)   }
+    pub fn from_pointers(v: Vec<Pointer>) -> Self {
+        RuntimeObject::Array(v)
+    }
 
-    pub fn from_i32(n: i32) -> Self { RuntimeObject::Integer(n) }
+    pub fn from_i32(n: i32) -> Self {
+        RuntimeObject::Integer(n)
+    }
 
-    pub fn from_bool(b: bool) -> Self { RuntimeObject::Boolean(b) }
+    pub fn from_bool(b: bool) -> Self {
+        RuntimeObject::Boolean(b)
+    }
 
     pub fn from_constant(constant: &ProgramObject) -> Self {
         match constant {

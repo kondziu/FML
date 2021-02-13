@@ -988,7 +988,7 @@ fn call_method(receiver: RuntimeObject, argument: RuntimeObject, operation: &str
     let mut expected_memory = Heap::new();
     expected_memory.allocate(receiver.clone());
     expected_memory.allocate(argument.clone());
-    let result_pointer = expected_memory.allocate(result.clone());
+    let result_pointer = Pointer::from(expected_memory.allocate(result.clone()));
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operands, vec!(result_pointer), "test operands");

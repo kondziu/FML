@@ -114,13 +114,13 @@ impl Heap {
         Heap(objects)
     }
 
-    pub fn allocate(&mut self, object: RuntimeObject) -> Pointer {
-        let pointer = Pointer::from(self.0.len());
+    pub fn allocate(&mut self, object: RuntimeObject) -> HeapPointer {
+        let pointer = HeapPointer::from(self.0.len());
         self.0.push(object);
         pointer
     }
 
-    pub fn dereference(&self, pointer: &Pointer) -> Option<&RuntimeObject> {
+    pub fn dereference(&self, pointer: &HeapPointer) -> Option<&RuntimeObject> {
         let index = pointer.as_usize();
         if self.0.len() > index {
             Some(&self.0[index])
@@ -129,7 +129,7 @@ impl Heap {
         }
     }
 
-    pub fn dereference_mut(&mut self, pointer: &Pointer) -> Option<&mut RuntimeObject> {
+    pub fn dereference_mut(&mut self, pointer: &HeapPointer) -> Option<&mut RuntimeObject> {
         let index = pointer.as_usize();
         if self.0.len() > index {
             Some(&mut self.0[index])
@@ -138,24 +138,14 @@ impl Heap {
         }
     }
 
-    pub fn copy(&mut self, pointer: &Pointer) -> Option<Pointer> {
+    pub fn copy(&mut self, pointer: &HeapPointer) -> Option<HeapPointer> {
         self.dereference(pointer)
             .map(|object| object.clone())
             .map(|object| self.allocate(object))
     }
 
-    #[allow(dead_code)]
-    pub fn write_over(&mut self, pointer: Pointer, object: RuntimeObject) -> anyhow::Result<()> {
-        let index = pointer.as_usize();
-        if index < self.0.len() {
-            anyhow::bail!("Expected an object at {:?} to write over, but none was found", pointer)
-        }
-        self.0.push(object.clone());
-        Ok(())
-    }
-
     pub fn dereference_to_string(&self, pointer: &Pointer) -> String {
-        let object = self.dereference(&pointer)
+        let object = self.dereference(&HeapPointer::from(pointer))
             .expect(&format!("Expected object at {:?} to convert to string, but none was found",
                               pointer));
 
@@ -235,7 +225,7 @@ impl State {
                     }
 
                     let pointer = memory.allocate(RuntimeObject::Null);
-                    globals.insert(name.to_string(), pointer);
+                    globals.insert(name.to_string(), Pointer::from(pointer));
                 }
 
                 ProgramObject::Method { name: index, arguments: _, locals: _, code: _ } => {
@@ -340,7 +330,7 @@ impl State {
     }
 
     pub fn allocate_and_push_operand(&mut self, object: RuntimeObject) {
-        self.operands.push(self.memory.allocate(object))
+        self.operands.push(Pointer::from(self.memory.allocate(object)))
     }
 
     pub fn get_function(&self, name: &str) -> Option<&ProgramObject> {
@@ -401,19 +391,19 @@ impl State {
     }
 
     pub fn dereference_mut(&mut self, pointer: &Pointer) -> Option<&mut RuntimeObject> {
-        self.memory.dereference_mut(pointer)
+        self.memory.dereference_mut(&HeapPointer::from(pointer))
     }
 
     pub fn dereference(&self, pointer: &Pointer) -> Option<&RuntimeObject> {
-        self.memory.dereference(pointer)
+        self.memory.dereference(&HeapPointer::from(pointer))
     }
 
     pub fn allocate(&mut self, object: RuntimeObject) -> Pointer {
-        self.memory.allocate(object)
+        Pointer::from(self.memory.allocate(object))
     }
 
     pub fn copy_memory(&mut self, pointer: &Pointer) -> Option<Pointer> {
-        self.memory.copy(pointer)
+        self.memory.copy(&HeapPointer::from(pointer)).map(|e| Pointer::from(e))
     }
 
     #[allow(dead_code)]

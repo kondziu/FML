@@ -51,14 +51,14 @@ pub fn evaluate(program: &Program) {
 
 #[derive(PartialEq,Debug)]
 pub struct LocalFrame {
-    slots: Vec<Pointer>, /* ProgramObject::Slot */
+    locals: Vec<Pointer>, /* ProgramObject::Slot */
     return_address: Option<Address>, /* address */
 }
 
 impl LocalFrame {
     pub fn empty() -> Self {
         LocalFrame {
-            slots: vec!(),
+            locals: vec!(),
             return_address: None,
         }
     }
@@ -67,7 +67,7 @@ impl LocalFrame {
     pub fn from(return_address: Option<Address>, slots: Vec<Pointer>) -> Self {
         LocalFrame {
             return_address,
-            slots,
+            locals: slots,
         }
     }
 
@@ -77,17 +77,17 @@ impl LocalFrame {
 
     pub fn get_local(&self, index: &LocalFrameIndex) -> Option<Pointer> {
         match index.value() {
-            index if index as usize >= self.slots.len() => None,
-            index => Some(self.slots[index as usize].clone()), // new ref
+            index if index as usize >= self.locals.len() => None,
+            index => Some(self.locals[index as usize].clone()), // new ref
         }
     }
 
     pub fn update_local(&mut self, index: &LocalFrameIndex, local: Pointer) -> Result<(), String> {
         match index.value() {
-            index if index as usize >= self.slots.len() =>
+            index if index as usize >= self.locals.len() =>
                 Err(format!("No local at index {} in frame", index)),
             index => {
-                self.slots[index as usize] = local;
+                self.locals[index as usize] = local;
                 Ok(())
             },
         }
@@ -95,9 +95,9 @@ impl LocalFrame {
 
     #[allow(dead_code)]
     pub fn push_local(&mut self, local: Pointer) -> LocalFrameIndex {
-        self.slots.push(local);
-        assert!(self.slots.len() <= 65_535usize);
-        LocalFrameIndex::new(self.slots.len() as u16 - 1u16)
+        self.locals.push(local);
+        assert!(self.locals.len() <= 65_535usize);
+        LocalFrameIndex::new(self.locals.len() as u16 - 1u16)
     }
 }
 
@@ -324,7 +324,7 @@ impl State {
     }
 
     pub fn new_frame(&mut self, return_address: Option<Address>, slots: Vec<Pointer>, ) {
-        self.frames.push(LocalFrame { slots, return_address });
+        self.frames.push(LocalFrame { locals: slots, return_address });
     }
 
     pub fn peek_operand(&mut self) -> Option<&Pointer> {

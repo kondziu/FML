@@ -8,6 +8,8 @@ use super::bytecode::OpCode;
 use super::serializable;
 use super::serializable::*;
 use serde::__private::Formatter;
+use crate::bytecode::objects::HeapObject::Array;
+use std::ops::Deref;
 
 #[derive(PartialEq,Debug,Clone)]
 pub enum ProgramObject {
@@ -86,6 +88,59 @@ pub enum ProgramObject {
      * Serialized with tag `0x05`.
      */
     Class(Vec<ConstantPoolIndex>),
+}
+
+impl ProgramObject {
+    pub fn is_literal(&self) -> bool {
+        match self {
+            ProgramObject::Null => true,
+            ProgramObject::Boolean(_) => true,
+            ProgramObject::Integer(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_str(&self) -> anyhow::Result<&str> {
+        match self {
+            ProgramObject::String(string) => Ok(string),
+            _ => anyhow::bail!("Expecting a program object representing a String, found `{}`", self)
+        }
+    }
+
+    pub fn as_class_definition(&self) -> anyhow::Result<&Vec<ConstantPoolIndex>> {
+        match self {
+            ProgramObject::Class(members) => Ok(members),
+            _ => anyhow::bail!("Expecting a program object representing a Class, found `{}`", self)
+        }
+    }
+
+    pub fn is_slot(&self) -> bool {
+        match self {
+            ProgramObject::Slot { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_method(&self) -> bool {
+        match self {
+            ProgramObject::Method { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_slot_index(&self) -> anyhow::Result<&ConstantPoolIndex> {
+        match self {
+            ProgramObject::Slot { name } => Ok(name),
+            _ => anyhow::bail!("Expecting a program object representing a Slot, found `{}`", self)
+        }
+    }
+
+    // pub fn as_method(&self) -> bool {
+    //     match self {
+    //         ProgramObject::Method { name, arguments, locals, code } => true,
+    //         _ => false,
+    //     }
+    // }
 }
 
 impl ProgramObject {
@@ -221,31 +276,23 @@ impl From<usize> for HeapPointer {
 
 impl From<&Pointer> for HeapPointer {
     fn from(p: &Pointer) -> Self {
-        HeapPointer(p.0)
-    }
-}
-
-impl From<&HeapPointer> for Pointer {
-    fn from(p: &HeapPointer) -> Self {
-        Pointer(p.0)
+        match p {
+            Pointer::Reference(p) => p.clone(),
+            Pointer::Null => panic!("Cannot create heap reference from a null-tagged pointer"),
+            Pointer::Integer(_) => panic!("Cannot create heap reference from an integer-tagged pointer"),
+            Pointer::Boolean(_) => panic!("Cannot create heap reference from a boolean-tagged pointer"),
+        }
     }
 }
 
 impl From<Pointer> for HeapPointer {
     fn from(p: Pointer) -> Self {
-        HeapPointer(p.0)
-    }
-}
-
-impl From<HeapPointer> for Pointer {
-    fn from(p: HeapPointer) -> Self {
-        Pointer(p.0)
-    }
-}
-
-impl From<usize> for Pointer {
-    fn from(n: usize) -> Self {
-        Pointer(n)
+        match p {
+            Pointer::Reference(p) => p.clone(),
+            Pointer::Null => panic!("Cannot create heap reference from a null-tagged pointer"),
+            Pointer::Integer(_) => panic!("Cannot create heap reference from an integer-tagged pointer"),
+            Pointer::Boolean(_) => panic!("Cannot create heap reference from a boolean-tagged pointer"),
+        }
     }
 }
 
@@ -260,19 +307,193 @@ impl std::fmt::Display for HeapPointer {
 }
 
 #[derive(PartialEq,Eq,Debug,Hash,Clone,Copy)]
-pub struct Pointer(usize);
+pub enum Pointer {
+    Null,
+    Integer(i32),
+    Boolean(bool),
+    Reference(HeapPointer),
+}
+
+// impl Deref for Pointer {
+//     type Target = Pointer;
+//     fn deref(&self) -> &Self::Target {
+//         self.clone()
+//     }
+// }
+
+impl Pointer {
+    pub fn from_literal(program_object: &ProgramObject) -> anyhow::Result<Pointer> {
+        match program_object {
+            ProgramObject::Null => Ok(Self::Null),
+            ProgramObject::Integer(value) => Ok(Self::Integer(*value)),
+            ProgramObject::Boolean(value) => Ok(Self::Boolean(*value)),
+            _ => anyhow::bail!("Expecting either a null, an integer, or a boolean, but found `{}`.", program_object),
+        }
+    }
+
+    pub fn is_heap_reference(&self) -> bool {
+        match self {
+            Pointer::Reference(_) => true,
+            _ => false,
+        }
+    }
+    pub fn as_heap_reference(&self) -> Option<&HeapPointer> {
+        match self {
+            Pointer::Reference(reference) => Some(reference),
+            _ => None,
+        }
+    }
+    pub fn into_heap_reference(self) -> Option<HeapPointer> {
+        match self {
+            Pointer::Reference(reference) => Some(reference),
+            _ => None,
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        match self {
+            Pointer::Null => true,
+            _ => false,
+        }
+    }
+    pub fn as_null(&self) -> Option<()> {
+        match self {
+            Pointer::Null => Some(()),
+            _ => None,
+        }
+    }
+
+    pub fn is_i32(&self) -> bool {
+        match self {
+            Pointer::Integer(_) => true,
+            _ => false,
+        }
+    }
+    pub fn as_i32(&self) -> Option<i32> {
+        match self {
+            Pointer::Integer(i) => Some(*i),
+            _ => None,
+        }
+    }
+
+    pub fn is_bool(&self) -> bool {
+        match self {
+            Pointer::Boolean(_) => true,
+            _ => false,
+        }
+    }
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Pointer::Boolean(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    pub fn evaluate_as_condition(&self) -> bool {
+        match self {
+            Pointer::Null => false,
+            Pointer::Integer(_) => true,
+            Pointer::Boolean(b) => *b,
+            Pointer::Reference(_) => true,
+        }
+    }
+}
+
+impl Into<bool> for Pointer {
+    fn into(self) -> bool {
+        match self {
+            Pointer::Boolean(b) => b,
+            p => panic!("Cannot cast `{}` into a boolean pointer.", p),
+        }
+    }
+}
+
+impl Into<i32> for Pointer {
+    fn into(self) -> i32 {
+        match self {
+            Pointer::Integer(i) => i,
+            p => panic!("Cannot cast `{}` into an integer pointer.", p),
+        }
+    }
+}
+
+// impl Into<HeapPointer> for Pointer {
+//     fn into(self) -> HeapPointer {
+//         match self {
+//             Pointer::Reference(heap_pointer) => heap_pointer,
+//             p => panic!("Cannot cast `{}` into an untagged pointer.", p),
+//         }
+//     }
+// }
+
+impl From<&ProgramObject> for Pointer {
+    fn from(constant: &ProgramObject) -> Self {
+        match constant {
+            ProgramObject::Null => Self::Null,
+            ProgramObject::Integer(value) => Self::Integer(*value),
+            ProgramObject::Boolean(value) => Self::Boolean(*value),
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl From<ProgramObject> for Pointer {
+    fn from(constant: ProgramObject) -> Self {
+        match constant {
+            ProgramObject::Null => Self::Null,
+            ProgramObject::Integer(value) => Self::Integer(value),
+            ProgramObject::Boolean(value) => Self::Boolean(value),
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl From<&HeapPointer> for Pointer {
+    fn from(p: &HeapPointer) -> Self {
+        Pointer::Reference(p.clone())
+    }
+}
+
+impl From<HeapPointer> for Pointer {
+    fn from(p: HeapPointer) -> Self {
+        Pointer::Reference(p)
+    }
+}
+
+impl From<usize> for Pointer {
+    fn from(n: usize) -> Self {
+        Pointer::from(HeapPointer::from(n))
+    }
+}
+
+impl From<i32> for Pointer {
+    fn from(i: i32) -> Self {
+        Pointer::Integer(i)
+    }
+}
+
+impl From<bool> for Pointer {
+    fn from(b: bool) -> Self {
+        Pointer::Boolean(b)
+    }
+}
 
 impl std::fmt::Display for Pointer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{:x>8}", self.0)
+        match self {
+            Pointer::Null => write!(f, "null"),
+            Pointer::Integer(i) => write!(f, "{}", i),
+            Pointer::Boolean(b) => write!(f, "{}", b),
+            Pointer::Reference(p) => write!(f, "{}", p),
+        }
     }
 }
 
 #[derive(PartialEq,Debug,Clone)]
-pub enum RuntimeObject {
-    Null,
-    Integer(i32),
-    Boolean(bool),
+pub enum HeapObject {
+    // Null,
+    // Integer(i32),
+    // Boolean(bool),
     Array(Vec<Pointer>),
     Object {
         parent: Pointer,
@@ -281,40 +502,52 @@ pub enum RuntimeObject {
     },
 }
 
-impl RuntimeObject {
-    pub fn from_pointers(v: Vec<Pointer>) -> Self {
-        RuntimeObject::Array(v)
-    }
-
-    pub fn from_i32(n: i32) -> Self {
-        RuntimeObject::Integer(n)
-    }
-
-    pub fn from_bool(b: bool) -> Self {
-        RuntimeObject::Boolean(b)
-    }
-
-    pub fn from_constant(constant: &ProgramObject) -> Self {
-        match constant {
-            ProgramObject::Null => RuntimeObject::Null,
-            ProgramObject::Integer(value) => RuntimeObject::Integer(*value),
-            ProgramObject::Boolean(value) => RuntimeObject::Boolean(*value),
-            _ => unimplemented!(),
+impl HeapObject {
+    pub fn empty_object() -> Self {
+        HeapObject::Object {
+            parent: Pointer::Null,
+            fields: HashMap::new(),
+            methods: HashMap::new(),
         }
     }
 
+    pub fn empty_array() -> Self {
+        HeapObject::Array(Vec::new())
+    }
+
+    pub fn from_pointers(v: Vec<Pointer>) -> Self {
+        HeapObject::Array(v)
+    }
+
+    // pub fn from_i32(n: i32) -> Self {
+    //     HeapObject::Integer(n)
+    // }
+    //
+    // pub fn from_bool(b: bool) -> Self {
+    //     HeapObject::Boolean(b)
+    // }
+
+    // pub fn from_constant(constant: &ProgramObject) -> Self {
+    //     match constant {
+    //         ProgramObject::Null => HeapObject::Null,
+    //         ProgramObject::Integer(value) => HeapObject::Integer(*value),
+    //         ProgramObject::Boolean(value) => HeapObject::Boolean(*value),
+    //         _ => unimplemented!(),
+    //     }
+    // }
+
     pub fn from(parent: Pointer, fields: HashMap<String, Pointer>, methods: HashMap<String, ProgramObject>) -> Self {
-        RuntimeObject::Object { parent, fields, methods }
+        HeapObject::Object { parent, fields, methods }
     }
 }
 
-impl std::fmt::Display for RuntimeObject {
+impl std::fmt::Display for HeapObject {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            RuntimeObject::Null => write!(f, "null"),
-            RuntimeObject::Integer(n) => write!(f, "{}", n),
-            RuntimeObject::Boolean(b) => write!(f, "{}", b),
-            RuntimeObject::Array(elements) => {
+            // HeapObject::Null => write!(f, "null"),
+            // HeapObject::Integer(n) => write!(f, "{}", n),
+            // HeapObject::Boolean(b) => write!(f, "{}", b),
+            HeapObject::Array(elements) => {
                 write!(f, "[{}]", {
                     elements.iter()
                         .map(|p| p.to_string())
@@ -322,7 +555,7 @@ impl std::fmt::Display for RuntimeObject {
                         .join(", ")
                 })
             },
-            RuntimeObject::Object { parent, fields, methods:_ } => {
+            HeapObject::Object { parent, fields, methods:_ } => {
                 write!(f, "object(..={}, {})", parent, fields.iter()
                     .map(|(name, field)| format!("{}={}", name, field))
                     .collect::<Vec<String>>()

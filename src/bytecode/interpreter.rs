@@ -39,7 +39,7 @@ pub fn evaluate(program: &Program) {
 
     let mut slots = Vec::new();
     for _ in 0..locals.to_usize() {
-        slots.push(state.allocate(RuntimeObject::Null));
+        slots.push(Pointer::Null);
     }
 
     state.new_frame(None, slots);
@@ -102,7 +102,7 @@ impl LocalFrame {
 }
 
 #[derive(PartialEq,Debug)]
-pub struct Heap(Vec<RuntimeObject>);
+pub struct Heap(Vec<HeapObject>);
 
 impl Heap {
     pub fn new() -> Self {
@@ -110,17 +110,17 @@ impl Heap {
     }
 
     #[allow(dead_code)]
-    pub fn from(objects: Vec<RuntimeObject>) -> Self {
+    pub fn from(objects: Vec<HeapObject>) -> Self {
         Heap(objects)
     }
 
-    pub fn allocate(&mut self, object: RuntimeObject) -> HeapPointer {
+    pub fn allocate(&mut self, object: HeapObject) -> HeapPointer {
         let pointer = HeapPointer::from(self.0.len());
         self.0.push(object);
         pointer
     }
 
-    pub fn dereference(&self, pointer: &HeapPointer) -> Option<&RuntimeObject> {
+    pub fn dereference(&self, pointer: &HeapPointer) -> Option<&HeapObject> {
         let index = pointer.as_usize();
         if self.0.len() > index {
             Some(&self.0[index])
@@ -129,7 +129,7 @@ impl Heap {
         }
     }
 
-    pub fn dereference_mut(&mut self, pointer: &HeapPointer) -> Option<&mut RuntimeObject> {
+    pub fn dereference_mut(&mut self, pointer: &HeapPointer) -> Option<&mut HeapObject> {
         let index = pointer.as_usize();
         if self.0.len() > index {
             Some(&mut self.0[index])
@@ -144,16 +144,12 @@ impl Heap {
             .map(|object| self.allocate(object))
     }
 
-    pub fn dereference_to_string(&self, pointer: &Pointer) -> String {
-        let object = self.dereference(&HeapPointer::from(pointer))
-            .expect(&format!("Expected object at {:?} to convert to string, but none was found",
-                              pointer));
-
+    pub fn dereference_heap_object_to_string(&self, object: &HeapObject) -> String {
         match object {
-            RuntimeObject::Null => "null".to_string(),
-            RuntimeObject::Integer(n) => n.to_string(),
-            RuntimeObject::Boolean(b) => b.to_string(),
-            RuntimeObject::Array(elements) => {
+            // HeapObject::Null => "null".to_string(),
+            // HeapObject::Integer(n) => n.to_string(),
+            // HeapObject::Boolean(b) => b.to_string(),
+            HeapObject::Array(elements) => {
                 let element_string = elements.iter()
                     .map(|p| self.dereference_to_string(p))
                     .collect::<Vec<String>>()
@@ -161,7 +157,7 @@ impl Heap {
 
                 format!("[{}]", element_string)
             },
-            RuntimeObject::Object { parent, fields, methods:_ } => {
+            HeapObject::Object { parent, fields, methods:_ } => {
                 let parent_string = self.dereference_to_string(parent);
                 let parent_string = if parent_string == "null" {
                     String::new()
@@ -175,6 +171,20 @@ impl Heap {
                     .collect::<Vec<String>>()
                     .join(", ");
                 format!("object({}{})", parent_string, fields_string)
+            }
+        }
+    }
+
+    pub fn dereference_to_string(&self, pointer: &Pointer) -> String {
+        match pointer {
+            Pointer::Null => "null".to_string(),
+            Pointer::Integer(n) => n.to_string(),
+            Pointer::Boolean(b) => b.to_string(),
+            Pointer::Reference(pointer) => {
+                let object = self.dereference(pointer)
+                    .expect(&format!("Expected object at {:?} to convert to string, but none was found",
+                                     pointer));
+                self.dereference_heap_object_to_string(object)
             }
         }
     }
@@ -224,8 +234,7 @@ impl State {
                         panic!("State init error: duplicate name for global {:?}", name)
                     }
 
-                    let pointer = memory.allocate(RuntimeObject::Null);
-                    globals.insert(name.to_string(), Pointer::from(pointer));
+                    globals.insert(name.to_string(), Pointer::Null);
                 }
 
                 ProgramObject::Method { name: index, arguments: _, locals: _, code: _ } => {
@@ -329,7 +338,7 @@ impl State {
         self.operands.push(object)
     }
 
-    pub fn allocate_and_push_operand(&mut self, object: RuntimeObject) {
+    pub fn allocate_and_push_operand(&mut self, object: HeapObject) {
         self.operands.push(Pointer::from(self.memory.allocate(object)))
     }
 
@@ -353,7 +362,7 @@ impl State {
     }
 
     #[allow(dead_code)]
-    pub fn allocate_and_register_global(&mut self, name: String, object: RuntimeObject) -> Result<(), String> {
+    pub fn allocate_and_register_global(&mut self, name: String, object: HeapObject) -> Result<(), String> {
         let pointer = self.allocate(object);
         self.register_global(name, pointer)
     }
@@ -390,44 +399,51 @@ impl State {
         self.memory.dereference_to_string(pointer)
     }
 
-    pub fn dereference_mut(&mut self, pointer: &Pointer) -> Option<&mut RuntimeObject> {
-        self.memory.dereference_mut(&HeapPointer::from(pointer))
+
+
+    pub fn dereference_mut(&mut self, pointer: &HeapPointer) -> Option<&mut HeapObject> {
+        self.memory.dereference_mut(pointer)
     }
 
-    pub fn dereference(&self, pointer: &Pointer) -> Option<&RuntimeObject> {
-        self.memory.dereference(&HeapPointer::from(pointer))
+    pub fn dereference(&self, pointer: &HeapPointer) -> Option<&HeapObject> {
+        self.memory.dereference(pointer)
     }
 
-    pub fn allocate(&mut self, object: RuntimeObject) -> Pointer {
+    pub fn allocate(&mut self, object: HeapObject) -> Pointer {
         Pointer::from(self.memory.allocate(object))
     }
 
     pub fn copy_memory(&mut self, pointer: &Pointer) -> Option<Pointer> {
-        self.memory.copy(&HeapPointer::from(pointer)).map(|e| Pointer::from(e))
-    }
-
-    #[allow(dead_code)]
-    pub fn pass_by_value_or_reference(&mut self, pointer: &Pointer) -> Option<Pointer> {
-        let object = self.dereference(pointer).map(|e| e.clone());
-
-        if object.is_none() {
-            return None
-        }
-
-        let pass_by_value = object.as_ref().map_or(false, |e| match e {
-            RuntimeObject::Object { parent:_, methods:_, fields:_ } => false,
-            RuntimeObject::Array(_) => false,
-            RuntimeObject::Integer(_) => true,
-            RuntimeObject::Boolean(_) => true,
-            RuntimeObject::Null => true,
-        });
-
-        if pass_by_value {
-            Some(self.allocate(object.unwrap()))
-        } else {
-            Some(*pointer)
+        match pointer {
+            Pointer::Reference(p) =>
+                self.memory.copy(p).map(|p| Pointer::from(p)),
+            tagged_pointer =>
+                Some(tagged_pointer.clone())
         }
     }
+
+    // #[allow(dead_code)]
+    // pub fn pass_by_value_or_reference(&mut self, pointer: &Pointer) -> Option<Pointer> {
+    //     let object = self.dereference(pointer).map(|e| e.clone());
+    //
+    //     if object.is_none() {
+    //         return None
+    //     }
+    //
+    //     let pass_by_value = object.as_ref().map_or(false, |e| match e {
+    //         HeapObject::Object { parent:_, methods:_, fields:_ } => false,
+    //         HeapObject::Array(_) => false,
+    //         HeapObject::Integer(_) => true,
+    //         HeapObject::Boolean(_) => true,
+    //         HeapObject::Null => true,
+    //     });
+    //
+    //     if pass_by_value {
+    //         Some(self.allocate(object.unwrap()))
+    //     } else {
+    //         Some(*pointer)
+    //     }
+    // }
 }
 
 pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut Memory,*/ program: &Program)
@@ -497,7 +513,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                              or Boolean, but is {:?}", index, constant),
             }
 
-            state.allocate_and_push_operand(RuntimeObject::from_constant(constant));
+            state.push_operand(Pointer::from(constant));
             state.bump_instruction_pointer(program);
         }
 
@@ -557,8 +573,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             let operand: Pointer = state.peek_operand().map(|o| o.clone())
                 .expect("Set global: cannot pop operand from empty operand stack");
 
-            state.update_global(name.to_string(), operand);
-
+            state.update_global(name.to_owned(), operand);
             state.bump_instruction_pointer(program);
         }
 
@@ -646,7 +661,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             let parent = state.pop_operand()
                 .expect("Object error: cannot pop operand (parent) from empty operand stack");
 
-            state.allocate_and_push_operand(RuntimeObject::from(parent, fields, method_map));
+            state.allocate_and_push_operand(HeapObject::from(parent, fields, method_map));
             state.bump_instruction_pointer(program);
         }
 
@@ -657,21 +672,18 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             let size_pointer = state.pop_operand()
                 .expect(&format!("Array error: cannot pop size from empty operand stack"));
 
-            let size_object: &RuntimeObject = state.dereference(&size_pointer)
-                .expect(&format!("Array error: pointer does not reference an object in memory {:?}",
-                                 size_pointer));
-
-            let size: usize = match size_object {
-                RuntimeObject::Integer(n) => {
-                    if *n < 0 {
+            let size: usize = match size_pointer {
+                Pointer::Integer(n) => {
+                    if n < 0 {
                         panic!("Array error: negative value cannot be used to specify the size of \
-                                an array {:?}", size_object);
+                                an array {:?}", size_pointer);
                     } else {
-                        *n as usize
+                        n as usize
                     }
                 }
-                _ => panic!("Array error: object cannot be used to specify the size of an array \
-                             {:?}", size_object),
+                Pointer::Null => panic!("Array error: null cannot be used to specify the size of an array"),
+                Pointer::Boolean(_) => panic!("Array error: boolean cannot be used to specify the size of an array"),
+                _ => panic!("Array error: object at pointer {} cannot be used to specify the size of an array", size_pointer),
             };
 
             let mut elements: Vec<Pointer> = Vec::new();
@@ -682,7 +694,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 elements.push(pointer);
             }
 
-            state.allocate_and_push_operand(RuntimeObject::from_pointers(elements));
+            state.allocate_and_push_operand(HeapObject::from_pointers(elements));
             state.bump_instruction_pointer(program);
         }
 
@@ -700,11 +712,14 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             let operand_pointer: Pointer = state.pop_operand()
                 .expect(&format!("Get slot error: cannot pop operand from empty operand stack"));
 
-            let operand = state.dereference(&operand_pointer)
+            let heap_reference =
+                operand_pointer.into_heap_reference().expect("Cast error");
+
+            let operand = state.dereference(&heap_reference)
                 .expect(&format!("Get slot error: no operand object at {:?}", operand_pointer));
 
             match operand {
-                RuntimeObject::Object { parent:_, fields, methods:_ } => {
+                HeapObject::Object { parent:_, fields, methods:_ } => {
                     let slot: Pointer = fields.get(name)
                         .expect(&format!("Get slot error: no field {} in object", name))
                         .clone();
@@ -737,11 +752,13 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 .expect(&format!("Set slot error: cannot pop operand (host) from empty operand \
                                   stack"));
 
-            let host = state.dereference_mut(&host_pointer)
+            let heap_reference = host_pointer.into_heap_reference().expect("Cast error");
+
+            let host = state.dereference_mut(&heap_reference)
                 .expect(&format!("Set slot error: no operand object at {:?}", host_pointer));
 
             match host {
-                RuntimeObject::Object { parent:_, fields, methods:_ } => {
+                HeapObject::Object { parent:_, fields, methods:_ } => {
                     if !(fields.contains_key(name)) {
                         panic!("Set slot error: no field {} in object {:?}", name, host)
                     }
@@ -783,20 +800,23 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                              {:?}", index, constant),
             };
 
-            let object: &mut RuntimeObject = state.dereference_mut(&object_pointer)
+            let heap_reference = object_pointer.into_heap_reference().expect("Cast error");
+
+            let object: &mut HeapObject = state.dereference_mut(&heap_reference)
                 .expect(&format!("Call method error: no operand object at {:?}", object_pointer));
 
 
+            unimplemented!();
             match object {
-                RuntimeObject::Null =>
-                    interpret_null_method(object_pointer, name, &Vec::from(arguments), state, program),
-                RuntimeObject::Integer(_) =>
-                    interpret_integer_method(object_pointer, name, &Vec::from(arguments), state, program),
-                RuntimeObject::Boolean(_) =>
-                    interpret_boolean_method(object_pointer, name, &Vec::from(arguments), state, program),
-                RuntimeObject::Array(_) =>
+                // HeapObject::Null =>
+                //     interpret_null_method(object_pointer, name, &Vec::from(arguments), state, program),
+                // HeapObject::Integer(_) =>
+                //     interpret_integer_method(object_pointer, name, &Vec::from(arguments), state, program),
+                // HeapObject::Boolean(_) =>
+                //     interpret_boolean_method(object_pointer, name, &Vec::from(arguments), state, program),
+                HeapObject::Array(_) =>
                     interpret_array_method(object_pointer, name, &Vec::from(arguments), *parameters, state, program),
-                RuntimeObject::Object { parent:_, fields:_, methods:_ } =>
+                HeapObject::Object { parent:_, fields:_, methods:_ } =>
                     dispatch_object_method(object_pointer, name, &Vec::from(arguments), *parameters, state, program),
             };
         }
@@ -837,7 +857,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                     }
 
                     for _ in 0..locals.value() {
-                        slots.push_back(state.allocate(RuntimeObject::Null))
+                        slots.push_back(Pointer::Null)
                     }
 
                     state.bump_instruction_pointer(program);
@@ -919,7 +939,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 panic!("Print error: Unused arguments for format {}", format)
             }
 
-            state.allocate_and_push_operand(RuntimeObject::Null);
+            state.push_operand(Pointer::Null);
             state.bump_instruction_pointer(program);
         }
 
@@ -945,18 +965,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             let operand = state.pop_operand()
                 .expect("Branch error: cannot pop operand from empty operand stack");
 
-            let jump_condition_object = state.dereference(&operand)
-                .expect(&format!("Branch error: cannot find condition at {:?}", operand));
-
-            let jump_condition = {
-                match jump_condition_object {
-                    RuntimeObject::Boolean(value) => *value,
-                    RuntimeObject::Null => false,
-                    _ => true,
-                }
-            };
-
-            if !jump_condition {
+            if !operand.evaluate_as_condition() {
                 state.bump_instruction_pointer(program);
                 return;
             }
@@ -993,17 +1002,17 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
 
 macro_rules! check_arguments_one {
     ($pointer: expr, $arguments: expr, $name: expr, $state: expr) => {{
-        if $arguments.len() != 1 {
-            panic!("Call method error: method {} takes 1 argument, but {} were supplied",
-                    $name, $arguments.len())
-        }
-
-        let argument_pointer: &Pointer = &$arguments[0];
-        let argument = $state.dereference(argument_pointer)
-            .expect(&format!("Call method error: no operand object at {:?}", argument_pointer));
-
-        let object = $state.dereference(&$pointer).unwrap(); /*checked earlier*/
-        (object, argument)
+        // if $arguments.len() != 1 {
+        //     panic!("Call method error: method {} takes 1 argument, but {} were supplied",
+        //             $name, $arguments.len())
+        // }
+        //
+        // let argument_pointer: &Pointer = &$arguments[0];
+        // let argument = $state.dereference(argument_pointer)
+        //     .expect(&format!("Call method error: no operand object at {:?}", argument_pointer));
+        //
+        // let object = $state.dereference(&$pointer).unwrap(); /*checked earlier*/
+        // (object, argument)
     }}
 }
 
@@ -1024,85 +1033,88 @@ macro_rules! push_pointer_and_finish {
 pub fn interpret_null_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>,
                              state: &mut State, program: &Program) {
 
-    let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-    let result = match (name, operand) {
-        ("==", RuntimeObject::Null)  => RuntimeObject::from_bool(true),
-        ("==", _)             => RuntimeObject::from_bool(false),
-        ("!=", RuntimeObject::Null)  => RuntimeObject::from_bool(false),
-        ("!=", _)             => RuntimeObject::from_bool(true),
-        ("eq", RuntimeObject::Null)  => RuntimeObject::from_bool(true),
-        ("eq", _)             => RuntimeObject::from_bool(false),
-        ("neq", RuntimeObject::Null) => RuntimeObject::from_bool(false),
-        ("neq", _)            => RuntimeObject::from_bool(true),
-
-        _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
-                     object, name, operand),
-    };
-    push_result_and_finish!(result, state, program);
+    //let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
+    unimplemented!();
+    // let result = match (name, operand) {
+    //     // ("==", HeapObject::Null)  => HeapObject::from_bool(true),
+    //     // ("==", _)             => HeapObject::from_bool(false),
+    //     // ("!=", HeapObject::Null)  => HeapObject::from_bool(false),
+    //     // ("!=", _)             => HeapObject::from_bool(true),
+    //     // ("eq", HeapObject::Null)  => HeapObject::from_bool(true),
+    //     // ("eq", _)             => HeapObject::from_bool(false),
+    //     // ("neq", HeapObject::Null) => HeapObject::from_bool(false),
+    //     // ("neq", _)            => HeapObject::from_bool(true),
+    //
+    //     _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
+    //                  object, name, operand),
+    // };
+    // push_result_and_finish!(result, state, program);
 }
 
 pub fn interpret_integer_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>,
                                 state: &mut State, program: &Program) {
 
-    let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-    let result = match (object, name, operand) {
-        (RuntimeObject::Integer(i), "+",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i +  *j),
-        (RuntimeObject::Integer(i), "-",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i -  *j),
-        (RuntimeObject::Integer(i), "*",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i *  *j),
-        (RuntimeObject::Integer(i), "/",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i /  *j),
-        (RuntimeObject::Integer(i), "%",   RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i %  *j),
-        (RuntimeObject::Integer(i), "<=",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i <= *j),
-        (RuntimeObject::Integer(i), ">=",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i >= *j),
-        (RuntimeObject::Integer(i), "<",   RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i <  *j),
-        (RuntimeObject::Integer(i), ">",   RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i >  *j),
-        (RuntimeObject::Integer(i), "==",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i == *j),
-        (RuntimeObject::Integer(i), "!=",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i != *j),
-        (RuntimeObject::Integer(_), "==",  _)                  => RuntimeObject::from_bool(false),
-        (RuntimeObject::Integer(_), "!=",  _)                  => RuntimeObject::from_bool(true),
-
-        (RuntimeObject::Integer(i), "add", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i +  *j),
-        (RuntimeObject::Integer(i), "sub", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i -  *j),
-        (RuntimeObject::Integer(i), "mul", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i *  *j),
-        (RuntimeObject::Integer(i), "div", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i /  *j),
-        (RuntimeObject::Integer(i), "mod", RuntimeObject::Integer(j)) => RuntimeObject::from_i32 (*i %  *j),
-        (RuntimeObject::Integer(i), "le",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i <= *j),
-        (RuntimeObject::Integer(i), "ge",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i >= *j),
-        (RuntimeObject::Integer(i), "lt",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i <  *j),
-        (RuntimeObject::Integer(i), "gt",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i >  *j),
-        (RuntimeObject::Integer(i), "eq",  RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i == *j),
-        (RuntimeObject::Integer(i), "neq", RuntimeObject::Integer(j)) => RuntimeObject::from_bool(*i != *j),
-        (RuntimeObject::Integer(_), "eq",  _)                  => RuntimeObject::from_bool(false),
-        (RuntimeObject::Integer(_), "neq", _)                  => RuntimeObject::from_bool(true),
-
-        _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
-                     object, name, operand),
-    };
-    push_result_and_finish!(result, state, program);
+    //let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
+    unimplemented!();
+    // let result = match (object, name, operand) {
+    //     // (HeapObject::Integer(i), "+",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i +  *j),
+    //     // (HeapObject::Integer(i), "-",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i -  *j),
+    //     // (HeapObject::Integer(i), "*",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i *  *j),
+    //     // (HeapObject::Integer(i), "/",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i /  *j),
+    //     // (HeapObject::Integer(i), "%",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i %  *j),
+    //     // (HeapObject::Integer(i), "<=",  HeapObject::Integer(j)) => HeapObject::from_bool(*i <= *j),
+    //     // (HeapObject::Integer(i), ">=",  HeapObject::Integer(j)) => HeapObject::from_bool(*i >= *j),
+    //     // (HeapObject::Integer(i), "<",   HeapObject::Integer(j)) => HeapObject::from_bool(*i <  *j),
+    //     // (HeapObject::Integer(i), ">",   HeapObject::Integer(j)) => HeapObject::from_bool(*i >  *j),
+    //     // (HeapObject::Integer(i), "==",  HeapObject::Integer(j)) => HeapObject::from_bool(*i == *j),
+    //     // (HeapObject::Integer(i), "!=",  HeapObject::Integer(j)) => HeapObject::from_bool(*i != *j),
+    //     // (HeapObject::Integer(_), "==",  _)                  => HeapObject::from_bool(false),
+    //     // (HeapObject::Integer(_), "!=",  _)                  => HeapObject::from_bool(true),
+    //     //
+    //     // (HeapObject::Integer(i), "add", HeapObject::Integer(j)) => HeapObject::from_i32 (*i +  *j),
+    //     // (HeapObject::Integer(i), "sub", HeapObject::Integer(j)) => HeapObject::from_i32 (*i -  *j),
+    //     // (HeapObject::Integer(i), "mul", HeapObject::Integer(j)) => HeapObject::from_i32 (*i *  *j),
+    //     // (HeapObject::Integer(i), "div", HeapObject::Integer(j)) => HeapObject::from_i32 (*i /  *j),
+    //     // (HeapObject::Integer(i), "mod", HeapObject::Integer(j)) => HeapObject::from_i32 (*i %  *j),
+    //     // (HeapObject::Integer(i), "le",  HeapObject::Integer(j)) => HeapObject::from_bool(*i <= *j),
+    //     // (HeapObject::Integer(i), "ge",  HeapObject::Integer(j)) => HeapObject::from_bool(*i >= *j),
+    //     // (HeapObject::Integer(i), "lt",  HeapObject::Integer(j)) => HeapObject::from_bool(*i <  *j),
+    //     // (HeapObject::Integer(i), "gt",  HeapObject::Integer(j)) => HeapObject::from_bool(*i >  *j),
+    //     // (HeapObject::Integer(i), "eq",  HeapObject::Integer(j)) => HeapObject::from_bool(*i == *j),
+    //     // (HeapObject::Integer(i), "neq", HeapObject::Integer(j)) => HeapObject::from_bool(*i != *j),
+    //     // (HeapObject::Integer(_), "eq",  _)                  => HeapObject::from_bool(false),
+    //     // (HeapObject::Integer(_), "neq", _)                  => HeapObject::from_bool(true),
+    //
+    //     _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
+    //                  object, name, operand),
+    // };
+    // push_result_and_finish!(result, state, program);
 }
 
 pub fn interpret_boolean_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>,
                                 state: &mut State, program: &Program) {
 
-    let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-    let result = match (object, name, operand) {
-        (RuntimeObject::Boolean(p), "and", RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p && *q),
-        (RuntimeObject::Boolean(p), "or",  RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p || *q),
-        (RuntimeObject::Boolean(p), "eq",  RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p == *q),
-        (RuntimeObject::Boolean(p), "neq", RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p != *q),
-        (RuntimeObject::Boolean(_), "eq",  _)                  => RuntimeObject::from_bool(false),
-        (RuntimeObject::Boolean(_), "neq", _)                  => RuntimeObject::from_bool(true),
-
-        (RuntimeObject::Boolean(p), "&",   RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p && *q),
-        (RuntimeObject::Boolean(p), "|",   RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p || *q),
-        (RuntimeObject::Boolean(p), "==",  RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p == *q),
-        (RuntimeObject::Boolean(p), "!=",  RuntimeObject::Boolean(q)) => RuntimeObject::from_bool(*p != *q),
-        (RuntimeObject::Boolean(_), "==",  _)                  => RuntimeObject::from_bool(false),
-        (RuntimeObject::Boolean(_), "!=",  _)                  => RuntimeObject::from_bool(true),
-
-        _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
-                    object, name, operand),
-    };
-    push_result_and_finish!(result, state, program);
+    //let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
+    unimplemented!();
+    //let result = match (object, name, operand) {
+        // (HeapObject::Boolean(p), "and", HeapObject::Boolean(q)) => HeapObject::from_bool(*p && *q),
+        // (HeapObject::Boolean(p), "or",  HeapObject::Boolean(q)) => HeapObject::from_bool(*p || *q),
+        // (HeapObject::Boolean(p), "eq",  HeapObject::Boolean(q)) => HeapObject::from_bool(*p == *q),
+        // (HeapObject::Boolean(p), "neq", HeapObject::Boolean(q)) => HeapObject::from_bool(*p != *q),
+        // (HeapObject::Boolean(_), "eq",  _)                  => HeapObject::from_bool(false),
+        // (HeapObject::Boolean(_), "neq", _)                  => HeapObject::from_bool(true),
+        //
+        // (HeapObject::Boolean(p), "&",   HeapObject::Boolean(q)) => HeapObject::from_bool(*p && *q),
+        // (HeapObject::Boolean(p), "|",   HeapObject::Boolean(q)) => HeapObject::from_bool(*p || *q),
+        // (HeapObject::Boolean(p), "==",  HeapObject::Boolean(q)) => HeapObject::from_bool(*p == *q),
+        // (HeapObject::Boolean(p), "!=",  HeapObject::Boolean(q)) => HeapObject::from_bool(*p != *q),
+        // (HeapObject::Boolean(_), "==",  _)                  => HeapObject::from_bool(false),
+        // (HeapObject::Boolean(_), "!=",  _)                  => HeapObject::from_bool(true),
+    //
+    //     _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
+    //                 object, name, operand),
+    // };
+    // push_result_and_finish!(result, state, program);
 }
 
 
@@ -1115,89 +1127,95 @@ pub fn interpret_array_method(pointer: Pointer, name: &str, arguments: &Vec<Poin
     }
 
     if name == "get" {
-        let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-        let result = match (object, operand) {
-            (RuntimeObject::Array(element_pointers), RuntimeObject::Integer(index)) => {
-                if (*index as usize) >= element_pointers.len() {
-                    panic!("Call method error: array index {} is out of bounds (should be < {})",
-                            index, element_pointers.len())
-                }
-                element_pointers.get(*index as usize)
-                    .expect("Call method error: no array element object at {:?}")
-            },
-            _ => panic!("Call method error: array {:?} has no method {} for operand {:?}",
-                         object, name, operand),
-        }.clone();
+        //let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
+        unimplemented!();
+        //let result = match (object, operand) {
+            // (HeapObject::Array(element_pointers), HeapObject::Integer(index)) => {
+            //     if (*index as usize) >= element_pointers.len() {
+            //         panic!("Call method error: array index {} is out of bounds (should be < {})",
+            //                 index, element_pointers.len())
+            //     }
+            //     element_pointers.get(*index as usize)
+            //         .expect("Call method error: no array element object at {:?}")
+            // },
+            //_ => panic!("Call method error: array {:?} has no method {} for operand {:?}",
+            //             object, name, operand),
+        //}.clone();
+        //let result = Pointer::Null;
 
-        push_pointer_and_finish!(result, state, program);
+        //push_pointer_and_finish!(result, state, program);
     }
 
     if name == "set" {
-        let operand_1_pointer: &Pointer = &arguments[0];
-        let operand_2_pointer: &Pointer = &arguments[1];
+        // let operand_1_pointer: &Pointer = &arguments[0];
+        // let operand_2_pointer: &Pointer = &arguments[1];
+        //
+        // unimplemented!();
+        // let index: usize = match state.dereference(operand_1_pointer) {
+        //     //Some(HeapObject::Integer(index)) => *index as usize,
+        //     Some(object) => panic!("Call method error: cannot index array with {:?}", object),
+        //     None => panic!("Call method error: no operand (1) object at {:?}", operand_1_pointer),
+        // };
+        //
+        // let object : &mut HeapObject = state.dereference_mut(&pointer).unwrap(); /* pre-checked elsewhere */
+        // unimplemented!();
+        // let result = Pointer::Null;
+        // let result = match object {
+        //     HeapObject::Array(element_pointers) => {
+        //         if index >= element_pointers.len() {
+        //             panic!("Call method error: array index {} is out of bounds (should be < {})",
+        //                    index, element_pointers.len())
+        //         }
+        //         element_pointers[index] = *operand_2_pointer;
+        //         HeapObject::Null
+        //     },
+        //     _ => panic!("Call method error: object {:?} has no method {}", object, name),
+        // };
 
-        let index: usize = match state.dereference(operand_1_pointer) {
-            Some(RuntimeObject::Integer(index)) => *index as usize,
-            Some(object) => panic!("Call method error: cannot index array with {:?}", object),
-            None => panic!("Call method error: no operand (1) object at {:?}", operand_1_pointer),
-        };
-
-        let object : &mut RuntimeObject = state.dereference_mut(&pointer).unwrap(); /* pre-checked elsewhere */
-        let result = match object {
-            RuntimeObject::Array(element_pointers) => {
-                if index >= element_pointers.len() {
-                    panic!("Call method error: array index {} is out of bounds (should be < {})",
-                           index, element_pointers.len())
-                }
-                element_pointers[index] = *operand_2_pointer;
-                RuntimeObject::Null
-            },
-            _ => panic!("Call method error: object {:?} has no method {}", object, name),
-        };
-
-        push_result_and_finish!(result, state, program)
+        //push_result_and_finish!(result, state, program)
     }
 }
 
 
 fn dispatch_object_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>, arity: Arity,
                           state: &mut State, program: &Program) {
-
-    let mut cursor: Pointer = pointer;
-    loop {
-        let object = state.dereference(&cursor)
-            .expect("Call method error: no object at {:?}");
-
-        let method: ProgramObject = match object {
-            RuntimeObject::Object { parent, fields: _, methods } => {
-                if let Some(method) = methods.get(name) {
-                    method.clone()
-                } else {
-                    cursor = *parent;
-                    continue
-                }
-            },
-            RuntimeObject::Null => {
-                interpret_null_method(cursor, name, arguments, state, program);
-                break
-            },
-            RuntimeObject::Boolean(_) => {
-                interpret_boolean_method(cursor, name, arguments, state, program);
-                break
-            },
-            RuntimeObject::Integer(_) => {
-                interpret_integer_method(cursor, name, arguments, state, program);
-                break
-            },
-            RuntimeObject::Array(_) => {
-                interpret_array_method(cursor, name, arguments, arity, state, program);
-                break
-            },
-        };
-
-        interpret_object_method(method, cursor, name, arguments, state, program);
-        break
-    }
+    //
+    // let mut cursor: Pointer = pointer;
+    // loop {
+    //     let object = state.dereference(&cursor)
+    //         .expect("Call method error: no object at {:?}");
+    //
+    //     unimplemented!();
+    //     let method: ProgramObject = match object {
+    //         HeapObject::Object { parent, fields: _, methods } => {
+    //             if let Some(method) = methods.get(name) {
+    //                 method.clone()
+    //             } else {
+    //                 cursor = *parent;
+    //                 continue
+    //             }
+    //         },
+    //         // HeapObject::Null => {
+    //         //     interpret_null_method(cursor, name, arguments, state, program);
+    //         //     break
+    //         // },
+    //         // HeapObject::Boolean(_) => {
+    //         //     interpret_boolean_method(cursor, name, arguments, state, program);
+    //         //     break
+    //         // },
+    //         // HeapObject::Integer(_) => {
+    //         //     interpret_integer_method(cursor, name, arguments, state, program);
+    //         //     break
+    //         // },
+    //         HeapObject::Array(_) => {
+    //             interpret_array_method(cursor, name, arguments, arity, state, program);
+    //             break
+    //         },
+    //     };
+    //
+    //     interpret_object_method(method, cursor, name, arguments, state, program);
+    //     break
+    // }
 }
 
 
@@ -1219,7 +1237,7 @@ fn interpret_object_method(method: ProgramObject, pointer: Pointer, name: &str,
             slots.extend(arguments); // TODO passes by reference... correct?
 
             for _ in 0..locals.to_usize() {
-                slots.push(state.allocate(RuntimeObject::Null))
+                slots.push(Pointer::Null)
             }
 
             state.bump_instruction_pointer(program);

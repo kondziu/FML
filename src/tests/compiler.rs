@@ -739,7 +739,7 @@ use crate::bytecode::compiler::*;
         /* 1 */ ProgramObject::String("project_right".to_string()),
         /* 2 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(1),
-            arguments: Arity::new(3),
+            parameters: Arity::new(3),
             locals: Size::new(0),
             code: AddressRange::from(1, 3),
         },
@@ -862,7 +862,7 @@ use crate::bytecode::compiler::*;
         /* 02 */ ProgramObject::from_str("implies"),
         /* 03 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(2),    // implies
-            arguments: Arity::new(1+1),
+            parameters: Arity::new(1+1),
             locals: Size::new(0),
             code: AddressRange::from(2, 2),     // addresses: 2, 3
         },
@@ -875,7 +875,7 @@ use crate::bytecode::compiler::*;
         /* 08 */ ProgramObject::from_str("identity"),
         /* 09 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(8),    // identity
-            arguments: Arity::new(0+1),
+            parameters: Arity::new(0+1),
             locals: Size::new(0),
             code: AddressRange::from(7, 2),     // addresses: 6, 7
         },
@@ -884,7 +884,7 @@ use crate::bytecode::compiler::*;
         /* 11 */ ProgramObject::from_str("or"),
         /* 12 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(11),    // or
-            arguments: Arity::new(1+1),
+            parameters: Arity::new(1+1),
             locals: Size::new(0),
             code: AddressRange::from(11, 2),     // addresses: 10, 11
         },
@@ -893,7 +893,7 @@ use crate::bytecode::compiler::*;
         /* 14 */ ProgramObject::from_str("and"),
         /* 15 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(14),    // and
-            arguments: Arity::new(1+1),
+            parameters: Arity::new(1+1),
             locals: Size::new(0),
             code: AddressRange::from(15, 2),     // addresses: 14, 15
         },
@@ -905,7 +905,7 @@ use crate::bytecode::compiler::*;
         /* 19 */ ProgramObject::from_str("+"),
         /* 20 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(19),          // +
-            arguments: Arity::new(1+1),
+            parameters: Arity::new(1+1),
             locals: Size::new(0),
             code: AddressRange::from(20, 2),
         },
@@ -914,7 +914,7 @@ use crate::bytecode::compiler::*;
         /* 22 */ ProgramObject::from_str("*"),
         /* 23 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(22),          // *
-            arguments: Arity::new(1+1),
+            parameters: Arity::new(1+1),
             locals: Size::new(0),
             code: AddressRange::from(24, 2),
         },
@@ -923,7 +923,7 @@ use crate::bytecode::compiler::*;
         /* 25 */ ProgramObject::from_str("me"),
         /* 26 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(25),          // *
-            arguments: Arity::new(1),
+            parameters: Arity::new(1),
             locals: Size::new(0),
             code: AddressRange::from(28, 2),
         },

@@ -10,6 +10,8 @@ use super::serializable::*;
 use serde::__private::Formatter;
 use crate::bytecode::objects::HeapObject::Array;
 use std::ops::Deref;
+use crate::bytecode::interpreter::Heap;
+use crate::bytecode;
 
 #[derive(PartialEq,Debug,Clone)]
 pub enum ProgramObject {
@@ -71,7 +73,7 @@ pub enum ProgramObject {
      */
     Method {
         name: ConstantPoolIndex,
-        arguments: Arity,
+        parameters: Arity,
         locals: Size,
         code: AddressRange,
     },
@@ -128,6 +130,27 @@ impl ProgramObject {
         }
     }
 
+    pub fn get_method_parameters(&self) -> anyhow::Result<&Arity> {
+        match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
+            ProgramObject::Method { parameters, .. } => Ok(parameters),
+            pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
+        }
+    }
+
+    pub fn get_method_locals(&self) -> anyhow::Result<&Size> {
+        match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
+            ProgramObject::Method { locals, .. } => Ok(locals),
+            pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
+        }
+    }
+
+    pub fn get_method_start_address(&self) -> anyhow::Result<&Address> {
+        match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
+            ProgramObject::Method { code, .. } => Ok(code.start()),
+            pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
+        }
+    }
+
     pub fn as_slot_index(&self) -> anyhow::Result<&ConstantPoolIndex> {
         match self {
             ProgramObject::Slot { name } => Ok(name),
@@ -150,7 +173,7 @@ impl ProgramObject {
             Integer(_)                                         => 0x00,
             Null                                               => 0x01,
             String(_)                                          => 0x02,
-            Method {name: _, arguments: _, locals: _, code: _} => 0x03,
+            Method {name: _, parameters: _, locals: _, code: _} => 0x03,
             Slot {name:_}                                      => 0x04,
             Class(_)                                           => 0x05,
             Boolean(_)                                         => 0x06,
@@ -166,7 +189,7 @@ impl std::fmt::Display for ProgramObject {
             ProgramObject::Null => write!(f, "null"),
             ProgramObject::String(s) => write!(f, "\"{}\"", s),
             ProgramObject::Slot { name } => write!(f, "slot {}", name),
-            ProgramObject::Method { name, locals, arguments, code } => {
+            ProgramObject::Method { name, locals, parameters: arguments, code } => {
                 write!(f, "method {} args:{} locals:{} {}", name, arguments, locals, code)
             },
             ProgramObject::Class(members) => {
@@ -192,7 +215,7 @@ impl SerializableWithContext for ProgramObject {
             Class(v)    => ConstantPoolIndex::write_cpi_vector(sink, v),
             Slot {name} => name.serialize(sink),
 
-            Method {name, arguments, locals, code: range} => {
+            Method {name, parameters: arguments, locals, code: range} => {
                 name.serialize(sink)?;
                 arguments.serialize(sink)?;
                 locals.serialize(sink)?;
@@ -208,7 +231,7 @@ impl SerializableWithContext for ProgramObject {
             0x01 => ProgramObject::Null,
             0x02 => ProgramObject::String(serializable::read_utf8(input)),
             0x03 => ProgramObject::Method { name: ConstantPoolIndex::from_bytes(input),
-                                            arguments: Arity::from_bytes(input),
+                                            parameters: Arity::from_bytes(input),
                                             locals: Size::from_bytes(input),
                                             code: code.register_opcodes(OpCode::read_opcode_vector(input))},
             0x04 => ProgramObject::Slot { name: ConstantPoolIndex::from_bytes(input) },
@@ -343,10 +366,10 @@ impl Pointer {
             _ => None,
         }
     }
-    pub fn into_heap_reference(self) -> Option<HeapPointer> {
+    pub fn into_heap_reference(self) -> anyhow::Result<HeapPointer> {
         match self {
-            Pointer::Reference(reference) => Some(reference),
-            _ => None,
+            Pointer::Reference(reference) => Ok(reference),
+            pointer => Err(anyhow::anyhow!("Expecting a heap reference, but found `{}`.", pointer)),
         }
     }
 
@@ -369,10 +392,10 @@ impl Pointer {
             _ => false,
         }
     }
-    pub fn as_i32(&self) -> Option<i32> {
+    pub fn as_i32(&self) -> anyhow::Result<i32> {
         match self {
-            Pointer::Integer(i) => Some(*i),
-            _ => None,
+            Pointer::Integer(i) => Ok(*i),
+            pointer => Err(anyhow::anyhow!("Expecting either an integer, but found `{}`", pointer)),
         }
     }
 
@@ -396,6 +419,10 @@ impl Pointer {
             Pointer::Boolean(b) => *b,
             Pointer::Reference(_) => true,
         }
+    }
+
+    pub fn evaluate_as_string(&self) -> String {
+        unimplemented!()
     }
 }
 

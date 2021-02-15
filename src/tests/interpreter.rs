@@ -460,7 +460,7 @@ macro_rules! hashmap {
     let constants: Vec<ProgramObject> = vec!(
         ProgramObject::String("bar".to_string()),
         ProgramObject::Method { name: ConstantPoolIndex::new(0),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(0,1) });
 
@@ -496,7 +496,7 @@ macro_rules! hashmap {
     let constants: Vec<ProgramObject> = vec!(
         ProgramObject::String("foo".to_string()),
         ProgramObject::Method { name: ConstantPoolIndex::new(0),
-            arguments: Arity::new(1),
+            parameters: Arity::new(1),
             locals: Size::new(0),
             code: AddressRange::from(0,1) });
 
@@ -533,7 +533,7 @@ macro_rules! hashmap {
     let constants: Vec<ProgramObject> = vec!(
         ProgramObject::String("fun".to_string()),
         ProgramObject::Method { name: ConstantPoolIndex::new(0),
-            arguments: Arity::new(3),
+            parameters: Arity::new(3),
             locals: Size::new(0),
             code: AddressRange::from(0,1) });
 
@@ -576,7 +576,7 @@ macro_rules! hashmap {
     let constants: Vec<ProgramObject> = vec!(
         ProgramObject::String("xxx".to_string()),
         ProgramObject::Method { name: ConstantPoolIndex::new(0),
-            arguments: Arity::new(3),
+            parameters: Arity::new(3),
             locals: Size::new(0),
             code: AddressRange::from(0,1) });
     let globals: Vec<ConstantPoolIndex> = vec!();
@@ -614,7 +614,7 @@ macro_rules! hashmap {
     let constants: Vec<ProgramObject> = vec!(
         /*0*/ ProgramObject::String ("+".to_string()),
         /*1*/ ProgramObject::Method { name: ConstantPoolIndex::new(0),
-            arguments: Arity::new(1),
+            parameters: Arity::new(1),
             locals: Size::new(0),
             code: AddressRange::from(0, 1)},
 
@@ -641,7 +641,7 @@ macro_rules! hashmap {
                                              HeapObject::from(Pointer::Null,
                                                               HashMap::new(),
                                                               hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
-                                                                                                                  arguments: Arity::new(1),
+                                                                                                                  parameters: Arity::new(1),
                                                                                                                   locals: Size::new(0),
                                                                                                                   code: AddressRange::from(0, 1)})))), "test memory");
 }
@@ -659,7 +659,7 @@ macro_rules! hashmap {
 
         /*2*/ ProgramObject::String ("+".to_string()),
         /*3*/ ProgramObject::Method { name: ConstantPoolIndex::new(2),
-            arguments: Arity::new(1),
+            parameters: Arity::new(1),
             locals: Size::new(0),
             code: AddressRange::from(0, 1)},
 
@@ -688,7 +688,7 @@ macro_rules! hashmap {
                                              HeapObject::from(Pointer::Null,
                                                               hashmap!("x".to_string(), Pointer::from(0i32)),
                                                               hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(2),
-                                                                                                                  arguments: Arity::new(1),
+                                                                                                                  parameters: Arity::new(1),
                                                                                                                   locals: Size::new(0),
                                                                                                                   code: AddressRange::from(0, 1)})))));
 }
@@ -709,7 +709,7 @@ macro_rules! hashmap {
 
         /*4*/ ProgramObject::String ("+".to_string()),
         /*5*/ ProgramObject::Method { name: ConstantPoolIndex::new(4),
-            arguments: Arity::new(1),
+            parameters: Arity::new(1),
             locals: Size::new(0),
             code: AddressRange::from(0, 1)},
 
@@ -742,7 +742,7 @@ macro_rules! hashmap {
                                                               hashmap!("x".to_string(), Pointer::from(0i32), "y".to_string(), Pointer::from(42i32)),
                                                               hashmap!("+".to_string(), ProgramObject::Method {
                                                                                             name: ConstantPoolIndex::new(4),
-                                                                                            arguments: Arity::new(1),
+                                                                                            parameters: Arity::new(1),
                                                                                             locals: Size::new(0),
                                                                                             code: AddressRange::from(0, 1)})))));
 }
@@ -835,7 +835,7 @@ macro_rules! hashmap {
     let receiver = HeapObject::from(Pointer::from(0),
                                     HashMap::new(),
                                     hashmap!("f".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
-                                                                                      arguments: Arity::new(0 + 1),
+                                                                                      parameters: Arity::new(0 + 1),
                                                                                       locals: Size::new(0),
                                                                                       code: AddressRange::from(0, 1) }));
 
@@ -873,7 +873,7 @@ macro_rules! hashmap {
     let receiver = HeapObject::from(Pointer::from(0),
                                     HashMap::new(),
                                     hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
-                                                                                      arguments: Arity::new(1 + 1),
+                                                                                      parameters: Arity::new(1 + 1),
                                                                                       locals: Size::new(0),
                                                                                       code: AddressRange::from(0, 1) }));
 
@@ -913,7 +913,7 @@ macro_rules! hashmap {
     let receiver = HeapObject::from(Pointer::from(0),
                                     HashMap::new(),
                                     hashmap!("g".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
-                                                                                      arguments: Arity::new(3 + 1),
+                                                                                      parameters: Arity::new(3 + 1),
                                                                                       locals: Size::new(0),
                                                                                       code: AddressRange::from(0, 1) }));
 

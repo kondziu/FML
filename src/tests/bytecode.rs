@@ -287,7 +287,7 @@ fn serialize_with_context_test<S>(expected: Vec<u8>, object: S, code: Code) wher
 
     let object = ProgramObject::Method {
         name: ConstantPoolIndex::new(255),
-        arguments: Arity::new(3),
+        parameters: Arity::new(3),
         locals: Size::new(15),
         code: AddressRange::from(0, 2),
     };
@@ -345,7 +345,7 @@ fn serialize_with_context_test<S>(expected: Vec<u8>, object: S, code: Code) wher
 
 #[test] fn method () {
     let object = ProgramObject::Method { name: ConstantPoolIndex::new(255),
-                                         arguments: Arity::new(3),
+                                         parameters: Arity::new(3),
                                          locals: Size::new(15),
                                          code: AddressRange::from(0, 2)};
 

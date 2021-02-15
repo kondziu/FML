@@ -155,7 +155,7 @@ impl UglyPrintWithContext for ProgramObject {
                 }
             },
 
-            ProgramObject::Method {name, arguments, locals, code: range} => {
+            ProgramObject::Method {name, parameters: arguments, locals, code: range} => {
                 write_string!(sink, first!(indent, prefix_first_line), "Method(");
                 name.pretty_print_no_indent(sink);
                 write_string!(sink, 0, ", nargs:");

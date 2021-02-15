@@ -41,7 +41,7 @@ fn feeny_hello_world_program() -> Program {
         /* #1 */ ProgramObject::String("main".to_string()),
         /* #2 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(1),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(0, 2),
         },
@@ -49,7 +49,7 @@ fn feeny_hello_world_program() -> Program {
         /* #4 */ ProgramObject::String("entry35".to_string()),
         /* #5 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(4),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(2, 4),
         },
@@ -395,7 +395,7 @@ fn feeny_fibonacci_program () -> Program {
         /* #14 0x0E */ ProgramObject::String("fib".to_string()),
         /* #15 0x0F */ ProgramObject::Method {                             // fib
             name: ConstantPoolIndex::new(14),
-            arguments: Arity::new(1),
+            parameters: Arity::new(1),
             locals: Size::new(3),
             code: AddressRange::from(0, 49),
         },
@@ -407,14 +407,14 @@ fn feeny_fibonacci_program () -> Program {
         /* #21 0x14 */ ProgramObject::String("main".to_string()),
         /* #22 0x15 */ ProgramObject::Method {                             // main
             name: ConstantPoolIndex::new(21),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(1),
             code: AddressRange::from(49, 22),
         },
         /* #23 0x15 */ ProgramObject::String("entry47".to_string()),
         /* #24 0x16 */ ProgramObject::Method {                             // entry47
             name: ConstantPoolIndex::new(23),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(71,4),
         }

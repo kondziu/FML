@@ -31,7 +31,7 @@ pub fn evaluate(program: &Program) {
     let mut output = Output::new();
 
     let (start_address, locals) = match program.get_constant(program.entry()) {
-        Some(ProgramObject::Method { name:_, locals, arguments:_, code }) => (*code.start(), locals),
+        Some(ProgramObject::Method { name:_, locals, parameters:_, code }) => (*code.start(), locals),
         None => panic!("No entry method at index {:?}", program.entry()),
         Some(constant) => panic!("Constant at index {:?} is not a method {:?}",
                                   program.entry(), constant),
@@ -208,7 +208,7 @@ impl State {
                               at index {:?}", entry_index));
 
         let instruction_pointer = *match entry_method {
-            ProgramObject::Method { name: _, arguments: _, locals: _, code } => code.start(),
+            ProgramObject::Method { name: _, parameters: _, locals: _, code } => code.start(),
             _ => panic!("State init error: entry method is not a Method {:?}", entry_method),
         };
 
@@ -237,7 +237,7 @@ impl State {
                     globals.insert(name.to_string(), Pointer::Null);
                 }
 
-                ProgramObject::Method { name: index, arguments: _, locals: _, code: _ } => {
+                ProgramObject::Method { name: index, parameters: _, locals: _, code: _ } => {
                     let constant = program.get_constant(index)
                         .expect(&format!("State init error: no such entry at index pool: {:?} \
                                  (expected by method: {:?})", index, thing));
@@ -591,7 +591,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
 
             let (slots, methods): (Vec<&ProgramObject>, Vec<&ProgramObject>) =
                 member_definitions.iter().partition(|c| match c {
-                    ProgramObject::Method { code:_, locals:_, arguments:_, name:_ } => false,
+                    ProgramObject::Method { code:_, locals:_, parameters:_, name:_ } => false,
                     ProgramObject::Slot { name:_ } => true,
                     member =>
                         panic!("Object error: class members may be either Methods or Slots, \
@@ -633,7 +633,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 let mut map: HashMap<String, ProgramObject> = HashMap::new();
                 for method in methods {
                     match method {
-                        ProgramObject::Method { name: index, arguments:_, locals:_, code:_ } => {
+                        ProgramObject::Method { name: index, parameters:_, locals:_, code:_ } => {
                             let constant: &ProgramObject = program.get_constant(index)
                                 .expect(&format!("Object error: no constant at index {:?}",
                                                  index.value()));
@@ -840,7 +840,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             };
 
             match function {
-                ProgramObject::Method { name:_, arguments: parameters, locals, code: range } => {
+                ProgramObject::Method { name:_, parameters, locals, code: range } => {
                     if arguments.value() != parameters.value() {
                         panic!("Call function error: function definition requires {} arguments, \
                                but {} were supplied", parameters.value(), arguments.value())
@@ -1223,7 +1223,7 @@ fn interpret_object_method(method: ProgramObject, pointer: Pointer, name: &str,
                            arguments: &Vec<Pointer>, state: &mut State, program: &Program) {
 
     match method {
-        ProgramObject::Method { name: _, locals, arguments: arity, code } => {
+        ProgramObject::Method { name: _, locals, parameters: arity, code } => {
             if arguments.len() != arity.to_usize() - 1 {
                 panic!("Call method error: method {} takes {} arguments, but {} were supplied",
                         name, arity.value() - 1, arguments.len())

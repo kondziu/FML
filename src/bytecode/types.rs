@@ -5,12 +5,12 @@ use anyhow::*;
 use super::serializable;
 use super::serializable::Serializable;
 
-#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord)] pub struct Arity(u8);
-#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord)] pub struct Size(u16);
-#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord)] pub struct Address(u32);
-#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord)] pub struct ConstantPoolIndex(u16);
-#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord)] pub struct LocalFrameIndex(u16);
-#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord)] pub struct AddressRange { start: Address, length: usize }
+#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord,Hash)] pub struct Arity(u8);
+#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord,Hash)] pub struct Size(u16);
+#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord,Hash)] pub struct Address(u32);
+#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord,Hash)] pub struct ConstantPoolIndex(u16);
+#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord,Hash)] pub struct LocalFrameIndex(u16);
+#[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord,Hash)] pub struct AddressRange { start: Address, length: usize }
 
 impl Arity {
     pub fn new(value: u8)  -> Arity {
@@ -66,6 +66,9 @@ impl ConstantPoolIndex {
     pub fn from_usize(value: usize) -> ConstantPoolIndex {
         assert!(value <= 65535usize);
         ConstantPoolIndex(value as u16)
+    }
+    pub fn as_usize(&self) -> usize {
+        self.value() as usize
     }
 }
 

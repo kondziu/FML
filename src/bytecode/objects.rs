@@ -12,6 +12,7 @@ use crate::bytecode::objects::HeapObject::Array;
 use std::ops::Deref;
 use crate::bytecode::interpreter::Heap;
 use crate::bytecode;
+use anyhow::Context;
 
 #[derive(PartialEq,Debug,Clone)]
 pub enum ProgramObject {
@@ -92,7 +93,41 @@ pub enum ProgramObject {
     Class(Vec<ConstantPoolIndex>),
 }
 
+#[derive(PartialEq,Debug,Clone)]
+pub struct ObjectTemplate {
+    fields: Vec<ConstantPoolIndex>,
+    methods: HashMap<ConstantPoolIndex, ProgramObject>
+}
+
+impl ObjectTemplate {
+
+}
+
 impl ProgramObject {
+    // pub fn as_object_template(&self) -> anyhow::Result<ObjectTemplate> {
+    //     let mut fields: Vec<ConstantPoolIndex> = Vec::new();
+    //     let mut methods: HashMap<ConstantPoolIndex, ProgramObject> = HashMap::new();
+    //
+    //     match self {
+    //         ProgramObject::Class(members) => {
+    //             for member in members {
+    //                 match member {
+    //                     ProgramObject::Slot { name } => {
+    //                         fields.push(*name);
+    //                     }
+    //                     ProgramObject::Method { name, .. } => {
+    //                         methods.insert(*name, member.clone())?;
+    //                     }
+    //                     _ => anyhow::bail!("Class members must be either a Method or a Slot, but found `{}`.", member)
+    //                 }
+    //             }
+    //         }
+    //         _ => anyhow::bail!("Expecting a program object representing a Class, found `{}`", self)
+    //     }
+    //
+    //     Ok(ObjectTemplate { fields, methods })
+    // }
+
     pub fn is_literal(&self) -> bool {
         match self {
             ProgramObject::Null => true,
@@ -289,15 +324,15 @@ impl ProgramObject {
 }
 
 #[derive(PartialEq,Eq,Debug,Hash,Clone,Copy)]
-pub struct HeapPointer(usize);
+pub struct HeapIndex(usize);
 
-impl From<usize> for HeapPointer {
+impl From<usize> for HeapIndex {
     fn from(n: usize) -> Self {
-        HeapPointer(n)
+        HeapIndex(n)
     }
 }
 
-impl From<&Pointer> for HeapPointer {
+impl From<&Pointer> for HeapIndex {
     fn from(p: &Pointer) -> Self {
         match p {
             Pointer::Reference(p) => p.clone(),
@@ -308,7 +343,7 @@ impl From<&Pointer> for HeapPointer {
     }
 }
 
-impl From<Pointer> for HeapPointer {
+impl From<Pointer> for HeapIndex {
     fn from(p: Pointer) -> Self {
         match p {
             Pointer::Reference(p) => p.clone(),
@@ -319,11 +354,11 @@ impl From<Pointer> for HeapPointer {
     }
 }
 
-impl HeapPointer {
+impl HeapIndex {
     pub fn as_usize(&self) -> usize { self.0 }
 }
 
-impl std::fmt::Display for HeapPointer {
+impl std::fmt::Display for HeapIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{:x>8}", self.0)
     }
@@ -334,7 +369,7 @@ pub enum Pointer {
     Null,
     Integer(i32),
     Boolean(bool),
-    Reference(HeapPointer),
+    Reference(HeapIndex),
 }
 
 // impl Deref for Pointer {
@@ -360,13 +395,13 @@ impl Pointer {
             _ => false,
         }
     }
-    pub fn as_heap_reference(&self) -> Option<&HeapPointer> {
+    pub fn as_heap_reference(&self) -> Option<&HeapIndex> {
         match self {
             Pointer::Reference(reference) => Some(reference),
             _ => None,
         }
     }
-    pub fn into_heap_reference(self) -> anyhow::Result<HeapPointer> {
+    pub fn into_heap_reference(self) -> anyhow::Result<HeapIndex> {
         match self {
             Pointer::Reference(reference) => Ok(reference),
             pointer => Err(anyhow::anyhow!("Expecting a heap reference, but found `{}`.", pointer)),
@@ -475,21 +510,21 @@ impl From<ProgramObject> for Pointer {
     }
 }
 
-impl From<&HeapPointer> for Pointer {
-    fn from(p: &HeapPointer) -> Self {
+impl From<&HeapIndex> for Pointer {
+    fn from(p: &HeapIndex) -> Self {
         Pointer::Reference(p.clone())
     }
 }
 
-impl From<HeapPointer> for Pointer {
-    fn from(p: HeapPointer) -> Self {
+impl From<HeapIndex> for Pointer {
+    fn from(p: HeapIndex) -> Self {
         Pointer::Reference(p)
     }
 }
 
 impl From<usize> for Pointer {
     fn from(n: usize) -> Self {
-        Pointer::from(HeapPointer::from(n))
+        Pointer::from(HeapIndex::from(n))
     }
 }
 
@@ -517,25 +552,85 @@ impl std::fmt::Display for Pointer {
 }
 
 #[derive(PartialEq,Debug,Clone)]
+pub struct ObjectInstance {
+    pub parent: Pointer,
+    pub fields: HashMap<String, Pointer>, // TODO make private
+    pub methods: HashMap<String, ProgramObject> // TODO make private
+}
+
+impl ObjectInstance {
+    pub fn get_field(&self, name: &str) -> anyhow::Result<&Pointer> {
+        self.fields.get(name)
+            .with_context(|| format!("There is no field named `{}` in object `{}`", name, self))
+    }
+
+    pub fn set_field(&mut self, name: &str, pointer: Pointer) -> anyhow::Result<Pointer> {
+        self.fields.insert(name.to_owned(), pointer)
+            .with_context(|| format!("There is no field named `{}` in object `{}`", name, self))
+    }
+}
+
+
+impl std::fmt::Display for ObjectInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "object(..={}, {})", self.parent, self.fields.iter()
+            .map(|(name, field)| format!("{}={}", name, field))
+            .collect::<Vec<String>>()
+            .join(", "))
+
+    }
+}
+
+#[derive(PartialEq,Debug,Clone)]
 pub enum HeapObject {
     // Null,
     // Integer(i32),
     // Boolean(bool),
     Array(Vec<Pointer>),
-    Object {
-        parent: Pointer,
-        fields: HashMap<String, Pointer>,
-        methods: HashMap<String, ProgramObject>,
-    },
+    Object(ObjectInstance)
 }
 
 impl HeapObject {
+    pub fn new_object(parent: Pointer, fields: HashMap<String, Pointer>, methods: HashMap<String, ProgramObject>) -> Self {
+        HeapObject::Object(ObjectInstance { parent, fields, methods })
+    }
+
+    pub fn as_object_instance(&self) -> anyhow::Result<&ObjectInstance> {
+        match self {
+            HeapObject::Object(instance) => Ok(instance),
+            array => Err(anyhow::anyhow!("Attempt to cast an array as an object instance `{}`.", array)),
+        }
+    }
+
+    pub fn as_object_instance_mut(&mut self) -> anyhow::Result<&mut ObjectInstance> {
+        match self {
+            HeapObject::Object(instance) => Ok(instance),
+            array => Err(anyhow::anyhow!("Attempt to cast an array as an object instance `{}`.", array)),
+        }
+    }
+    
+    // pub fn with_object<F, R>(&self, mut f: F) -> anyhow::Result<R>
+    //     where F: FnMut(&Self, &Pointer, &HashMap<String, Pointer>, &HashMap<String, ProgramObject>) -> anyhow::Result<R> {
+    //     match self {
+    //         HeapObject::Object { parent, fields, methods } => f(self, parent, fields, methods),
+    //         array => Err(anyhow::anyhow!("Expecting an object instance, but found `{}`.", array)),
+    //     }
+    // }
+    //
+    // pub fn with_object_mut<F, R>(&mut self, mut f: F) -> anyhow::Result<R>
+    //     where F: FnMut(&mut Self, &mut Pointer, &mut HashMap<String, Pointer>, &mut HashMap<String, ProgramObject>) -> anyhow::Result<R> {
+    //     match self {
+    //         HeapObject::Object { parent, fields, methods } => f(parent, fields, methods),
+    //         array => Err(anyhow::anyhow!("Expecting an object instance, but found `{}`.", array)),
+    //     }
+    // }
+
     pub fn empty_object() -> Self {
-        HeapObject::Object {
+        HeapObject::Object(ObjectInstance {
             parent: Pointer::Null,
             fields: HashMap::new(),
             methods: HashMap::new(),
-        }
+        })
     }
 
     pub fn empty_array() -> Self {
@@ -564,7 +659,7 @@ impl HeapObject {
     // }
 
     pub fn from(parent: Pointer, fields: HashMap<String, Pointer>, methods: HashMap<String, ProgramObject>) -> Self {
-        HeapObject::Object { parent, fields, methods }
+        HeapObject::Object(ObjectInstance { parent, fields, methods })
     }
 }
 
@@ -582,7 +677,7 @@ impl std::fmt::Display for HeapObject {
                         .join(", ")
                 })
             },
-            HeapObject::Object { parent, fields, methods:_ } => {
+            HeapObject::Object(ObjectInstance { parent, fields, methods:_ }) => {
                 write!(f, "object(..={}, {})", parent, fields.iter()
                     .map(|(name, field)| format!("{}={}", name, field))
                     .collect::<Vec<String>>()

@@ -3,12 +3,22 @@ use crate::bytecode::types::{ConstantPoolIndex, LocalFrameIndex, Arity, Size, Ad
 use std::fmt::Write;
 
 use crate::bytecode::bytecode::OpCode;
-use crate::bytecode::objects::{ProgramObject, Pointer, HeapObject, HeapPointer};
+use crate::bytecode::objects::{ProgramObject, Pointer, HeapObject, HeapIndex, ObjectInstance};
 
 use anyhow::*;
 use anyhow::Context;
 use std::collections::HashMap;
 use std::iter::repeat;
+
+macro_rules! bail_if {
+    ($condition:expr, $format:expr, $($arguments:expr),*) => {
+        if $condition { bail!($format$(, $arguments)*) }
+    }
+}
+
+macro_rules! veccat {
+    ($a:expr, $b:expr) => { $a.into_iter().chain($b.into_iter()).collect() }
+}
 
 trait Pairable<T, I> where T: Copy + Default {
     fn pairs(self) -> PairIterator<T, I>;
@@ -36,40 +46,65 @@ impl<T, I> Iterator for PairIterator<T, I> where I: Iterator<Item=T>, T: Copy {
     }
 }
 
-pub struct Heap {}
+pub struct Heap(Vec<HeapObject>);
 impl Heap {
-    pub fn allocate(&mut self, object: HeapObject) -> Result<Pointer> { unimplemented!() }
-    pub fn dereference(&mut self, pointer: HeapPointer) -> Result<&HeapObject> { unimplemented!() }
-    pub fn dereference_mut(&mut self, pointer: HeapPointer) -> Result<&mut HeapObject> { unimplemented!() }
+    pub fn new() -> Self {
+        Heap(Vec::new())
+    }
+    pub fn allocate(&mut self, object: HeapObject) -> HeapIndex {
+        let index = HeapIndex::from(self.0.len());
+        self.0.push(object);
+        index
+    }
+    pub fn dereference(&mut self, index: HeapIndex) -> Result<&HeapObject> {
+        self.0.get(index.as_usize())
+            .with_context(||
+                format!("Cannot dereference object from the heap at index: `{}`", index))
+    }
+    pub fn dereference_mut(&mut self, index: HeapIndex) -> Result<&mut HeapObject> {
+        self.0.get_mut(index.as_usize())
+            .with_context(||
+                   format!("Cannot dereference object from the heap at index: `{}`", index))
+    }
 }
-
-// pub struct Runnable {}
-// impl Runnable {
-//
-// }
+impl From<Vec<HeapObject>> for Heap {
+    fn from(objects: Vec<HeapObject>) -> Self { Heap(objects) }
+}
 
 pub struct InstructionPointer {}
 impl InstructionPointer {
     pub fn bump(&self, program: &Program) { unimplemented!() }
-    pub fn set(&self, address: Address) { unimplemented!() }
+    pub fn set(&self, address: Option<Address>) { unimplemented!() }
     pub fn get(&self) -> Option<Address> { unimplemented!() }
 }
 
-pub struct OperandStack {}
+pub struct OperandStack(Vec<Pointer>);
 impl OperandStack {
-    pub fn push(&mut self, pointer: Pointer) { unimplemented!() }
-    pub fn pop(&mut self) -> Result<Pointer> { unimplemented!() }
-    pub fn peek(&self) -> Result<&Pointer> { unimplemented!() }
+    pub fn push(&mut self, pointer: Pointer) {
+        self.0.push(pointer)
+    }
+    pub fn pop(&mut self) -> Result<Pointer> {
+        self.0.pop().with_context(|| format!("Cannot pop from an empty operand stack."))
+    }
+    pub fn peek(&self) -> Result<&Pointer> {
+        self.0.last().with_context(|| format!("Cannot peek from an empty operand stack."))
+    }
 }
 
-pub struct ConstantPool {}
+pub struct ConstantPool(Vec<ProgramObject>);
 impl ConstantPool {
-    pub fn get(&self, index: &ConstantPoolIndex) -> Result<&ProgramObject> { unimplemented!() }
+    pub fn get(&self, index: &ConstantPoolIndex) -> Result<&ProgramObject> {
+        self.0.get(index.as_usize())
+            .with_context(||
+                format!("Cannot dereference object from the constant pool at index: `{}`", index))
+    }
 }
 
-pub struct Frame {}
+pub struct Frame { return_address: Option<Address>, locals: Vec<Pointer> }
 impl Frame {
-    pub fn new(return_address: Option<Address>, locals: Vec<Pointer>) -> Self { unimplemented!() }
+    pub fn new(return_address: Option<Address>, locals: Vec<Pointer>) -> Self {
+        Frame { locals: Vec::new(), return_address: None }
+    }
     pub fn get(&self, index: &LocalFrameIndex) -> Result<&Pointer> { unimplemented!() }
     pub fn set(&mut self, index: &LocalFrameIndex, pointer: Pointer) -> Result<()> { unimplemented!() }
 }
@@ -82,11 +117,10 @@ impl<T> Dictionary<T> {
 
 pub struct FrameStack { globals: Dictionary<Pointer>, functions: Dictionary<ConstantPoolIndex> }
 impl FrameStack {
+    pub fn pop(&mut self) -> Result<Frame> { unimplemented!() }
     pub fn push(&mut self, frame: Frame) { unimplemented!() }
     pub fn get_locals(&self) -> Result<&Frame> { unimplemented!() }
     pub fn get_locals_mut(&mut self) -> Result<&mut Frame> { unimplemented!() }
-    // pub fn get_globals(&self) -> Result<&Dictionary> { unimplemented!() }
-    // pub fn get_globals_mut(&mut self) -> Result<&mut Dictionary> { unimplemented!() }
 }
 
 pub struct State {
@@ -95,7 +129,11 @@ pub struct State {
     instruction_pointer: InstructionPointer,
     heap: Heap
 }
-pub struct Program { constant_pool: ConstantPool, labels: Dictionary<Address> }
+
+pub struct Program {
+    constant_pool: ConstantPool,
+    labels: Dictionary<Address>
+}
 
 trait OpCodeEvaluationResult<T> {
     #[inline(always)]
@@ -109,17 +147,7 @@ impl<T> OpCodeEvaluationResult<T> for Result<T> {
     }
 }
 
-macro_rules! bail_if {
-    ($condition:expr, $format:expr, $($arguments:expr),*) => {
-        if $condition { bail!($format$(, $arguments)*) }
-    }
-}
-
-macro_rules! veccat {
-    ($a:expr, $b:expr) => { $a.into_iter().chain($b.into_iter()).collect() }
-}
-
-pub fn eval_opcode<Output>(program: &Program, state: &mut State, opcode: &OpCode) -> Result<()> where Output : Write {
+pub fn eval_opcode<W>(program: &Program, state: &mut State, output: &mut W, opcode: &OpCode) -> Result<()> where W: Write {
     match opcode {
         OpCode::Literal { index } => eval_literal(program, state, index),
         OpCode::GetLocal { index } => eval_get_local(program, state, index),
@@ -128,16 +156,16 @@ pub fn eval_opcode<Output>(program: &Program, state: &mut State, opcode: &OpCode
         OpCode::SetGlobal { name } => eval_set_global(program, state, name),
         OpCode::Object { class } => eval_object(program, state, class),
         OpCode::Array => eval_array(program, state),
-        OpCode::GetField { .. } => unimplemented!(),
-        OpCode::SetField { .. } => unimplemented!(),
-        OpCode::CallMethod { .. } => unimplemented!(),
-        OpCode::CallFunction { .. } => unimplemented!(),
-        OpCode::Label { .. } => unimplemented!(),
-        OpCode::Print { .. } => unimplemented!(),
-        OpCode::Jump { .. } => unimplemented!(),
-        OpCode::Branch { .. } => unimplemented!(),
-        OpCode::Return => unimplemented!(),
-        OpCode::Drop => unimplemented!(),
+        OpCode::GetField { name } => eval_get_field(program, state, name),
+        OpCode::SetField { name } => eval_set_field(program, state, name),
+        OpCode::CallMethod { name, arguments } => eval_call_method(program, state, name, arguments),
+        OpCode::CallFunction { name, arguments } => eval_call_function(program, state, name, arguments),
+        OpCode::Label { .. } => eval_label(program, state),
+        OpCode::Print { format, arguments } => eval_print(program, state, output, format, arguments),
+        OpCode::Jump { label } => eval_jump(program, state, label),
+        OpCode::Branch { label } => eval_branch(program, state, label),
+        OpCode::Return => eval_return(program, state),
+        OpCode::Drop => eval_drop(program, state),
     }.attach(opcode)
 }
 
@@ -199,6 +227,7 @@ pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolInd
     let mut slots = Vec::new();
     let mut methods = HashMap::new();
 
+
     for member in members {                                                           // TODO this could probably be a method in ProgramObject, something like: `create prototype object om class`
         match member {
             ProgramObject::Slot { name: index } => {
@@ -225,8 +254,8 @@ pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolInd
 
     let parent = state.operand_stack.pop()?;
 
-    let pointer = state.heap.allocate(HeapObject::Object { parent, fields, methods })?;
-    state.operand_stack.push(pointer);
+    let heap_index = state.heap.allocate(HeapObject::Object(ObjectInstance { parent, fields, methods })); // TODO simplify
+    state.operand_stack.push(Pointer::from(heap_index));
     state.instruction_pointer.bump(program);
     Ok(())
 }
@@ -242,8 +271,8 @@ pub fn eval_array(program: &Program, state: &mut State) -> Result<()> {
     let elements = repeat(initializer).take(n as usize).collect();
     let array = HeapObject::from_pointers(elements);
 
-    let pointer = state.heap.allocate(array)?;
-    state.operand_stack.push(pointer);
+    let heap_index = state.heap.allocate(array);
+    state.operand_stack.push(Pointer::from(heap_index));
     state.instruction_pointer.bump(program);
     Ok(())
 }
@@ -256,15 +285,9 @@ pub fn eval_get_field(program: &Program, state: &mut State, index: &ConstantPool
     let heap_pointer = pointer.into_heap_reference()?;
     let object = state.heap.dereference(heap_pointer)?;
 
-    match object {                                                                                  // TODO this should be a method in HeapObject
-        HeapObject::Object { fields, .. } => {
-            let pointer = fields.get(name)
-                .with_context(|| format!("No field named `{}` in object `{}`", name, object))?;
-            state.operand_stack.push(*pointer);
-        }
-        array => bail!("Attempt to access field of a non-object `{}`.", array),
-    }
-
+    let object_instance = object.as_object_instance()?;
+    let pointer = object_instance.get_field(name)?;
+    state.operand_stack.push(*pointer);
     state.instruction_pointer.bump(program);
     Ok(())
 }
@@ -278,22 +301,28 @@ pub fn eval_set_field(program: &Program, state: &mut State, index: &ConstantPool
     let heap_pointer = object_pointer.into_heap_reference()?;
     let object = state.heap.dereference_mut(heap_pointer)?;
 
-    match object {                                                                                  // TODO this should be a method in HeapObject
-        HeapObject::Object { fields, .. } => {
-            fields.insert(name.to_owned(), value_pointer.clone())
-                .with_context(|| format!("No field named `{}` in object `{}`", name, object))?;
-            state.operand_stack.push(value_pointer);
-        }
-        array => bail!("Attempt to access field of a non-object `{}`.", array),
-    }
-
+    let object_instance = object.as_object_instance_mut()?;
+    let pointer = object_instance.set_field(name, value_pointer.clone())?;
+    state.operand_stack.push(value_pointer);
     state.instruction_pointer.bump(program);
     Ok(())
 }
 
 #[inline(always)]
 pub fn eval_call_method(program: &Program, state: &mut State, index: &ConstantPoolIndex, arguments: &Arity) -> Result<()> {
-    unimplemented!();
+    bail_if!(arguments.to_usize() == 0, "All method calls require at least {} parameter (receiver)", 1);
+
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?;
+
+    let argument_pointers = (0..arguments.to_usize()).map(|_| state.operand_stack.pop()).rev().collect::<Result<Vec<Pointer>>>()?;
+    let receiver_pointer = state.operand_stack.pop()?;
+
+
+
+
+    //let local_pointers = repeat(Pointer::Null).take(locals.to_usize()).collect::<Vec<Pointer>>();
+
     Ok(())
 }
 
@@ -316,12 +345,12 @@ pub fn eval_call_function(program: &Program, state: &mut State, index: &Constant
     state.instruction_pointer.bump(program);
     let frame = Frame::new(state.instruction_pointer.get(), veccat!(argument_pointers, local_pointers));
     state.frame_stack.push(frame);
-    state.instruction_pointer.set(*address);
+    state.instruction_pointer.set(Some(*address));
     Ok(())
 }
 
 #[inline(always)]
-pub fn eval_print<W>(program: &Program, state: &mut State, index: &ConstantPoolIndex, arguments: &Arity, output: &mut W) -> Result<()> where W: Write {
+pub fn eval_print<W>(program: &Program, state: &mut State, output: &mut W, index: &ConstantPoolIndex, arguments: &Arity) -> Result<()> where W: Write {
     let program_object = program.constant_pool.get(index)?;
     let format = program_object.as_str()?;
     let mut argument_pointers = (0..arguments.to_usize()).map(|_| state.operand_stack.pop()).collect::<Result<Vec<Pointer>>>()?;
@@ -363,6 +392,35 @@ pub fn eval_jump(program: &Program, state: &mut State, index: &ConstantPoolIndex
     let program_object = program.constant_pool.get(index)?;
     let name = program_object.as_str()?;
     let address = *program.labels.get(name)?;
-    state.instruction_pointer.set(address);
+    state.instruction_pointer.set(Some(address));
     Ok(())
 }
+
+#[inline(always)]
+pub fn eval_branch(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?;
+    let pointer = state.operand_stack.pop()?;
+    if !pointer.evaluate_as_condition() {
+        state.instruction_pointer.bump(program);
+    } else {
+        let address = *program.labels.get(name)?;
+        state.instruction_pointer.set(Some(address));
+    }
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_return(_program: &Program, state: &mut State) -> Result<()> {
+    let frame = state.frame_stack.pop()?;
+    state.instruction_pointer.set(frame.return_address);
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_drop(_program: &Program, state: &mut State) -> Result<()> {
+    state.operand_stack.pop()?;
+    Ok(())
+}
+
+

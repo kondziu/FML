@@ -114,13 +114,13 @@ impl Heap {
         Heap(objects)
     }
 
-    pub fn allocate(&mut self, object: HeapObject) -> HeapPointer {
-        let pointer = HeapPointer::from(self.0.len());
+    pub fn allocate(&mut self, object: HeapObject) -> HeapIndex {
+        let pointer = HeapIndex::from(self.0.len());
         self.0.push(object);
         pointer
     }
 
-    pub fn dereference(&self, pointer: &HeapPointer) -> Option<&HeapObject> {
+    pub fn dereference(&self, pointer: &HeapIndex) -> Option<&HeapObject> {
         let index = pointer.as_usize();
         if self.0.len() > index {
             Some(&self.0[index])
@@ -129,7 +129,7 @@ impl Heap {
         }
     }
 
-    pub fn dereference_mut(&mut self, pointer: &HeapPointer) -> Option<&mut HeapObject> {
+    pub fn dereference_mut(&mut self, pointer: &HeapIndex) -> Option<&mut HeapObject> {
         let index = pointer.as_usize();
         if self.0.len() > index {
             Some(&mut self.0[index])
@@ -138,7 +138,7 @@ impl Heap {
         }
     }
 
-    pub fn copy(&mut self, pointer: &HeapPointer) -> Option<HeapPointer> {
+    pub fn copy(&mut self, pointer: &HeapIndex) -> Option<HeapIndex> {
         self.dereference(pointer)
             .map(|object| object.clone())
             .map(|object| self.allocate(object))
@@ -157,7 +157,7 @@ impl Heap {
 
                 format!("[{}]", element_string)
             },
-            HeapObject::Object { parent, fields, methods:_ } => {
+            HeapObject::Object(ObjectInstance { parent, fields, methods:_ }) => {
                 let parent_string = self.dereference_to_string(parent);
                 let parent_string = if parent_string == "null" {
                     String::new()
@@ -401,11 +401,11 @@ impl State {
 
 
 
-    pub fn dereference_mut(&mut self, pointer: &HeapPointer) -> Option<&mut HeapObject> {
+    pub fn dereference_mut(&mut self, pointer: &HeapIndex) -> Option<&mut HeapObject> {
         self.memory.dereference_mut(pointer)
     }
 
-    pub fn dereference(&self, pointer: &HeapPointer) -> Option<&HeapObject> {
+    pub fn dereference(&self, pointer: &HeapIndex) -> Option<&HeapObject> {
         self.memory.dereference(pointer)
     }
 
@@ -719,7 +719,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 .expect(&format!("Get slot error: no operand object at {:?}", operand_pointer));
 
             match operand {
-                HeapObject::Object { parent:_, fields, methods:_ } => {
+                HeapObject::Object(ObjectInstance{parent:_, fields, methods:_ }) => {
                     let slot: Pointer = fields.get(name)
                         .expect(&format!("Get slot error: no field {} in object", name))
                         .clone();
@@ -758,7 +758,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 .expect(&format!("Set slot error: no operand object at {:?}", host_pointer));
 
             match host {
-                HeapObject::Object { parent:_, fields, methods:_ } => {
+                HeapObject::Object(ObjectInstance { parent:_, fields, methods:_ }) => {
                     if !(fields.contains_key(name)) {
                         panic!("Set slot error: no field {} in object {:?}", name, host)
                     }
@@ -816,7 +816,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 //     interpret_boolean_method(object_pointer, name, &Vec::from(arguments), state, program),
                 HeapObject::Array(_) =>
                     interpret_array_method(object_pointer, name, &Vec::from(arguments), *parameters, state, program),
-                HeapObject::Object { parent:_, fields:_, methods:_ } =>
+                HeapObject::Object(ObjectInstance { parent:_, fields:_, methods:_ }) =>
                     dispatch_object_method(object_pointer, name, &Vec::from(arguments), *parameters, state, program),
             };
         }

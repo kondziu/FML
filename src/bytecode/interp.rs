@@ -56,12 +56,12 @@ impl Heap {
         self.0.push(object);
         index
     }
-    pub fn dereference(&mut self, index: HeapIndex) -> Result<&HeapObject> {
+    pub fn dereference(&self, index: &HeapIndex) -> Result<&HeapObject> {
         self.0.get(index.as_usize())
             .with_context(||
                 format!("Cannot dereference object from the heap at index: `{}`", index))
     }
-    pub fn dereference_mut(&mut self, index: HeapIndex) -> Result<&mut HeapObject> {
+    pub fn dereference_mut(&mut self, index: &HeapIndex) -> Result<&mut HeapObject> {
         self.0.get_mut(index.as_usize())
             .with_context(||
                    format!("Cannot dereference object from the heap at index: `{}`", index))
@@ -283,7 +283,7 @@ pub fn eval_get_field(program: &Program, state: &mut State, index: &ConstantPool
     let name = program_object.as_str()?;
     let pointer = state.operand_stack.pop()?;
     let heap_pointer = pointer.into_heap_reference()?;
-    let object = state.heap.dereference(heap_pointer)?;
+    let object = state.heap.dereference(&heap_pointer)?;
 
     let object_instance = object.as_object_instance()?;
     let pointer = object_instance.get_field(name)?;
@@ -299,7 +299,7 @@ pub fn eval_set_field(program: &Program, state: &mut State, index: &ConstantPool
     let value_pointer = state.operand_stack.pop()?;
     let object_pointer = state.operand_stack.pop()?;
     let heap_pointer = object_pointer.into_heap_reference()?;
-    let object = state.heap.dereference_mut(heap_pointer)?;
+    let object = state.heap.dereference_mut(&heap_pointer)?;
 
     let object_instance = object.as_object_instance_mut()?;
     let pointer = object_instance.set_field(name, value_pointer.clone())?;
@@ -320,10 +320,108 @@ pub fn eval_call_method(program: &Program, state: &mut State, index: &ConstantPo
 
 
 
-
     //let local_pointers = repeat(Pointer::Null).take(locals.to_usize()).collect::<Vec<Pointer>>();
 
     Ok(())
+}
+
+pub fn dispatch_method(heap: &Heap, receiver_pointer: &Pointer, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+    match receiver_pointer {
+        Pointer::Null => dispatch_null_method(method_name, argument_pointers),
+        Pointer::Integer(receiver) => dispatch_integer_method(receiver, method_name, argument_pointers),
+        Pointer::Boolean(receiver) => dispatch_boolean_method(receiver, method_name, argument_pointers),
+        Pointer::Reference(index) => {
+            let heap_object = heap.dereference(index)?;
+            match heap_object {
+                HeapObject::Array(array) => unimplemented!(),
+                HeapObject::Object(instance) => unimplemented!(),
+            }
+        }
+    }
+}
+
+pub fn dispatch_null_method(method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 1,
+             "Invalid number of arguments for method `{}` in object `null`", method_name);
+
+    let argument = argument_pointers.last().unwrap();
+    let result = match (method_name, argument)  {
+        ("==", Pointer::Null) | ("eq", Pointer::Null)  => Pointer::from(true),
+        ("==", _) | ("eq", _)                          => Pointer::from(false),
+        ("!=", Pointer::Null) | ("neq", Pointer::Null) => Pointer::from(true),
+        ("!=", _) | ("neq", _)                         => Pointer::from(false),
+        _ => bail!("Call method error: no method `{}` in object `null`", method_name),
+    };
+
+    Ok(result)
+}
+
+pub fn dispatch_integer_method(receiver: &i32, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 1,
+             "Invalid number of arguments for method `{}` in object `{}`", method_name, receiver);
+
+    let argument_pointer = argument_pointers.last().unwrap();
+
+    let result = match (method_name, argument_pointer) {
+        ("+",  Pointer::Integer(argument)) => Pointer::from(receiver +  argument),
+        ("-",  Pointer::Integer(argument)) => Pointer::from(receiver -  argument),
+        ("*",  Pointer::Integer(argument)) => Pointer::from(receiver *  argument),
+        ("/",  Pointer::Integer(argument)) => Pointer::from(receiver /  argument),
+        ("%",  Pointer::Integer(argument)) => Pointer::from(receiver %  argument),
+        ("<=", Pointer::Integer(argument)) => Pointer::from(receiver <= argument),
+        (">=", Pointer::Integer(argument)) => Pointer::from(receiver >= argument),
+        ("<",  Pointer::Integer(argument)) => Pointer::from(receiver <  argument),
+        (">",  Pointer::Integer(argument)) => Pointer::from(receiver >  argument),
+        ("==", Pointer::Integer(argument)) => Pointer::from(receiver == argument),
+        ("!=", Pointer::Integer(argument)) => Pointer::from(receiver != argument),
+        ("==", _) => Pointer::from(false),
+        ("!=", _) => Pointer::from(true),
+
+        ("add", Pointer::Integer(argument)) => Pointer::from(receiver +  argument),
+        ("sub", Pointer::Integer(argument)) => Pointer::from(receiver -  argument),
+        ("mul", Pointer::Integer(argument)) => Pointer::from(receiver *  argument),
+        ("div", Pointer::Integer(argument)) => Pointer::from(receiver /  argument),
+        ("mod", Pointer::Integer(argument)) => Pointer::from(receiver %  argument),
+        ("le",  Pointer::Integer(argument)) => Pointer::from(receiver <= argument),
+        ("ge",  Pointer::Integer(argument)) => Pointer::from(receiver >= argument),
+        ("lt",  Pointer::Integer(argument)) => Pointer::from(receiver <  argument),
+        ("gt",  Pointer::Integer(argument)) => Pointer::from(receiver >  argument),
+        ("eq",  Pointer::Integer(argument)) => Pointer::from(receiver == argument),
+        ("neq", Pointer::Integer(argument)) => Pointer::from(receiver != argument),
+        ("eq", _) => Pointer::from(false),
+        ("neq", _) => Pointer::from(true),
+
+        _ => bail!("Call method error: no method `{}` in object `{}`", method_name, receiver),
+    };
+
+    Ok(result)
+}
+
+pub fn dispatch_boolean_method(receiver: &bool, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 1,
+             "Invalid number of arguments for method `{}` in object `{}`", method_name, receiver);
+
+    let argument_pointer = argument_pointers.last().unwrap();
+
+    let result = match (method_name, argument_pointer) {
+        ("&",  Pointer::Boolean(argument)) => Pointer::from(*receiver && *argument),
+        ("|",  Pointer::Boolean(argument)) => Pointer::from(*receiver || *argument),
+        ("==", Pointer::Boolean(argument)) => Pointer::from(*receiver == *argument),
+        ("!=", Pointer::Boolean(argument)) => Pointer::from(*receiver != *argument),
+        ("==", _) => Pointer::from(false),
+        ("!=", _) => Pointer::from(true),
+
+        ("and", Pointer::Boolean(argument)) => Pointer::from(*receiver && *argument),
+        ("or",  Pointer::Boolean(argument)) => Pointer::from(*receiver || *argument),
+        ("eq",  Pointer::Boolean(argument)) => Pointer::from(*receiver == *argument),
+        ("neq", Pointer::Boolean(argument)) => Pointer::from(*receiver != *argument),
+        ("eq",  _) => Pointer::from(false),
+        ("neq", _) => Pointer::from(true),
+
+        _ => bail!("Call method error: no method `{}` in object `{}`",  method_name, receiver),
+    };
+
+    Ok(result)
 }
 
 #[inline(always)]

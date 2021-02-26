@@ -1,0 +1,74 @@
+function stack(initial_size) ->
+begin
+  let initial_size = begin
+    if initial_size > 0 then initial_size else 1;
+  end;
+  object
+  begin
+    /* invariant: size is non-zero */
+    /* invariant: pointer always points to next empty element */
+    /* invariant: size is always larger than pointer */
+
+    let size = initial_size;
+    let pointer = 0;
+    let values = array(initial_size, null);
+
+    function peek() -> begin
+      this.stack[this.pointer];
+    end;
+
+    function push(value) ->
+    begin
+      if this.pointer == this.size then
+        this.__expand();
+      this.values[this.pointer] <- value;
+      this.pointer <- this.pointer + 1;
+      value
+    end;
+
+    function pop() -> begin
+      if this.pointer == 0 then
+        print("Error: attempting to pop from an empty stack.\n") // returns null
+      else
+      begin
+        this.pointer <- this.pointer - 1;
+        let value = this.values[this.pointer];
+        this.values[this.pointer] <- null;
+        value;
+      end
+    end;
+
+    function __expand() ->
+    begin
+      let old_values = this.values;
+      let old_size = this.size;
+
+      this.size <- 2 * this.size;
+      this.values <- array(this.size, null);
+
+      let index = 0;
+      while index < old_size do
+      begin
+        this.values[index] <- old_values[index];
+        index <- index + 1;
+      end;
+    end;
+  end;
+end;
+
+let s = stack(4);
+print("push ~ => ~\n", s.push(0), s);
+print("push ~ => ~\n", s.push(1), s);
+print("push ~ => ~\n", s.push(2), s);
+print("push ~ => ~\n", s.push(3), s);
+print("push ~ => ~\n", s.push(4), s);
+print("push ~ => ~\n", s.push(5), s);
+
+print("pop ~ => ~\n", s.pop(), s);
+print("pop ~ => ~\n", s.pop(), s);
+print("pop ~ => ~\n", s.pop(), s);
+print("pop ~ => ~\n", s.pop(), s);
+print("pop ~ => ~\n", s.pop(), s);
+print("pop ~ => ~\n", s.pop(), s);
+print("pop ~ => ~\n", s.pop(), s);
+print("pop ~ => ~\n", s.pop(), s);

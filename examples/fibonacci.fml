@@ -1,0 +1,13 @@
+function fibonacci(value) ->
+         if value <  0              then print("Error: value must be a Natural number.")
+    else if value == 0              then 0
+    else if value == 1 | value == 2 then 1
+    else                                 fibonacci(value - 1) + fibonacci(value - 2);
+
+let i = 0;
+while i < 25 do
+begin
+  print("~ => ~\n", i, fibonacci(i));
+  i <- i + 1;
+end
+

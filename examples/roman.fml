@@ -1,0 +1,112 @@
+function roman(value) ->
+begin
+  object // extends value
+  begin
+  let decimal_value = value;
+
+  function +  (other) -> roman(this.decimal_value +  other.decimal_value);
+  function -  (other) -> roman(this.decimal_value -  other.decimal_value);
+  function *  (other) -> roman(this.decimal_value *  other.decimal_value);
+  function /  (other) -> roman(this.decimal_value /  other.decimal_value);
+  function %  (other) -> roman(this.decimal_value %  other.decimal_value);
+  function == (other) -> roman(this.decimal_value == other.decimal_value);
+  function != (other) -> roman(this.decimal_value != other.decimal_value);
+
+  function __print_symbol(symbol_code) ->
+    if symbol_code == 1000 then print("M") else
+    if symbol_code ==  500 then print("D") else
+    if symbol_code ==  100 then print("C") else
+    if symbol_code ==   50 then print("L") else
+    if symbol_code ==   10 then print("X") else
+    if symbol_code ==    5 then print("V") else
+    if symbol_code ==    1 then print("I") else
+      print("Error: Unknown symbol code ~", symbol_code);
+
+  function __print_n_symbols(n, symbol_code) ->
+  begin
+    let i = 0;
+    while i < n do
+    begin
+      this.__print_symbol(symbol_code);
+      i <- i + 1;
+    end;
+  end;
+
+  function __print_order_of_magnitude(value, order_of_magnitude, unit) ->
+  begin
+    let value = value;
+    let quotient = value / order_of_magnitude;
+
+    if value >= order_of_magnitude then
+    begin
+      let quotient = value / order_of_magnitude;
+      this.__print_n_symbols(quotient, order_of_magnitude);
+      value <- value % order_of_magnitude;
+    end;
+
+    if unit != 0 then
+    begin
+      if value >= (order_of_magnitude - unit) then
+      begin
+        this.__print_symbol(unit);
+        this.__print_symbol(order_of_magnitude);
+        value <- value % (order_of_magnitude - unit);
+      end;
+    end;
+
+    /*return*/ value
+  end;
+
+  function print_roman() ->
+  begin
+    let value = this.decimal_value;
+
+    value <- this.__print_order_of_magnitude(value, 1000, 100);
+    value <- this.__print_order_of_magnitude(value, 500,  100);
+    value <- this.__print_order_of_magnitude(value, 100,  10);
+    value <- this.__print_order_of_magnitude(value, 50,   10);
+    value <- this.__print_order_of_magnitude(value, 10,   1);
+    value <- this.__print_order_of_magnitude(value, 5,    1);
+    value <- this.__print_order_of_magnitude(value, 1,    0);
+
+    /*return*/ null
+  end;
+
+  function print_decimal() ->
+    print("~", this.decimal_value);
+
+  end; // object
+end; // function
+
+let size = 17;
+let numbers = array(size, 0);
+numbers[0]  <- roman(1);
+numbers[1]  <- roman(4);
+numbers[2]  <- roman(5);
+numbers[3]  <- roman(9);
+
+numbers[4]  <- roman(10);
+numbers[5]  <- roman(40);
+numbers[6]  <- roman(50);
+numbers[7]  <- roman(90);
+
+numbers[8]  <- roman(100);
+numbers[9]  <- roman(400);
+numbers[10] <- roman(500);
+numbers[11] <- roman(900);
+numbers[12] <- roman(1000);
+
+numbers[13] <- roman(6);
+numbers[14] <- roman(42);
+numbers[15] <- roman(666);
+numbers[16] <- roman(21000);
+
+let i = 0;
+while i < size do
+begin
+  numbers[i].print_decimal();
+  print(" => ");
+  numbers[i].print_roman();
+  print("\n");
+  i <- i + 1;
+end

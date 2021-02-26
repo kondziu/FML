@@ -1,0 +1,26 @@
+function triangle(height) ->
+begin
+  let base_width = 2 * height - 1;
+  let row = 0;
+
+  while row < height do
+  begin
+    let skip = (base_width / 2) - row;
+    let column = 0;
+
+    while column < base_width do
+    begin
+      if column < skip | column >= base_width - skip
+      then print(" ")
+      else print("*");
+      column <- column + 1;
+    end;
+
+    print("\n");
+    row <- row + 1;
+  end;
+end;
+
+triangle(2);
+triangle(3);
+triangle(5);

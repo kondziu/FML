@@ -318,20 +318,20 @@ pub fn eval_call_method(program: &Program, state: &mut State, index: &ConstantPo
     let argument_pointers = (0..arguments.to_usize()).map(|_| state.operand_stack.pop()).rev().collect::<Result<Vec<Pointer>>>()?;
     let receiver_pointer = state.operand_stack.pop()?;
 
-
+    unimplemented!();
 
     //let local_pointers = repeat(Pointer::Null).take(locals.to_usize()).collect::<Vec<Pointer>>();
 
     Ok(())
 }
 
-pub fn dispatch_method(heap: &Heap, receiver_pointer: &Pointer, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+pub fn dispatch_method(heap: &mut Heap, receiver_pointer: &Pointer, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
     match receiver_pointer {
         Pointer::Null => dispatch_null_method(method_name, argument_pointers),
         Pointer::Integer(receiver) => dispatch_integer_method(receiver, method_name, argument_pointers),
         Pointer::Boolean(receiver) => dispatch_boolean_method(receiver, method_name, argument_pointers),
         Pointer::Reference(index) => {
-            let heap_object = heap.dereference(index)?;
+            let heap_object = heap.dereference_mut(index)?;
             match heap_object {
                 HeapObject::Array(array) => unimplemented!(),
                 HeapObject::Object(instance) => unimplemented!(),
@@ -422,6 +422,34 @@ pub fn dispatch_boolean_method(receiver: &bool, method_name: &str, argument_poin
     };
 
     Ok(result)
+}
+
+pub fn dispatch_array_method(array: &mut Vec<Pointer>, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+    match method_name {
+        "get" => {
+            bail_if!(argument_pointers.len() != 1,
+                     "Invalid number of arguments for method `{}` in array `{}`",
+                     method_name, receiver);
+            dispatch_array_get_method(array, argument_pointers.last().unwrap())
+        },
+        "set" => {
+            bail_if!(argument_pointers.len() != 2,
+                     "Invalid number of arguments for method `{}` in array `{}`",
+                     method_name, receiver);
+            let argument_pointer = argument_pointers.first().unwrap();
+            let value_pointer = argument_pointers.last().unwrap();
+            dispatch_array_set_method(array, argument_pointer, value_pointer)
+        },
+        _ => bail!("Call method error: no method `{}` in array `{:?}`",  method_name, array), // TODO wrap Vec into a struct Array
+    }
+}
+
+pub fn dispatch_array_get_method(array: &Vec<Pointer>, argument_pointer: &Pointer) -> Result<Pointer> {
+    unimplemented!()
+}
+
+pub fn dispatch_array_set_method(array: &Vec<Pointer>, argument_pointer: &Pointer, value_pointer: &Pointer) -> Result<Pointer> {
+    unimplemented!()
 }
 
 #[inline(always)]

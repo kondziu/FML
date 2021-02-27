@@ -14,6 +14,9 @@ use crate::bytecode::interpreter::Heap;
 use crate::bytecode;
 use anyhow::Context;
 
+use crate::bail_if;
+use crate::bytecode::interp::OperandStack;
+
 #[derive(PartialEq,Debug,Clone)]
 pub enum ProgramObject {
     /**
@@ -380,6 +383,12 @@ pub enum Pointer {
 // }
 
 impl Pointer {
+    pub fn push_onto(self, stack: &mut OperandStack) {
+        stack.push(self);
+    }
+}
+
+impl Pointer {
     pub fn from_literal(program_object: &ProgramObject) -> anyhow::Result<Pointer> {
         match program_object {
             ProgramObject::Null => Ok(Self::Null),
@@ -430,7 +439,14 @@ impl Pointer {
     pub fn as_i32(&self) -> anyhow::Result<i32> {
         match self {
             Pointer::Integer(i) => Ok(*i),
-            pointer => Err(anyhow::anyhow!("Expecting either an integer, but found `{}`", pointer)),
+            pointer => Err(anyhow::anyhow!("Expecting an integer, but found `{}`", pointer)),
+        }
+    }
+
+    pub fn as_usize(&self) -> anyhow::Result<usize> {
+        match self {
+            Pointer::Integer(i) if *i >= 0 => Ok(*i as usize),
+            pointer => Err(anyhow::anyhow!("Expecting a positive integer, but found `{}`", pointer)),
         }
     }
 
@@ -559,6 +575,14 @@ pub struct ObjectInstance {
 }
 
 impl ObjectInstance {
+    pub fn new() -> Self {
+        ObjectInstance  {
+            parent: Pointer::Null,
+            fields: HashMap::new(),
+            methods: HashMap::new(),
+        }
+    }
+
     pub fn get_field(&self, name: &str) -> anyhow::Result<&Pointer> {
         self.fields.get(name)
             .with_context(|| format!("There is no field named `{}` in object `{}`", name, self))
@@ -569,7 +593,6 @@ impl ObjectInstance {
             .with_context(|| format!("There is no field named `{}` in object `{}`", name, self))
     }
 }
-
 
 impl std::fmt::Display for ObjectInstance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -582,11 +605,60 @@ impl std::fmt::Display for ObjectInstance {
 }
 
 #[derive(PartialEq,Debug,Clone)]
+pub struct ArrayInstance(Vec<Pointer>);
+
+impl ArrayInstance {
+    pub fn new() -> Self {
+        ArrayInstance(vec![])
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=&Pointer> + 'a {
+        self.0.iter()
+    }
+
+    pub fn length(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get_element(&self, index: usize) -> anyhow::Result<&Pointer> {
+        let length = self.0.len();
+        bail_if!(index >= length,
+                 "Index out of range {} for array `{}` with length {}",
+                 index, self, length);
+        Ok(&self.0[index])
+    }
+
+    pub fn set_element(&mut self, index: usize, value_pointer: Pointer) -> anyhow::Result<&Pointer> {
+        let length = self.0.len();
+        bail_if!(index >= length,
+                 "Index out of range {} for array `{}` with length {}",
+                 index, self, length);
+        self.0[index] = value_pointer;
+        Ok(&self.0[index])
+    }
+}
+
+impl From<Vec<Pointer>> for ArrayInstance {
+    fn from(v: Vec<Pointer>) -> Self {
+        ArrayInstance(v)
+    }
+}
+
+impl std::fmt::Display for ArrayInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}]", self.0.iter()
+            .map(|pointer| format!("{}", pointer))
+            .collect::<Vec<String>>()
+            .join(", "))
+    }
+}
+
+#[derive(PartialEq,Debug,Clone)]
 pub enum HeapObject {
     // Null,
     // Integer(i32),
     // Boolean(bool),
-    Array(Vec<Pointer>),
+    Array(ArrayInstance),
     Object(ObjectInstance)
 }
 
@@ -626,19 +698,15 @@ impl HeapObject {
     // }
 
     pub fn empty_object() -> Self {
-        HeapObject::Object(ObjectInstance {
-            parent: Pointer::Null,
-            fields: HashMap::new(),
-            methods: HashMap::new(),
-        })
+        HeapObject::Object(ObjectInstance::new())
     }
 
     pub fn empty_array() -> Self {
-        HeapObject::Array(Vec::new())
+        HeapObject::Array(ArrayInstance::new())
     }
 
     pub fn from_pointers(v: Vec<Pointer>) -> Self {
-        HeapObject::Array(v)
+        HeapObject::Array(ArrayInstance::from(v))
     }
 
     // pub fn from_i32(n: i32) -> Self {
@@ -666,23 +734,8 @@ impl HeapObject {
 impl std::fmt::Display for HeapObject {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            // HeapObject::Null => write!(f, "null"),
-            // HeapObject::Integer(n) => write!(f, "{}", n),
-            // HeapObject::Boolean(b) => write!(f, "{}", b),
-            HeapObject::Array(elements) => {
-                write!(f, "[{}]", {
-                    elements.iter()
-                        .map(|p| p.to_string())
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                })
-            },
-            HeapObject::Object(ObjectInstance { parent, fields, methods:_ }) => {
-                write!(f, "object(..={}, {})", parent, fields.iter()
-                    .map(|(name, field)| format!("{}={}", name, field))
-                    .collect::<Vec<String>>()
-                    .join(", "))
-            }
+                HeapObject::Array(array) => write!(f, "{}", array),
+                HeapObject::Object(object) => write!(f, "{}", object),
         }
     }
 }

@@ -3,48 +3,20 @@ use crate::bytecode::types::{ConstantPoolIndex, LocalFrameIndex, Arity, Size, Ad
 use std::fmt::Write;
 
 use crate::bytecode::bytecode::OpCode;
-use crate::bytecode::objects::{ProgramObject, Pointer, HeapObject, HeapIndex, ObjectInstance};
+use crate::bytecode::objects::{ProgramObject, Pointer, HeapObject, HeapIndex, ObjectInstance, ArrayInstance};
 
 use anyhow::*;
 use anyhow::Context;
 use std::collections::HashMap;
 use std::iter::repeat;
 
-macro_rules! bail_if {
-    ($condition:expr, $format:expr, $($arguments:expr),*) => {
-        if $condition { bail!($format$(, $arguments)*) }
-    }
-}
+use crate::bail_if;
+use crate::veccat;
 
-macro_rules! veccat {
-    ($a:expr, $b:expr) => { $a.into_iter().chain($b.into_iter()).collect() }
-}
+use super::helpers::PairIterator;
+use super::helpers::Pairable;
 
-trait Pairable<T, I> where T: Copy + Default {
-    fn pairs(self) -> PairIterator<T, I>;
-}
 
-impl<T, I> Pairable<T, I> for I where I: Iterator<Item=T>, T: Copy + Default {
-    fn pairs(self) -> PairIterator<T, I> {
-        PairIterator { previous: T::default(), iter: self }
-    }
-}
-
-struct PairIterator<T, I> {
-    previous: T,
-    iter: I,
-}
-
-impl<T, I> Iterator for PairIterator<T, I> where I: Iterator<Item=T>, T: Copy {
-    type Item = (T, T);
-    fn next(&mut self) -> Option<Self::Item> {
-        let next = self.iter.next().map(|current| (self.previous, current));
-        if let Some((_, current)) = &next {
-            self.previous = *current;
-        }
-        next
-    }
-}
 
 pub struct Heap(Vec<HeapObject>);
 impl Heap {
@@ -88,6 +60,12 @@ impl OperandStack {
     }
     pub fn peek(&self) -> Result<&Pointer> {
         self.0.last().with_context(|| format!("Cannot peek from an empty operand stack."))
+    }
+    pub fn pop_sequence(&mut self, n: usize) -> Result<Vec<Pointer>> {
+        (0..n).map(|_| self.pop()).collect::<Result<Vec<Pointer>>>()
+    }
+    pub fn pop_reverse_sequence(&mut self, n: usize) -> Result<Vec<Pointer>> {
+        (0..n).map(|_| self.pop()).rev().collect::<Result<Vec<Pointer>>>()
     }
 }
 
@@ -313,34 +291,39 @@ pub fn eval_call_method(program: &Program, state: &mut State, index: &ConstantPo
     bail_if!(arguments.to_usize() == 0, "All method calls require at least {} parameter (receiver)", 1);
 
     let program_object = program.constant_pool.get(index)?;
-    let name = program_object.as_str()?;
+    let method_name = program_object.as_str()?;
 
-    let argument_pointers = (0..arguments.to_usize()).map(|_| state.operand_stack.pop()).rev().collect::<Result<Vec<Pointer>>>()?;
+    let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize())?;
     let receiver_pointer = state.operand_stack.pop()?;
 
-    unimplemented!();
+    dispatch_method(program, state, receiver_pointer, method_name, argument_pointers)
+}
 
-    //let local_pointers = repeat(Pointer::Null).take(locals.to_usize()).collect::<Vec<Pointer>>();
-
+fn dispatch_method(program: &Program, state: &mut State, receiver_pointer: Pointer, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<()> {
+    match receiver_pointer {
+        Pointer::Null =>
+            dispatch_null_method(method_name, argument_pointers)?
+                .push_onto(&mut state.operand_stack),
+        Pointer::Integer(i) =>
+            dispatch_integer_method(&i, method_name, argument_pointers)?
+                .push_onto(&mut state.operand_stack),
+        Pointer::Boolean(b) =>
+            dispatch_boolean_method(&b, method_name, argument_pointers)?
+                .push_onto(&mut state.operand_stack),
+        Pointer::Reference(index) =>
+            match state.heap.dereference_mut(&index)? {
+                HeapObject::Array(array) =>
+                    dispatch_array_method(array, method_name, argument_pointers)?
+                        .push_onto(&mut state.operand_stack),
+                HeapObject::Object(_) =>
+                    dispatch_object_method(program, state, receiver_pointer,
+                                           method_name, argument_pointers)?,
+            }
+    }
     Ok(())
 }
 
-pub fn dispatch_method(heap: &mut Heap, receiver_pointer: &Pointer, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
-    match receiver_pointer {
-        Pointer::Null => dispatch_null_method(method_name, argument_pointers),
-        Pointer::Integer(receiver) => dispatch_integer_method(receiver, method_name, argument_pointers),
-        Pointer::Boolean(receiver) => dispatch_boolean_method(receiver, method_name, argument_pointers),
-        Pointer::Reference(index) => {
-            let heap_object = heap.dereference_mut(index)?;
-            match heap_object {
-                HeapObject::Array(array) => unimplemented!(),
-                HeapObject::Object(instance) => unimplemented!(),
-            }
-        }
-    }
-}
-
-pub fn dispatch_null_method(method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+fn dispatch_null_method(method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
     bail_if!(argument_pointers.len() != 1,
              "Invalid number of arguments for method `{}` in object `null`", method_name);
 
@@ -352,11 +335,10 @@ pub fn dispatch_null_method(method_name: &str, argument_pointers: &Vec<Pointer>)
         ("!=", _) | ("neq", _)                         => Pointer::from(false),
         _ => bail!("Call method error: no method `{}` in object `null`", method_name),
     };
-
     Ok(result)
 }
 
-pub fn dispatch_integer_method(receiver: &i32, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+fn dispatch_integer_method(receiver: &i32, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
     bail_if!(argument_pointers.len() != 1,
              "Invalid number of arguments for method `{}` in object `{}`", method_name, receiver);
 
@@ -393,11 +375,10 @@ pub fn dispatch_integer_method(receiver: &i32, method_name: &str, argument_point
 
         _ => bail!("Call method error: no method `{}` in object `{}`", method_name, receiver),
     };
-
     Ok(result)
 }
 
-pub fn dispatch_boolean_method(receiver: &bool, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+fn dispatch_boolean_method(receiver: &bool, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
     bail_if!(argument_pointers.len() != 1,
              "Invalid number of arguments for method `{}` in object `{}`", method_name, receiver);
 
@@ -420,36 +401,78 @@ pub fn dispatch_boolean_method(receiver: &bool, method_name: &str, argument_poin
 
         _ => bail!("Call method error: no method `{}` in object `{}`",  method_name, receiver),
     };
-
     Ok(result)
 }
 
-pub fn dispatch_array_method(array: &mut Vec<Pointer>, method_name: &str, argument_pointers: &Vec<Pointer>) -> Result<Pointer> {
+fn dispatch_array_method(array: &mut ArrayInstance, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
     match method_name {
-        "get" => {
-            bail_if!(argument_pointers.len() != 1,
-                     "Invalid number of arguments for method `{}` in array `{}`",
-                     method_name, receiver);
-            dispatch_array_get_method(array, argument_pointers.last().unwrap())
-        },
-        "set" => {
-            bail_if!(argument_pointers.len() != 2,
-                     "Invalid number of arguments for method `{}` in array `{}`",
-                     method_name, receiver);
-            let argument_pointer = argument_pointers.first().unwrap();
-            let value_pointer = argument_pointers.last().unwrap();
-            dispatch_array_set_method(array, argument_pointer, value_pointer)
-        },
-        _ => bail!("Call method error: no method `{}` in array `{:?}`",  method_name, array), // TODO wrap Vec into a struct Array
+        "get" => dispatch_array_get_method(array, method_name, argument_pointers),
+        "set" => dispatch_array_set_method(array, method_name, argument_pointers),
+        _ => bail!("Call method error: no method `{}` in array `{}`",  method_name, array),
     }
 }
 
-pub fn dispatch_array_get_method(array: &Vec<Pointer>, argument_pointer: &Pointer) -> Result<Pointer> {
-    unimplemented!()
+fn dispatch_array_get_method(array: &mut ArrayInstance, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 1,
+             "Invalid number of arguments for method `{}` in array `{}`, expecting 1",
+             method_name, array);
+
+    let index_pointer = argument_pointers.first().unwrap();
+    let index = index_pointer.as_usize()?;
+    array.get_element(index).map(|e| *e)
 }
 
-pub fn dispatch_array_set_method(array: &Vec<Pointer>, argument_pointer: &Pointer, value_pointer: &Pointer) -> Result<Pointer> {
-    unimplemented!()
+fn dispatch_array_set_method(array: &mut ArrayInstance, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 2,
+             "Invalid number of arguments for method `{}` in array `{}`, expecting 2",
+             method_name, array);
+
+    let index_pointer = argument_pointers.first().unwrap();
+    let value_pointer = argument_pointers.last().unwrap();
+    let index = index_pointer.as_usize()?;
+    array.set_element(index, *value_pointer).map(|e| *e)
+}
+
+fn dispatch_object_method(program: &Program, state: &mut State,
+                          receiver_pointer: Pointer, method_name: &str,
+                          argument_pointers: Vec<Pointer>) -> Result<()> {
+
+    let heap_reference = receiver_pointer.into_heap_reference()?; // Should never fail.
+    let heap_object = state.heap.dereference_mut(&heap_reference)?; // Should never fail.
+    let object_instance = heap_object.as_object_instance_mut()?; // Should never fail.
+    let parent_pointer = object_instance.parent.clone();
+
+    let method_option = object_instance.methods.get(method_name).map(|method| method.clone());
+
+    match method_option {
+        Some(method) =>
+            eval_call_object_method(program, state, method, method_name, receiver_pointer, argument_pointers),
+        None if object_instance.parent.is_null() =>
+            bail!("Call method error: no method `{}` in object `{}`"),
+        None =>
+            dispatch_method(program, state, parent_pointer, method_name, argument_pointers)
+    }
+}
+
+fn eval_call_object_method(program: &Program, state: &mut State,
+                      method: ProgramObject, method_name: &str,
+                      pointer: Pointer, argument_pointers: Vec<Pointer>) -> Result<()> {
+
+    let parameters = method.get_method_parameters()?;                                        // FIXME perhaps the thing to do here is to have a Method struct inside the ProgramObject::Method constructor
+    let locals = method.get_method_locals()?;
+    let address = method.get_method_start_address()?;
+
+    bail_if!(argument_pointers.len() != parameters.to_usize(),
+             "Method `{}` requires {} arguments, but {} were supplied",
+             method_name, parameters, argument_pointers.len());
+
+    let local_pointers = locals.make_vector(Pointer::Null);
+
+    state.instruction_pointer.bump(program);
+    let frame = Frame::new(state.instruction_pointer.get(), veccat!(vec![pointer], argument_pointers, local_pointers));
+    state.frame_stack.push(frame);
+    state.instruction_pointer.set(Some(*address));
+    Ok(())
 }
 
 #[inline(always)]
@@ -463,10 +486,12 @@ pub fn eval_call_function(program: &Program, state: &mut State, index: &Constant
     let locals = function.get_method_locals()?;
     let address = function.get_method_start_address()?;
 
-    bail_if!(arguments != parameters, "Function `{}` requires {} arguments, but {} were supplied", name, parameters, arguments);
+    bail_if!(arguments != parameters,
+             "Function `{}` requires {} arguments, but {} were supplied",
+             name, parameters, arguments);
 
-    let argument_pointers = (0..arguments.to_usize()).map(|_| state.operand_stack.pop()).rev().collect::<Result<Vec<Pointer>>>()?; // TODO Probably should be a function
-    let local_pointers = repeat(Pointer::Null).take(locals.to_usize()).collect::<Vec<Pointer>>(); // TODO Maybe this should be a function too
+    let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize())?;
+    let local_pointers = locals.make_vector(Pointer::Null);
 
     state.instruction_pointer.bump(program);
     let frame = Frame::new(state.instruction_pointer.get(), veccat!(argument_pointers, local_pointers));

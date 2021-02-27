@@ -9,6 +9,7 @@ pub mod serializable;
 pub(crate) mod types;
 pub mod interpreter;
 mod interp;
+#[macro_use] mod helpers;
 
 pub fn compile(ast: &AST) -> program::Program {
     compiler::compile(ast)

@@ -4,6 +4,7 @@ use anyhow::*;
 
 use super::serializable;
 use super::serializable::Serializable;
+use std::iter::repeat;
 
 #[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord,Hash)] pub struct Arity(u8);
 #[derive(PartialEq,Debug,Copy,Clone,Eq,PartialOrd,Ord,Hash)] pub struct Size(u16);
@@ -230,5 +231,11 @@ impl std::fmt::Display for AddressRange {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}-{}", self.start,
                Address::from_usize(self.start.value_usize() + self.length - 1))
+    }
+}
+
+impl Size {
+    pub fn make_vector<T>(&self, element: T) -> Vec<T> where T: Clone {
+        repeat(element).take(self.to_usize()).collect::<Vec<T>>()
     }
 }

@@ -3,10 +3,9 @@ use std::ops::Deref;
 
 use crate::parser::*;
 
-use super::types::*;
 use super::bytecode::OpCode;
 use super::program::Program;
-use crate::bytecode::program::ProgramObject;
+use crate::bytecode::program::*;
 
 pub fn compile(ast: &AST) -> Program {
     let mut program: Program = Program::empty();

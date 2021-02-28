@@ -1,7 +1,6 @@
-use crate::bytecode::program::{ProgramObject, Program};
-use crate::bytecode::heap::{Pointer, Heap, HeapObject, HeapIndex};
+use crate::bytecode::program::*;
+use crate::bytecode::heap::*;
 use std::collections::HashMap;
-use crate::bytecode::types::{Address, LocalFrameIndex};
 
 pub struct State {
     pub instruction_pointer: Option<Address>,
@@ -212,8 +211,6 @@ impl State {
         self.memory.dereference_to_string(pointer)
     }
 
-
-
     pub fn dereference_mut(&mut self, pointer: &HeapIndex) -> Option<&mut HeapObject> {
         self.memory.dereference_mut(pointer)
     }
@@ -234,29 +231,6 @@ impl State {
                 Some(tagged_pointer.clone())
         }
     }
-
-    // #[allow(dead_code)]
-    // pub fn pass_by_value_or_reference(&mut self, pointer: &Pointer) -> Option<Pointer> {
-    //     let object = self.dereference(pointer).map(|e| e.clone());
-    //
-    //     if object.is_none() {
-    //         return None
-    //     }
-    //
-    //     let pass_by_value = object.as_ref().map_or(false, |e| match e {
-    //         HeapObject::Object { parent:_, methods:_, fields:_ } => false,
-    //         HeapObject::Array(_) => false,
-    //         HeapObject::Integer(_) => true,
-    //         HeapObject::Boolean(_) => true,
-    //         HeapObject::Null => true,
-    //     });
-    //
-    //     if pass_by_value {
-    //         Some(self.allocate(object.unwrap()))
-    //     } else {
-    //         Some(*pointer)
-    //     }
-    // }
 }
 
 

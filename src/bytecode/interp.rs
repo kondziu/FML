@@ -1,5 +1,3 @@
-use crate::bytecode::types::{ConstantPoolIndex, LocalFrameIndex, Arity, Size, AddressRange, Address};
-
 use std::fmt::Write;
 
 use crate::bytecode::bytecode::OpCode;
@@ -15,7 +13,7 @@ use crate::veccat;
 
 use super::helpers::PairIterator;
 use super::helpers::Pairable;
-use crate::bytecode::program::ProgramObject;
+use crate::bytecode::program::*;
 
 
 pub struct Heap(Vec<HeapObject>);

@@ -2,13 +2,12 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt::{Write, Error};
 use std::io::Write as IOWrite;
 
-use super::types::*;
 use super::bytecode::*;
 use super::program::Program;
 
 use anyhow;
-use crate::bytecode::heap::{Pointer, HeapObject, ObjectInstance, Heap, HeapIndex};
-use crate::bytecode::program::ProgramObject;
+use crate::bytecode::heap::*;
+use crate::bytecode::program::*;
 use crate::bytecode::state::{State, LocalFrame};
 
 pub struct Output {}

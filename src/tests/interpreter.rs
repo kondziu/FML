@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::bytecode::bytecode::*;
-use crate::bytecode::types::*;
 use crate::bytecode::program::*;
 use crate::bytecode::interpreter::*;
 use crate::bytecode::heap::{Pointer, Heap, HeapObject};

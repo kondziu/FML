@@ -1,9 +1,8 @@
 use std::io::{Write, Read};
 
-use super::types::*;
-
 use super::serializable;
 use super::serializable::*;
+use crate::bytecode::program::*;
 
 /**
  * # Bytecode operation

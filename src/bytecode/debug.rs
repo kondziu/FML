@@ -2,9 +2,9 @@ use std::io::Write;
 
 use super::types::*;
 
-use super::objects::ProgramObject;
 use super::bytecode::OpCode;
 use super::program::{Program, Code};
+use crate::bytecode::program::ProgramObject;
 
 pub trait PrettyPrint: UglyPrint {
     fn pretty_print<W: Write>(&self, sink: &mut W) {

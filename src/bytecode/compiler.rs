@@ -6,7 +6,7 @@ use crate::parser::*;
 use super::types::*;
 use super::bytecode::OpCode;
 use super::program::Program;
-use super::objects::ProgramObject;
+use crate::bytecode::program::ProgramObject;
 
 pub fn compile(ast: &AST) -> Program {
     let mut program: Program = Program::empty();

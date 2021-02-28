@@ -3,7 +3,6 @@ use crate::parser::*;
 use crate::bytecode::bytecode::*;
 use crate::bytecode::types::*;
 use crate::bytecode::program::*;
-use crate::bytecode::objects::*;
 
 use crate::bytecode::compiler::*;
 

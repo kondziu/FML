@@ -4,7 +4,6 @@ use crate::bytecode::bytecode::*;
 use crate::bytecode::serializable::*;
 use crate::bytecode::types::*;
 use crate::bytecode::program::*;
-use crate::bytecode::objects::*;
 
 fn deserialize_test(expected: OpCode, input: Vec<u8>) {
     assert_eq!(OpCode::from_bytes(&mut Cursor::new(input)), expected);

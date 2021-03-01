@@ -7,8 +7,10 @@ use super::bytecode::OpCode;
 use super::program::Program;
 use crate::bytecode::program::*;
 
+use anyhow::*;
+
 pub fn compile(ast: &AST) -> Program {
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::without_frame();
     ast.compile_into(&mut program, &mut bookkeeping, true);
     program
@@ -285,34 +287,34 @@ macro_rules! unpack {
 }
 
 pub trait Compiled {
-    fn compile_into(&self, program: &mut Program, environment: &mut Bookkeeping, keep_result: bool);
-    fn compile(&self, program: &mut Program, environment: &mut Bookkeeping) {
-        self.compile_into(program, environment, true);
+    fn compile_into(&self, program: &mut Program, environment: &mut Bookkeeping, keep_result: bool) -> Result<()>;
+    fn compile(&self, program: &mut Program, environment: &mut Bookkeeping) -> Result<()> {
+        self.compile_into(program, environment, true)
     }
 }
 
 impl Compiled for AST {
-    fn compile_into(&self, program: &mut Program, environment: &mut Bookkeeping, keep_result: bool) {
+    fn compile_into(&self, program: &mut Program, environment: &mut Bookkeeping, keep_result: bool) -> Result<()> {
         match self {
             AST::Integer(value) => {
                 let constant = ProgramObject::Integer(*value);
-                let index = program.register_constant(constant);
-                program.emit_code(OpCode::Literal { index });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                let index = program.constant_pool.register(constant);
+                program.code.emit(OpCode::Literal { index });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::Boolean(value) => {
                 let constant = ProgramObject::Boolean(*value);
-                let index = program.register_constant(constant);
-                program.emit_code(OpCode::Literal { index });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                let index = program.constant_pool.register(constant);
+                program.code.emit(OpCode::Literal { index });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::Null => {
                 let constant = ProgramObject::Null;
-                let index = program.register_constant(constant);
-                program.emit_code(OpCode::Literal { index });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                let index = program.constant_pool.register(constant);
+                program.code.emit(OpCode::Literal { index });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::Variable { name: Identifier(name), value } => {
@@ -321,25 +323,25 @@ impl Compiled for AST {
                     let index = environment.register_new_local(name)
                         .expect(&format!("Cannot register new variable {}", &name))
                         .clone(); // FIXME error if not new
-                    program.emit_code(OpCode::SetLocal { index });
+                    program.code.emit(OpCode::SetLocal { index });
 
                 } else {
                     environment.register_global(name);                  // TODO necessary?
                     value.deref().compile_into(program, environment, true);
-                    let index = program.register_constant(ProgramObject::from_str(name));
-                    program.emit_code(OpCode::SetGlobal { name: index });
+                    let index = program.constant_pool.register(ProgramObject::from_str(name));
+                    program.code.emit(OpCode::SetGlobal { name: index });
                 }
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::AccessVariable { name: Identifier(name) } => {
                 if environment.has_local(name) {
                     let index = environment.register_local(name).clone();   // FIXME error if does not exists
-                    program.emit_code(OpCode::GetLocal { index });      // FIXME scoping!!!
+                    program.code.emit(OpCode::GetLocal { index });      // FIXME scoping!!!
                 } else {
-                    let index = program.register_constant(ProgramObject::from_str(name));
+                    let index = program.constant_pool.register(ProgramObject::from_str(name));
                     environment.register_global(name);                  // TODO necessary?
-                    program.emit_code(OpCode::GetGlobal { name: index });
+                    program.code.emit(OpCode::GetGlobal { name: index });
                 }
             }
 
@@ -347,44 +349,60 @@ impl Compiled for AST {
                 if environment.has_local(name) {
                     let index = environment.register_local(name).clone(); // FIXME error if does not exists
                     value.deref().compile_into(program, environment, true);    // FIXME scoping!!!
-                    program.emit_code(OpCode::SetLocal { index });
+                    program.code.emit(OpCode::SetLocal { index });
                 } else {
-                    let index = program.register_constant(ProgramObject::from_str(name));
+                    let index = program.constant_pool.register(ProgramObject::from_str(name));
                     environment.register_global(name);                  // TODO necessary?
                     value.deref().compile_into(program, environment, true);
-                    program.emit_code(OpCode::SetGlobal { name: index });
+                    program.code.emit(OpCode::SetGlobal { name: index });
                 }
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::Conditional { condition, consequent, alternative } => {
-                let (consequent_label_index, end_label_index) =
-                    unpack!((_,_) from program.generate_new_label_names(vec!["if:consequent", "if:end"]));
+                let label_generator = program.labels.create_group();
+                let consequent_label = label_generator.generate_name("if:consequent")?;
+                let end_label = label_generator.generate_name("if:end")?;
+
+                let consequent_label_index =
+                    program.constant_pool.register(ProgramObject::from_str(&consequent_label));
+                let end_label_index =
+                    program.constant_pool.register(ProgramObject::from_str(&end_label));
 
                 (**condition).compile_into(program, environment, true);
-                program.emit_code(OpCode::Branch { label: consequent_label_index} );
+                program.code.emit(OpCode::Branch { label: consequent_label_index } );
                 (**alternative).compile_into(program, environment, keep_result);
-                program.emit_code(OpCode::Jump { label: end_label_index} );
-                program.emit_code(OpCode::Label { name: consequent_label_index });
+                program.code.emit(OpCode::Jump { label: end_label_index } );
+                program.code.emit(OpCode::Label { name: consequent_label_index });
+                program.labels.set(consequent_label, program.code.current_address());
                 (**consequent).compile_into(program, environment, keep_result);
-                program.emit_code(OpCode::Label { name: end_label_index });
+                program.code.emit(OpCode::Label { name: end_label_index });
+                program.labels.set(end_label, program.code.current_address());
             }
 
             AST::Loop { condition, body } => {
-                let (body_label_index, condition_label_index)
-                    = unpack!((_,_) from program.generate_new_label_names(vec!["loop:body", "loop:condition"]));
+                let label_generator = program.labels.create_group();
+                let body_label = label_generator.generate_name("loop:body")?;
+                let condition_label = label_generator.generate_name("loop:condition")?;
 
-                program.emit_code(OpCode::Jump { label: condition_label_index });
-                program.emit_code(OpCode::Label { name: body_label_index });
+                let body_label_index =
+                    program.constant_pool.register(ProgramObject::from_str(&body_label));
+                let condition_label_index =
+                    program.constant_pool.register(ProgramObject::from_str(&condition_label));
+
+                program.code.emit(OpCode::Jump { label: condition_label_index });
+                program.code.emit(OpCode::Label { name: body_label_index });
+                program.labels.set(body_label, program.code.current_address());
                 (**body).compile_into(program, environment, false);
-                program.emit_code(OpCode::Label { name: condition_label_index });
+                program.code.emit(OpCode::Label { name: condition_label_index });
+                program.labels.set(condition_label, program.code.current_address());
                 (**condition).compile_into(program, environment, true);
-                program.emit_code(OpCode::Branch { label: body_label_index });
+                program.code.emit(OpCode::Branch { label: body_label_index });
 
                 if keep_result {
                     let constant = ProgramObject::Null;
-                    let index = program.register_constant(constant);
-                    program.emit_code(OpCode::Literal { index });
+                    let index = program.constant_pool.register(constant);
+                    program.code.emit(OpCode::Literal { index });
                 }
             }
 
@@ -394,8 +412,8 @@ impl Compiled for AST {
                     AST::AccessVariable { name:_ } | AST::AccessField { object:_, field:_ } => {
                         size.deref().compile_into(program, environment, true);
                         value.deref().compile_into(program, environment, true);
-                        program.emit_code(OpCode::Array);
-                        program.emit_conditionally(OpCode::Drop, !keep_result);
+                        program.code.emit(OpCode::Array);
+                        program.code.emit_unless(OpCode::Drop, keep_result);
                     },
                     _ => {
                         let i_id = Identifier::from("::i");
@@ -470,38 +488,44 @@ impl Compiled for AST {
             AST::AccessArray { array, index } => {
                 (**array).compile_into(program, environment, true);
                 (**index).compile_into(program, environment, true);
-                let name = program.register_constant(ProgramObject::String("get".to_string()));
-                program.emit_code(OpCode::CallMethod { name, arguments: Arity::new(2) });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+
+                let name =
+                    program.constant_pool.register(ProgramObject::String("get".to_string()));
+
+                program.code.emit(OpCode::CallMethod { name, arguments: Arity::new(2) });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::AssignArray { array, index, value } => {
                 (**array).compile_into(program, environment, true);
                 (**index).compile_into(program, environment, true);
                 (**value).compile_into(program, environment, true);
-                let name = program.register_constant(ProgramObject::String("set".to_string()));
-                program.emit_code(OpCode::CallMethod { name, arguments: Arity::new(3) });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+
+                let name =
+                    program.constant_pool.register(ProgramObject::String("set".to_string()));
+
+                program.code.emit(OpCode::CallMethod { name, arguments: Arity::new(3) });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::Print { format, arguments } => {
                 let format: ConstantPoolIndex =
-                    program.register_constant(ProgramObject::String(format.to_string()));
+                    program.constant_pool.register(ProgramObject::String(format.to_string()));
 
                 for argument in arguments.iter() {
                     argument.compile_into(program, environment, true);
                 }
 
                 let arguments = Arity::from_usize(arguments.len());
-                program.emit_code(OpCode::Print { format, arguments });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                program.code.emit(OpCode::Print { format, arguments });
+                program.code.emit_unless(OpCode::Drop, !keep_result);
             }
 
             // AST::Operator { operator, parameters, body } => {
             //     let name = operator.as_str();
             //     let end_label_index = unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
             //
-            //     program.emit_code(OpCode::Jump { label: end_label_index });
+            //     program.code.emit(OpCode::Jump { label: end_label_index });
             //     let start_address = program.get_upcoming_address();
             //
             //     environment.add_frame();
@@ -514,12 +538,12 @@ impl Compiled for AST {
             //     let locals_in_frame = environment.count_locals();
             //     environment.remove_frame();
             //
-            //     program.emit_code(OpCode::Return);
-            //     program.emit_code(OpCode::Label { name: end_label_index });
+            //     program.code.emit(OpCode::Return);
+            //     program.code.emit(OpCode::Label { name: end_label_index });
             //     let end_address = program.get_current_address();
             //
             //     let name = ProgramObject::String(name.to_string());
-            //     let name_index = program.register_constant(name);
+            //     let name_index = program.constant_pool.register(name);
             //
             //     let method = ProgramObject::Method {
             //         name: name_index,
@@ -527,14 +551,16 @@ impl Compiled for AST {
             //         arguments: Arity::from_usize(parameters.len()),
             //         code: AddressRange::from_addresses(start_address, end_address),
             //     };
-            //     program.register_constant(method);
+            //     program.constant_pool.register(method);
             // }
 
             AST::Function { name: Identifier(name), parameters, body } => {
-                let end_label_index = unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
+                let end_label = program.labels.generate_name("λ:{}")?;
+                let end_label_index =
+                    program.constant_pool.register(ProgramObject::from_str(&end_label));
 
-                program.emit_code(OpCode::Jump { label: end_label_index });
-                let start_address = program.get_upcoming_address();
+                program.code.emit(OpCode::Jump { label: end_label_index });
+                let start_address = program.code.upcoming_address();
 
                 environment.add_frame();
                 for parameter in parameters.into_iter() {
@@ -546,13 +572,14 @@ impl Compiled for AST {
                 let locals_in_frame = environment.count_locals();
                 environment.remove_frame();
 
-                program.emit_code(OpCode::Return);
+                program.code.emit(OpCode::Return);
 
-                program.emit_code(OpCode::Label { name: end_label_index });
-                let end_address = program.get_current_address();
+                program.code.emit(OpCode::Label { name: end_label_index });
+                program.labels.set(end_label, program.code.current_address());
+                let end_address = program.code.current_address();
 
                 let name = ProgramObject::String(name.to_string());
-                let name_index = program.register_constant(name);
+                let name_index = program.constant_pool.register(name);
 
                 let method = ProgramObject::Method {
                     name: name_index,
@@ -560,24 +587,25 @@ impl Compiled for AST {
                     parameters: Arity::from_usize(parameters.len()),
                     code: AddressRange::from_addresses(start_address, end_address),
                 };
-                let constant = program.register_constant(method);
-                program.register_global(constant)
+
+                let constant = program.constant_pool.register(method);
+                program.globals.register(constant)?;
             }
 
             AST::CallFunction { name: Identifier(name), arguments } => {
-                let index = program.register_constant(ProgramObject::String(name.to_string()));
+                let index = program.constant_pool.register(ProgramObject::String(name.to_string()));
                 for argument in arguments.iter() {
                     argument.compile_into(program, environment, true);
                 }
                 let arity = Arity::from_usize(arguments.len());
-                program.emit_code(OpCode::CallFunction { name: index, arguments: arity });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                program.code.emit(OpCode::CallFunction { name: index, arguments: arity });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::Object { extends, members } => {
                 (**extends).compile_into(program, environment, true);
 
-                let slots: Vec<ConstantPoolIndex> = members.iter().map(|m| m.deref()).map(|m| match m {
+                let slots: Result<Vec<ConstantPoolIndex>> = members.iter().map(|m| m.deref()).map(|m| match m {
                     AST::Function { name, parameters, body } => {
                         compile_function_definition(name.as_str(), true, parameters, body.deref(),
                                                     program, environment)
@@ -590,18 +618,18 @@ impl Compiled for AST {
                     // }
                     AST::Variable { name: Identifier(name), value } => {
                         (*value).compile_into(program, environment, true);
-                        let index = program.register_constant(ProgramObject::from_str(name));
-                        program.register_constant(ProgramObject::slot_from_index(index))
+                        let index = program.constant_pool.register(ProgramObject::from_str(name));
+                        Ok(program.constant_pool.register(ProgramObject::slot_from_index(index)))
                     },
                     _ => panic!("Object definition: cannot define a member from {:?}", m)
                 }).collect();
 
 
-                let class = ProgramObject::Class(slots);
-                let class_index = program.register_constant(class);
+                let class = ProgramObject::Class(slots?);
+                let class_index = program.constant_pool.register(class);
 
-                program.emit_code(OpCode::Object { class: class_index });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                program.code.emit(OpCode::Object { class: class_index });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::Block(children) => {
@@ -609,54 +637,54 @@ impl Compiled for AST {
                 let length = children.len();
                 for (i, child) in children.iter().enumerate() {
                     let last = i + 1 == length;
-                    child.deref().compile_into(program, environment, last && keep_result)
+                    child.deref().compile_into(program, environment, last && keep_result)?;
                 }
                 environment.leave_scope();
             }
 
             AST::AccessField { object, field: Identifier(name) } => {
                 object.deref().compile_into(program, environment, true);
-                let index = program.register_constant(ProgramObject::from_str(name));
-                program.emit_code(OpCode::GetField { name: index });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                let index = program.constant_pool.register(ProgramObject::from_str(name));
+                program.code.emit(OpCode::GetField { name: index });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::AssignField { object, field: Identifier(name), value } => {
                 object.deref().compile_into(program, environment, true);
                 value.deref().compile_into(program, environment, true);
-                let index = program.register_constant(ProgramObject::from_str(name));
-                program.emit_code(OpCode::SetField { name: index });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                let index = program.constant_pool.register(ProgramObject::from_str(name));
+                program.code.emit(OpCode::SetField { name: index });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::CallMethod { object, name: Identifier(name), arguments } => {
-                let index = program.register_constant(ProgramObject::from_str(name));
+                let index = program.constant_pool.register(ProgramObject::from_str(name));
                 object.deref().compile_into(program, environment, true);
                 for argument in arguments.iter() {
                     argument.compile_into(program, environment, true);
                 }
                 let arity = Arity::from_usize(arguments.len() + 1);
-                program.emit_code(OpCode::CallMethod { name: index, arguments: arity });
-                program.emit_conditionally(OpCode::Drop, !keep_result);
+                program.code.emit(OpCode::CallMethod { name: index, arguments: arity });
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             // AST::CallOperator { object, operator, arguments } => {
-            //     let index = program.register_constant(ProgramObject::from_str(operator.as_str()));
+            //     let index = program.constant_pool.register(ProgramObject::from_str(operator.as_str()));
             //     object.deref().compile_into(program, environment, true);
             //     for argument in arguments.iter() {
             //         argument.compile_into(program, environment, true);
             //     }
             //     let arity = Arity::from_usize(arguments.len() + 1);
-            //     program.emit_code(OpCode::CallMethod { name: index, arguments: arity });
-            //     program.emit_conditionally(OpCode::Drop, !keep_result);
+            //     program.code.emit(OpCode::CallMethod { name: index, arguments: arity });
+            //     program.code.emit_(OpCode::Drop, !keep_result);
             // }
 
             // AST::Operation { operator, left, right } => {
-            //     let index = program.register_constant(ProgramObject::from_str(operator.as_str()));
+            //     let index = program.constant_pool.register(ProgramObject::from_str(operator.as_str()));
             //     left.deref().compile_into(program, environment, true);
             //     right.deref().compile_into(program, environment, true);
             //     let arity = Arity::from_usize(2);
-            //     program.emit_code(OpCode::CallMethod { name: index, arguments: arity });
+            //     program.code.emit(OpCode::CallMethod { name: index, arguments: arity });
             // }
 
             AST::Top (children) => {
@@ -665,20 +693,20 @@ impl Compiled for AST {
 
                 let function_name_index=
                     //unpack!((_) from program.generate_new_label_names(vec!["::main::"]));
-                    program.register_constant(ProgramObject::from_string("λ:".to_owned()));
+                    program.constant_pool.register(ProgramObject::from_string("λ:".to_owned()));
 
-                // program.emit_code(OpCode::Jump { label: end_label_index });
-                let start_address = program.get_upcoming_address();
+                // program.code.emit(OpCode::Jump { label: end_label_index });
+                let start_address = program.code.upcoming_address();
 
                 let children_count = children.len();
                 for (i, child) in children.iter().enumerate() {
                     let last = children_count == i + 1;
-                    child.deref().compile_into(program, environment, last)
+                    child.deref().compile_into(program, environment, last)?;                        // TODO uggo
                     // TODO could be cute to pop exit status off of stack
                 }
 
-                // program.emit_code(OpCode::Label { name: end_label_index });
-                let end_address = program.get_current_address();
+                // program.code.emit(OpCode::Label { name: end_label_index });
+                let end_address = program.code.current_address();
 
                 let method = ProgramObject::Method {
                     name: function_name_index,
@@ -687,10 +715,12 @@ impl Compiled for AST {
                     code: AddressRange::from_addresses(start_address, end_address),
                 };
 
-                let function_index = program.register_constant(method);
-                program.set_entry(function_index);
+                let function_index = program.constant_pool.register(method);
+                program.entry.set(function_index);
             }
-        }
+        };
+
+        Ok(())
     }
 }
 
@@ -699,15 +729,17 @@ fn compile_function_definition(name: &str,
                                parameters: &Vec<Identifier>,
                                body: &AST,
                                program: &mut Program,
-                               environment: &mut Bookkeeping) -> ConstantPoolIndex {
+                               environment: &mut Bookkeeping) -> Result<ConstantPoolIndex> {
 
+    let end_label = program.labels.generate_name("λ:{}")?;
     let end_label_index =
-        unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
-    program.emit_code(OpCode::Jump { label: end_label_index });
+        program.constant_pool.register(ProgramObject::from_str(&end_label));
+
+    program.code.emit(OpCode::Jump { label: end_label_index });
 
     let expected_arguments = parameters.len() + if receiver { 1 } else { 0 };
 
-    let start_address = program.get_upcoming_address();
+    let start_address = program.code.upcoming_address();
 
     environment.add_frame();
 
@@ -724,13 +756,14 @@ fn compile_function_definition(name: &str,
     let locals_in_frame = environment.count_locals();
     environment.remove_frame();
 
-    program.emit_code(OpCode::Return);
-    let end_address = program.get_current_address();
+    program.code.emit(OpCode::Return);
+    let end_address = program.code.current_address();
 
-    program.emit_code(OpCode::Label { name: end_label_index });
+    program.code.emit(OpCode::Label { name: end_label_index });
+    program.labels.set(unimplemented!(), program.code.current_address());
 
     let name = ProgramObject::String(name.to_string());
-    let name_index = program.register_constant(name);
+    let name_index = program.constant_pool.register(name);
 
     let method = ProgramObject::Method {
         name: name_index,
@@ -739,5 +772,5 @@ fn compile_function_definition(name: &str,
         code: AddressRange::from_addresses(start_address, end_address),
     };
 
-    program.register_constant(method)
+    Ok(program.constant_pool.register(method))
 }

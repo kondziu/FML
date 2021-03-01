@@ -5,7 +5,7 @@ lalrpop_mod!(pub fml); // load module synthesized by LALRPOP
 mod parser;
 mod bytecode;
 
-#[cfg(test)] mod tests;
+//#[cfg(test)] mod tests;
 
 use std::path::PathBuf;
 use std::fs::File;
@@ -19,7 +19,7 @@ use crate::fml::TopLevelParser;
 
 use crate::bytecode::program::Program;
 use crate::bytecode::serializable::Serializable;
-use crate::bytecode::interpreter;
+use crate::bytecode::interpreter::evaluate;
 
 #[derive(Clap, Debug)]
 #[clap(version = "1.0", author = "Konrad Siek <konrad.siek@gmail.com>")]
@@ -124,7 +124,8 @@ impl RunAction {
             .expect("Parse error");
 
         let program = bytecode::compile(&ast);
-        interpreter::evaluate(&program)
+        evaluate(&program)
+            .expect("Interpreter error")
     }
 
     pub fn selected_input(&self) -> Result<NamedSource> {
@@ -140,7 +141,8 @@ impl BytecodeInterpreterAction {
         let program = BCSerializer::BYTES.deserialize(&mut source)
             .expect("Cannot parse bytecode from input.");
 
-        interpreter::evaluate(&program)
+        evaluate(&program)
+            .expect("Interpreter error")
     }
 
     pub fn selected_input(&self) -> Result<NamedSource> {

@@ -6,7 +6,6 @@ pub(crate) mod debug;
 pub mod program;
 pub mod serializable;
 pub mod interpreter;
-mod interp;
 #[macro_use] mod helpers;
 pub mod heap;
 pub mod state;

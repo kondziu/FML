@@ -2,96 +2,34 @@ use std::collections::HashMap;
 
 use anyhow::*;
 
-use crate::bytecode::interp::OperandStack;
+use crate::bytecode::state::OperandStack;
 use crate::bytecode::program::ProgramObject;
 
-#[derive(PartialEq,Debug)]
 pub struct Heap(Vec<HeapObject>);
 
 impl Heap {
     pub fn new() -> Self {
         Heap(Vec::new())
     }
-
-    #[allow(dead_code)]
-    pub fn from(objects: Vec<HeapObject>) -> Self {
-        Heap(objects)
-    }
-
     pub fn allocate(&mut self, object: HeapObject) -> HeapIndex {
-        let pointer = HeapIndex::from(self.0.len());
+        let index = HeapIndex::from(self.0.len());
         self.0.push(object);
-        pointer
+        index
     }
-
-    pub fn dereference(&self, pointer: &HeapIndex) -> Option<&HeapObject> {
-        let index = pointer.as_usize();
-        if self.0.len() > index {
-            Some(&self.0[index])
-        } else {
-            None
-        }
+    pub fn dereference(&self, index: &HeapIndex) -> Result<&HeapObject> {
+        self.0.get(index.as_usize())
+            .with_context(||
+                format!("Cannot dereference object from the heap at index: `{}`", index))
     }
-
-    pub fn dereference_mut(&mut self, pointer: &HeapIndex) -> Option<&mut HeapObject> {
-        let index = pointer.as_usize();
-        if self.0.len() > index {
-            Some(&mut self.0[index])
-        } else {
-            None
-        }
+    pub fn dereference_mut(&mut self, index: &HeapIndex) -> Result<&mut HeapObject> {
+        self.0.get_mut(index.as_usize())
+            .with_context(||
+                format!("Cannot dereference object from the heap at index: `{}`", index))
     }
+}
 
-    pub fn copy(&mut self, pointer: &HeapIndex) -> Option<HeapIndex> {
-        self.dereference(pointer)
-            .map(|object| object.clone())
-            .map(|object| self.allocate(object))
-    }
-
-    pub fn dereference_heap_object_to_string(&self, object: &HeapObject) -> String {
-        match object {
-            // HeapObject::Null => "null".to_string(),
-            // HeapObject::Integer(n) => n.to_string(),
-            // HeapObject::Boolean(b) => b.to_string(),
-            HeapObject::Array(elements) => {
-                let element_string = elements.iter()
-                    .map(|p| self.dereference_to_string(p))
-                    .collect::<Vec<String>>()
-                    .join(", ");
-
-                format!("[{}]", element_string)
-            },
-            HeapObject::Object(ObjectInstance { parent, fields, methods:_ }) => {
-                let parent_string = self.dereference_to_string(parent);
-                let parent_string = if parent_string == "null" {
-                    String::new()
-                } else {
-                    format!("..={}{}", parent_string, if fields.len() == 0 { "" } else { ", " })
-                };
-                let fields_string = fields.iter()
-                    .map(|(name, field)| {
-                        format!("{}={}", name, self.dereference_to_string(field))
-                    })
-                    .collect::<Vec<String>>()
-                    .join(", ");
-                format!("object({}{})", parent_string, fields_string)
-            }
-        }
-    }
-
-    pub fn dereference_to_string(&self, pointer: &Pointer) -> String {
-        match pointer {
-            Pointer::Null => "null".to_string(),
-            Pointer::Integer(n) => n.to_string(),
-            Pointer::Boolean(b) => b.to_string(),
-            Pointer::Reference(pointer) => {
-                let object = self.dereference(pointer)
-                    .expect(&format!("Expected object at {:?} to convert to string, but none was found",
-                                     pointer));
-                self.dereference_heap_object_to_string(object)
-            }
-        }
-    }
+impl From<Vec<HeapObject>> for Heap {
+    fn from(objects: Vec<HeapObject>) -> Self { Heap(objects) }
 }
 
 #[derive(PartialEq,Debug,Clone)]

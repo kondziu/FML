@@ -1,859 +1,484 @@
-use std::collections::{HashMap, VecDeque};
-use std::fmt::{Write, Error};
-use std::io::Write as IOWrite;
+use std::fmt::Write;
 
-use super::bytecode::*;
-use super::program::Program;
-
-use anyhow;
+use crate::bytecode::bytecode::OpCode;
 use crate::bytecode::heap::*;
+
+use anyhow::*;
+use anyhow::Context;
+use std::collections::HashMap;
+use std::iter::repeat;
+
+use crate::bail_if;
+use crate::veccat;
+
+use super::helpers::PairIterator;
+use super::helpers::Pairable;
 use crate::bytecode::program::*;
-use crate::bytecode::state::{State, LocalFrame};
+use crate::bytecode::state::{State, Frame};
 
-pub struct Output {}
+trait OpCodeEvaluationResult<T> {
+    #[inline(always)]
+    fn attach(self, opcode: &OpCode) -> Result<T>;
+}
 
-impl Output {
-    fn new() -> Output {
-        Output {}
+impl<T> OpCodeEvaluationResult<T> for Result<T> {
+    #[inline(always)]
+    fn attach(self, opcode: &OpCode) -> Result<T> {
+        self.with_context(|| format!("Error evaluating {}:", opcode))
     }
 }
 
-impl Write for Output {
-    fn write_str(&mut self, s: &str) -> Result<(), Error> {
-        match std::io::stdout().write_all(s.as_bytes()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(Error),
-        }
-    }
+pub fn evaluate(program: &Program) -> Result<()> {
+    unimplemented!()
 }
 
-pub fn evaluate(program: &Program) {
-    let mut state = State::from(program);
-    let mut output = Output::new();
+pub fn eval_opcode<W>(program: &Program, state: &mut State, output: &mut W, opcode: &OpCode) -> Result<()> where W: Write {
+    match opcode {
+        OpCode::Literal { index } => eval_literal(program, state, index),
+        OpCode::GetLocal { index } => eval_get_local(program, state, index),
+        OpCode::SetLocal { index } => eval_set_local(program, state, index),
+        OpCode::GetGlobal { name } => eval_get_global(program, state, name),
+        OpCode::SetGlobal { name } => eval_set_global(program, state, name),
+        OpCode::Object { class } => eval_object(program, state, class),
+        OpCode::Array => eval_array(program, state),
+        OpCode::GetField { name } => eval_get_field(program, state, name),
+        OpCode::SetField { name } => eval_set_field(program, state, name),
+        OpCode::CallMethod { name, arguments } => eval_call_method(program, state, name, arguments),
+        OpCode::CallFunction { name, arguments } => eval_call_function(program, state, name, arguments),
+        OpCode::Label { .. } => eval_label(program, state),
+        OpCode::Print { format, arguments } => eval_print(program, state, output, format, arguments),
+        OpCode::Jump { label } => eval_jump(program, state, label),
+        OpCode::Branch { label } => eval_branch(program, state, label),
+        OpCode::Return => eval_return(program, state),
+        OpCode::Drop => eval_drop(program, state),
+    }.attach(opcode)
+}
 
-    let (start_address, locals) = match program.get_constant(program.entry()) {
-        Some(ProgramObject::Method { name:_, locals, parameters:_, code }) => (*code.start(), locals),
-        None => panic!("No entry method at index {:?}", program.entry()),
-        Some(constant) => panic!("Constant at index {:?} is not a method {:?}",
-                                  program.entry(), constant),
-    };
+#[inline(always)]
+pub fn eval_literal(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let pointer = Pointer::from_literal(program_object)?;
+    state.operand_stack.push(pointer);
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_get_local(program: &Program, state: &mut State, index: &LocalFrameIndex) -> Result<()> { // TODO rename LocalFrameIndex to FrameIndex
+    let frame = state.frame_stack.get_locals()?;
+    let pointer = *frame.get(index)?;
+    state.operand_stack.push(pointer);
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_set_local(program: &Program, state: &mut State, index: &LocalFrameIndex) -> Result<()> {
+    let pointer = *state.operand_stack.peek()?;
+    let frame = state.frame_stack.get_locals_mut()?;
+    frame.set(index, pointer)?;
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_get_global(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?;
+    let pointer = *state.frame_stack.globals.get(name)?;
+    state.operand_stack.push(pointer);
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_set_global(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?.to_owned();
+    let pointer = *state.operand_stack.peek()?;
+    state.frame_stack.globals.update(name, pointer)?;
+    state.operand_stack.push(pointer);
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let members = program_object.as_class_definition()?.iter()
+        .map(| index | program.constant_pool.get(index))
+        .collect::<Result<Vec<&ProgramObject>>>()?;
 
     let mut slots = Vec::new();
-    for _ in 0..locals.to_usize() {
-        slots.push(Pointer::Null);
+    let mut methods = HashMap::new();
+
+
+    for member in members {                                                           // TODO this could probably be a method in ProgramObject, something like: `create prototype object om class`
+        match member {
+            ProgramObject::Slot { name: index } => {
+                let program_object = program.constant_pool.get(index)?;
+                let name = program_object.as_str()?;
+                slots.push(name);
+            }
+            ProgramObject::Method { name: index, .. } => {                         // TODO, probably don't need to store methods, tbh, just the class, which would simplify this a lot
+                let program_object = program.constant_pool.get(index)?;
+                let name = program_object.as_str()?.to_owned();
+                methods.insert(name.clone(), member.clone())
+                    .with_context(|| format!("Member method `{}` has a non-unique name within object.", name))?;
+            }
+            _ => bail!("Class members must be either Methods or Slots, but found `{}`.", member)
+        }
     }
 
-    state.new_frame(None, slots);
-    state.set_instruction_pointer(Some(start_address));
-    while state.has_next_instruction_pointer() {
-        interpret(&mut state, &mut output, program);
+    let mut fields = HashMap::new();
+    for name in slots.into_iter().rev() {
+        let pointer = state.operand_stack.pop()?;
+        fields.insert(name.to_owned(), pointer)
+            .with_context(|| format!("Member field `{}` has a non-unique name in object", name))?;
     }
+
+    let parent = state.operand_stack.pop()?;
+
+    let heap_index = state.heap.allocate(HeapObject::Object(ObjectInstance { parent, fields, methods })); // TODO simplify
+    state.operand_stack.push(Pointer::from(heap_index));
+    state.instruction_pointer.bump(program);
+    Ok(())
 }
 
+#[inline(always)]
+pub fn eval_array(program: &Program, state: &mut State) -> Result<()> {
+    let initializer = state.operand_stack.pop()?;
+    let size = state.operand_stack.pop()?;
 
+    let n = size.as_i32()?;
+    bail_if!(n < 0, "Negative value `{}` cannot be used to specify the size of an array.", n);
 
+    let elements = repeat(initializer).take(n as usize).collect();
+    let array = HeapObject::from_pointers(elements);
 
+    let heap_index = state.heap.allocate(array);
+    state.operand_stack.push(Pointer::from(heap_index));
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
 
-pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut Memory,*/ program: &Program)
-    where /*Input : Read,*/ Output : Write {
+#[inline(always)]
+pub fn eval_get_field(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?;
+    let pointer = state.operand_stack.pop()?;
+    let heap_pointer = pointer.into_heap_reference()?;
+    let object = state.heap.dereference(&heap_pointer)?;
 
-    // println!("Stack:");
-    // for pointer in state.operands.iter() {
-    //     println!("  {:?}: {:?}", pointer, state.memory.objects.get(&pointer));
-    // }
-    // println!("Memory:");
-    // for (pointer, object) in state.memory.objects.iter() {
-    //     println!("  {:?}: {:?}", pointer, object);
-    // }
-    // println!("Interpreting {:?}: {:?}", state.instruction_pointer(), state.instruction_pointer().map(|opcode| program.code().get_opcode(&opcode)));
+    let object_instance = object.as_object_instance()?;
+    let pointer = object_instance.get_field(name)?;
+    state.operand_stack.push(*pointer);
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
 
+#[inline(always)]
+pub fn eval_set_field(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?;
+    let value_pointer = state.operand_stack.pop()?;
+    let object_pointer = state.operand_stack.pop()?;
+    let heap_pointer = object_pointer.into_heap_reference()?;
+    let object = state.heap.dereference_mut(&heap_pointer)?;
 
+    let object_instance = object.as_object_instance_mut()?;
+    let pointer = object_instance.set_field(name, value_pointer.clone())?;
+    state.operand_stack.push(value_pointer);
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
 
-    let opcode: &OpCode = {
-        let address = state.instruction_pointer()
-            .expect("Interpreter error: cannot reference opcode at instruction pointer: nothing");
+#[inline(always)]
+pub fn eval_call_method(program: &Program, state: &mut State, index: &ConstantPoolIndex, arguments: &Arity) -> Result<()> {
+    bail_if!(arguments.to_usize() == 0, "All method calls require at least {} parameter (receiver)", 1);
 
-        let opcode = program.get_opcode(&address)
-            .expect(&format!("Interpreter error: cannot reference opcode at instruction pointer: \
-                              {:?}", address));
+    let program_object = program.constant_pool.get(index)?;
+    let method_name = program_object.as_str()?;
 
-        opcode
+    let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize())?;
+    let receiver_pointer = state.operand_stack.pop()?;
+
+    dispatch_method(program, state, receiver_pointer, method_name, argument_pointers)
+}
+
+fn dispatch_method(program: &Program, state: &mut State, receiver_pointer: Pointer, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<()> {
+    match receiver_pointer {
+        Pointer::Null =>
+            dispatch_null_method(method_name, argument_pointers)?
+                .push_onto(&mut state.operand_stack),
+        Pointer::Integer(i) =>
+            dispatch_integer_method(&i, method_name, argument_pointers)?
+                .push_onto(&mut state.operand_stack),
+        Pointer::Boolean(b) =>
+            dispatch_boolean_method(&b, method_name, argument_pointers)?
+                .push_onto(&mut state.operand_stack),
+        Pointer::Reference(index) =>
+            match state.heap.dereference_mut(&index)? {
+                HeapObject::Array(array) =>
+                    dispatch_array_method(array, method_name, argument_pointers)?
+                        .push_onto(&mut state.operand_stack),
+                HeapObject::Object(_) =>
+                    dispatch_object_method(program, state, receiver_pointer,
+                                           method_name, argument_pointers)?,
+            }
+    }
+    Ok(())
+}
+
+fn dispatch_null_method(method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 1,
+             "Invalid number of arguments for method `{}` in object `null`", method_name);
+
+    let argument = argument_pointers.last().unwrap();
+    let result = match (method_name, argument)  {
+        ("==", Pointer::Null) | ("eq", Pointer::Null)  => Pointer::from(true),
+        ("==", _) | ("eq", _)                          => Pointer::from(false),
+        ("!=", Pointer::Null) | ("neq", Pointer::Null) => Pointer::from(true),
+        ("!=", _) | ("neq", _)                         => Pointer::from(false),
+        _ => bail!("Call method error: no method `{}` in object `null`", method_name),
     };
-
-    //eprintln!("{ :<width$}", "-", width=80);
-/*
-    eprintln!("| {: <code$} |", "CODE", code=30);
-    for (address, opcode) in program.code().all_opcodes() {
-        let here = if state.instruction_pointer().unwrap() == address { "*" } else { " " };
-        eprintln!("| {}{} {: <width$} |", here, address, opcode.to_string(), width=24);
-    }
-    eprintln!();
-
-    eprintln!("| {: <constant_pool$} |", "CONSTANT POOL", constant_pool=50);
-    for (i, constant) in program.constants().iter().enumerate() {
-        let index = ConstantPoolIndex::from_usize(i);
-        eprintln!("|  {: >4} {: <width$} |", index.to_string(), constant.to_string(), width=44);
-    }
-    eprintln!();
-
-    eprintln!("| {: <globals$} |", "GLOBALS", globals=7);
-    for (i, index) in program.globals().iter().enumerate() {
-        eprintln!("| {: >2} {: >width$} |", i, index.to_string(), width=4);
-    }
-    eprintln!();
-
-    eprintln!("| {: <stack$} |", "STACK", stack=16);
-    for (i, pointer) in state.operands.iter().enumerate() {
-        eprintln!("| {: >4} {} |", i, pointer);
-    }
-    eprintln!();*/
-
-    match opcode {
-        OpCode::Literal { index } => {
-            let constant: &ProgramObject = program.get_constant(index)
-                 .expect(&format!("Literal error: no constant at index {:?}", index.value()));
-
-            match constant {
-                ProgramObject::Null => (),
-                ProgramObject::Boolean(_) => (),
-                ProgramObject::Integer(_) => (),
-                _ => panic!("Literal error: constant at index {:?} must be either Null, Integer, \
-                             or Boolean, but is {:?}", index, constant),
-            }
-
-            state.push_operand(Pointer::from(constant));
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::GetLocal { index } => {
-            let frame: &LocalFrame = state.current_frame()
-                .expect("Get local error: no frame on stack.");
-
-            let local: Pointer = frame.get_local(&index)
-                .expect(&format!("Get local error: there is no local at index {:?} in the current \
-                                  frame", index));
-
-            state.push_operand(local);
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::SetLocal { index } => {
-            let operand: Pointer = *state.peek_operand()
-                .expect("Set local error: cannot pop from empty operand stack");
-
-            let frame: &mut LocalFrame = state.current_frame_mut()
-                .expect("Set local error: no frame on stack.");
-
-            frame.update_local(index, operand)
-                .expect(&format!("Set local error: there is no local at index {:?} in the current \
-                                  frame", index));
-
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::GetGlobal { name: index } => {
-            let constant: &ProgramObject = program.get_constant(index)
-                .expect(&format!("Get global error: no constant at index {:?}", index.value()));
-
-            let name: &str = match constant {
-                ProgramObject::String(s) => s,
-                _ => panic!("Get global error: constant at index {:?} must be a String, \
-                             but it is {:?}", index.value(), constant),
-            };
-
-            let global = state.get_global(name).map(|g| g.clone())
-                .expect(&format!("Get global error: no such global: {}", name));
-
-            state.push_operand(global);
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::SetGlobal { name: index } => {
-            let constant: &ProgramObject = program.get_constant(index)
-                .expect(&format!("Set global error: no constant at index {:?}", index.value()));
-
-            let name: &str = match constant {
-                ProgramObject::String(s) => s,
-                _ => panic!("Set global error: constant at index {:?} must be a String, \
-                             but it is {:?}", index.value(), constant),
-            };
-
-            let operand: Pointer = state.peek_operand().map(|o| o.clone())
-                .expect("Set global: cannot pop operand from empty operand stack");
-
-            state.update_global(name.to_owned(), operand);
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::Object { class: index } => {
-            let constant: &ProgramObject = program.get_constant(index)
-                .expect(&format!("Object error: no constant at index {:?}", index.value()));
-
-            let member_definitions: Vec<&ProgramObject> = match constant {
-                ProgramObject::Class(v) => v,
-                _ => panic!("Object error: constant at index {:?} must be a String, \
-                             but it is {:?}", index.value(), constant),
-            }.iter().map(| index | program.get_constant(index)
-                .expect(&format!("Object error: no constant at index {:?} for member_ object",
-                                 index.value()))).collect();
-
-            let (slots, methods): (Vec<&ProgramObject>, Vec<&ProgramObject>) =
-                member_definitions.iter().partition(|c| match c {
-                    ProgramObject::Method { code:_, locals:_, parameters:_, name:_ } => false,
-                    ProgramObject::Slot { name:_ } => true,
-                    member =>
-                        panic!("Object error: class members may be either Methods or Slots, \
-                                 but this member is {:?}", member),
-            }); // XXX this will work even if the member definitions are not sorted, which is
-                // contrary to the spec
-
-            let fields: HashMap<String, Pointer> = {
-                let mut map: HashMap<String, Pointer> = HashMap::new();
-                for slot in slots.into_iter().rev() {
-                    if let ProgramObject::Slot {name: index} = slot {
-                        let object = state.pop_operand()
-                            .expect("Object error: cannot pop operand (member) from empty operand \
-                                     stack");
-
-                        let constant: &ProgramObject = program.get_constant(index)
-                            .expect(&format!("Object error: no constant at index {:?}",
-                                             index.value()));
-
-                        let name: &str = match constant {
-                            ProgramObject::String(s) => s,
-                            _ => panic!("Object error: constant at index {:?} must be a String, \
-                                         but it is {:?}", index.value(), constant),
-                        };
-
-                        let result = map.insert(name.to_string(), object);
-                        if let Some(_) = result {
-                            panic!("Object error: member fields must have unique names, but \
-                                    {} is used by to name more than one field", name)
-                        }
-                    } else {
-                        unreachable!()
-                    }
-                }
-                map
-            };
-
-            let method_map: HashMap<String, ProgramObject> = {
-                let mut map: HashMap<String, ProgramObject> = HashMap::new();
-                for method in methods {
-                    match method {
-                        ProgramObject::Method { name: index, parameters:_, locals:_, code:_ } => {
-                            let constant: &ProgramObject = program.get_constant(index)
-                                .expect(&format!("Object error: no constant at index {:?}",
-                                                 index.value()));
-
-                            let name: &str = match constant {
-                                ProgramObject::String(s) => s,
-                                _ => panic!("Object error: constant at index {:?} must be a String, \
-                                             but it is {:?}", index.value(), constant),
-                            };
-                            let result = map.insert(name.to_string(), method.clone());
-
-                            match result {
-                                Some (other_method) =>
-                                    panic!("Object error: method {} has a non-unique name in \
-                                            object: {:?} v {:?}", name, method, other_method),
-                                None => ()
-                            }
-                        },
-                        _ => unreachable!(),
-                    }
-                }
-                map
-            };
-
-            let parent = state.pop_operand()
-                .expect("Object error: cannot pop operand (parent) from empty operand stack");
-
-            state.allocate_and_push_operand(HeapObject::from(parent, fields, method_map));
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::Array => {
-            let initializer = state.pop_operand()
-                .expect(&format!("Array error: cannot pop initializer from empty operand stack"));
-
-            let size_pointer = state.pop_operand()
-                .expect(&format!("Array error: cannot pop size from empty operand stack"));
-
-            let size: usize = match size_pointer {
-                Pointer::Integer(n) => {
-                    if n < 0 {
-                        panic!("Array error: negative value cannot be used to specify the size of \
-                                an array {:?}", size_pointer);
-                    } else {
-                        n as usize
-                    }
-                }
-                Pointer::Null => panic!("Array error: null cannot be used to specify the size of an array"),
-                Pointer::Boolean(_) => panic!("Array error: boolean cannot be used to specify the size of an array"),
-                _ => panic!("Array error: object at pointer {} cannot be used to specify the size of an array", size_pointer),
-            };
-
-            let mut elements: Vec<Pointer> = Vec::new();
-            for _ in 0..size {
-                let pointer = state.copy_memory(&initializer)
-                    .expect(&format!("Array error: no initializer to copy from at {:?}",
-                                      initializer));
-                elements.push(pointer);
-            }
-
-            state.allocate_and_push_operand(HeapObject::from_pointers(elements));
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::GetField { name: index } => {
-            let constant: &ProgramObject = program.get_constant(index)
-                .expect(&format!("Get slot error: no constant to serve as label name at index {:?}",
-                                 index.value()));
-
-            let name: &str = match constant {
-                ProgramObject::String(s) => s,
-                _ => panic!("Get slot error: constant at index {:?} must be a String, but it is {:?}",
-                            index, constant),
-            };
-
-            let operand_pointer: Pointer = state.pop_operand()
-                .expect(&format!("Get slot error: cannot pop operand from empty operand stack"));
-
-            let heap_reference =
-                operand_pointer.into_heap_reference().expect("Cast error");
-
-            let operand = state.dereference(&heap_reference)
-                .expect(&format!("Get slot error: no operand object at {:?}", operand_pointer));
-
-            match operand {
-                HeapObject::Object(ObjectInstance{parent:_, fields, methods:_ }) => {
-                    let slot: Pointer = fields.get(name)
-                        .expect(&format!("Get slot error: no field {} in object", name))
-                        .clone();
-
-                    state.push_operand(slot)
-                }
-                _ => panic!("Get slot error: attempt to access field of a non-object {:?}", operand)
-            }; // this semicolon turns the expression into a statement and is *important* because of
-               // how temporaries work https://github.com/rust-lang/rust/issues/22449
-
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::SetField { name: index } => {
-            let constant: &ProgramObject = program.get_constant(index)
-                .expect(&format!("Set slot error: no constant to serve as label name at index {:?}",
-                                 index.value()));
-
-            let name: &str = match constant {
-                ProgramObject::String(s) => s,
-                _ => panic!("Set slot error: constant at index {:?} must be a String, but it is {:?}",
-                            index, constant),
-            };
-
-            let value: Pointer = state.pop_operand()
-                .expect(&format!("Set slot error: cannot pop operand (value) from empty operand \
-                                  stack"));
-
-            let host_pointer: Pointer = state.pop_operand().clone()
-                .expect(&format!("Set slot error: cannot pop operand (host) from empty operand \
-                                  stack"));
-
-            let heap_reference = host_pointer.into_heap_reference().expect("Cast error");
-
-            let host = state.dereference_mut(&heap_reference)
-                .expect(&format!("Set slot error: no operand object at {:?}", host_pointer));
-
-            match host {
-                HeapObject::Object(ObjectInstance { parent:_, fields, methods:_ }) => {
-                    if !(fields.contains_key(name)) {
-                        panic!("Set slot error: no field {} in object {:?}", name, host)
-                    }
-
-                    fields.insert(name.to_string(), value.clone());
-                    state.push_operand(value)
-                }
-                _ => panic!("Get slot error: attempt to access field of a non-object {:?}", host)
-            }; // this semicolon turns the expression into a statement and is *important* because of
-               // how temporaries work https://github.com/rust-lang/rust/issues/22449
-
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::CallMethod { name: index, arguments: parameters } => {
-            if parameters.value() == 0 {
-                panic!("Call method error: method must have at least one parameter (receiver)");
-            }
-
-            let mut arguments: VecDeque<Pointer> = VecDeque::with_capacity(parameters.value() as usize);
-            for index in 0..(parameters.to_usize() - 1) {
-                let element = state.pop_operand()
-                    .expect(&format!("Call method error: cannot pop argument {} from empty operand \
-                                      stack", index));
-                arguments.push_front(element);
-            }
-
-            let object_pointer: Pointer = state.pop_operand()
-                .expect(&format!("Call method error: cannot pop host object from empty operand \
-                                  stack"));
-
-            let constant: &ProgramObject = program.get_constant(index)
-                .expect(&format!("Call method error: no constant to serve as format index {:?}",
-                                 index));
-
-            let name: &str = match constant {
-                ProgramObject::String(s) => s,
-                _ => panic!("Call method error: constant at index {:?} must be a String, but it is \
-                             {:?}", index, constant),
-            };
-
-            let heap_reference = object_pointer.into_heap_reference().expect("Cast error");
-
-            let object: &mut HeapObject = state.dereference_mut(&heap_reference)
-                .expect(&format!("Call method error: no operand object at {:?}", object_pointer));
-
-
-            unimplemented!();
-            match object {
-                // HeapObject::Null =>
-                //     interpret_null_method(object_pointer, name, &Vec::from(arguments), state, program),
-                // HeapObject::Integer(_) =>
-                //     interpret_integer_method(object_pointer, name, &Vec::from(arguments), state, program),
-                // HeapObject::Boolean(_) =>
-                //     interpret_boolean_method(object_pointer, name, &Vec::from(arguments), state, program),
-                HeapObject::Array(_) =>
-                    interpret_array_method(object_pointer, name, &Vec::from(arguments), *parameters, state, program),
-                HeapObject::Object(ObjectInstance { parent:_, fields:_, methods:_ }) =>
-                    dispatch_object_method(object_pointer, name, &Vec::from(arguments), *parameters, state, program),
-            };
-        }
-
-        OpCode::CallFunction { name: index, arguments } => {
-
-            let constant: &ProgramObject = program.get_constant(index)
-                .expect(&format!("Call function error: no constant to serve as function name at \
-                                  index {:?}", index));
-
-            let name = match constant {
-                ProgramObject::String(string) => string,
-                _ => panic!("Call function error: function name must be specified by a String \
-                             object, but instead it is: {:?}", constant),
-            };
-
-            let function: ProgramObject = {
-                state.get_function(name)
-                    .expect(&format!("Call function error: no such function {}", name))
-                    .clone()
-            };
-
-            match function {
-                ProgramObject::Method { name:_, parameters, locals, code: range } => {
-                    if arguments.value() != parameters.value() {
-                        panic!("Call function error: function definition requires {} arguments, \
-                               but {} were supplied", parameters.value(), arguments.value())
-                    }
-
-                    let mut slots: VecDeque<Pointer> =
-                        VecDeque::with_capacity(parameters.value() as usize + locals.value() as usize);
-
-                    for index in 0..arguments.to_usize() {
-                        let element = state.pop_operand()
-                            .expect(&format!("Call function error: cannot pop argument {} from \
-                                              empty operand stack", index));
-                        slots.push_front(element);
-                    }
-
-                    for _ in 0..locals.value() {
-                        slots.push_back(Pointer::Null)
-                    }
-
-                    state.bump_instruction_pointer(program);
-                    state.new_frame(*state.instruction_pointer(), Vec::from(slots));
-                    state.set_instruction_pointer(Some(*range.start()));
-                },
-                _ => panic!("Call function error: constant at index {:?} must be a Method, but it \
-                             is {:?}", index, constant),
-            }
-        }
-
-        OpCode::Print { format: index, arguments } => {
-            let mut argument_values = {
-                let mut argument_values: Vec<Pointer> = Vec::new();
-                for index in 0..arguments.value() {
-                    let element = state.pop_operand()
-                        .expect(&format!("Print error: cannot pop argument {} from empty operand \
-                                          stack", index));
-                    argument_values.push(element);
-                }
-                argument_values
-            };
-
-            let constant: &ProgramObject = program.get_constant(index)
-                .expect(&format!("Print error: no constant to serve as format index {:?}", index));
-
-            let format: &str = match constant {
-                ProgramObject::String(s) => s,
-                _ => panic!("Print error: constant at index {:?} must be a String, but it is {:?}",
-                            index, constant),
-            };
-
-            let mut escape = false;
-            for character in format.chars() {
-                match (character, escape) {
-                    ('~', _) => {
-                        let string = &argument_values.pop()
-                            .map(|e| state.dereference_to_string(&e))
-                            .expect(&format!("Print error: Not enough arguments for format {}",
-                                             format));
-
-                        output.write_str(string)
-                            .expect("Print error: Could not write to output stream.")
-                    },
-                    ('\\', false) => {
-                        escape = true;
-                    }
-                    ('\\', true)  => {
-                        output.write_char('\\')
-                            .expect("Print error: Could not write to output stream.");
-                        escape = false;
-                    }
-                    ('n', true)  => {
-                        output.write_char('\n')
-                            .expect("Print error: Could not write to output stream.");
-                        escape = false;
-                    }
-                    ('"', true)  => {
-                        output.write_char('"')
-                            .expect("Print error: Could not write to output stream.");
-                        escape = false;
-                    }
-                    ('t', true)  => {
-                        output.write_char('\t')
-                            .expect("Print error: Could not write to output stream.");
-                        escape = false;
-                    }
-                    (character, true)  => {
-                        panic!("Print error: Unknown escape sequence: \\{}", character)
-                    }
-                    (character, false) => {
-                        output.write_char(character)
-                            .expect("Print error: Could not write to output stream.")
-                    }
-                }
-            }
-
-            if !argument_values.is_empty() {
-                panic!("Print error: Unused arguments for format {}", format)
-            }
-
-            state.push_operand(Pointer::Null);
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::Label { name: _ } => {
-            state.bump_instruction_pointer(program);
-        }
-
-        OpCode::Jump { label } => {
-            let constant: &ProgramObject = program.get_constant(label)
-                .expect(&format!("Jump error: no label name at index {:?}", label.value()));
-
-            let name: &str = match constant {
-                ProgramObject::String(s) => s,
-                _ => panic!("Jump error: constant at index {:?} must be a String, but it is {:?}",
-                            label, constant),
-            };
-
-            state.set_instruction_pointer_from_label(program, name)
-                .expect(&format!("Jump error: no such label {:?} (labels: {:?})", name, program.labels()));
-        }
-
-        OpCode::Branch { label } => {
-            let operand = state.pop_operand()
-                .expect("Branch error: cannot pop operand from empty operand stack");
-
-            if !operand.evaluate_as_condition() {
-                state.bump_instruction_pointer(program);
-                return;
-            }
-
-            let constant: &ProgramObject = program.get_constant(label)
-                .expect(&format!("Branch error: no label name at index {:?}",
-                                 label.value()));
-
-            let name: &str = match constant {
-                ProgramObject::String(s) => s,
-                _ => panic!("Branch error: constant at index {:?} must be a String, but it is {:?}",
-                            label, constant),
-            };
-
-            state.set_instruction_pointer_from_label(program, name)
-                .expect(&format!("Branch error: no such label {:?}", name));
-        }
-
-        OpCode::Return => {
-            let current_frame: LocalFrame = state.pop_frame()
-                .expect("Return error: cannot pop local frame from empty frame stack");
-            let address: &Option<Address> = current_frame.return_address();
-            state.set_instruction_pointer(*address);
-            // current_frame is reclaimed here
-        }
-
-        OpCode::Drop => { // FIXME balance stack
-            state.pop_operand()
-                .expect("Drop error: cannot pop operand from empty operand stack");
-            state.bump_instruction_pointer(program);
-        },
+    Ok(result)
+}
+
+fn dispatch_integer_method(receiver: &i32, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 1,
+             "Invalid number of arguments for method `{}` in object `{}`", method_name, receiver);
+
+    let argument_pointer = argument_pointers.last().unwrap();
+
+    let result = match (method_name, argument_pointer) {
+        ("+",  Pointer::Integer(argument)) => Pointer::from(receiver +  argument),
+        ("-",  Pointer::Integer(argument)) => Pointer::from(receiver -  argument),
+        ("*",  Pointer::Integer(argument)) => Pointer::from(receiver *  argument),
+        ("/",  Pointer::Integer(argument)) => Pointer::from(receiver /  argument),
+        ("%",  Pointer::Integer(argument)) => Pointer::from(receiver %  argument),
+        ("<=", Pointer::Integer(argument)) => Pointer::from(receiver <= argument),
+        (">=", Pointer::Integer(argument)) => Pointer::from(receiver >= argument),
+        ("<",  Pointer::Integer(argument)) => Pointer::from(receiver <  argument),
+        (">",  Pointer::Integer(argument)) => Pointer::from(receiver >  argument),
+        ("==", Pointer::Integer(argument)) => Pointer::from(receiver == argument),
+        ("!=", Pointer::Integer(argument)) => Pointer::from(receiver != argument),
+        ("==", _) => Pointer::from(false),
+        ("!=", _) => Pointer::from(true),
+
+        ("add", Pointer::Integer(argument)) => Pointer::from(receiver +  argument),
+        ("sub", Pointer::Integer(argument)) => Pointer::from(receiver -  argument),
+        ("mul", Pointer::Integer(argument)) => Pointer::from(receiver *  argument),
+        ("div", Pointer::Integer(argument)) => Pointer::from(receiver /  argument),
+        ("mod", Pointer::Integer(argument)) => Pointer::from(receiver %  argument),
+        ("le",  Pointer::Integer(argument)) => Pointer::from(receiver <= argument),
+        ("ge",  Pointer::Integer(argument)) => Pointer::from(receiver >= argument),
+        ("lt",  Pointer::Integer(argument)) => Pointer::from(receiver <  argument),
+        ("gt",  Pointer::Integer(argument)) => Pointer::from(receiver >  argument),
+        ("eq",  Pointer::Integer(argument)) => Pointer::from(receiver == argument),
+        ("neq", Pointer::Integer(argument)) => Pointer::from(receiver != argument),
+        ("eq", _) => Pointer::from(false),
+        ("neq", _) => Pointer::from(true),
+
+        _ => bail!("Call method error: no method `{}` in object `{}`", method_name, receiver),
+    };
+    Ok(result)
+}
+
+fn dispatch_boolean_method(receiver: &bool, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 1,
+             "Invalid number of arguments for method `{}` in object `{}`", method_name, receiver);
+
+    let argument_pointer = argument_pointers.last().unwrap();
+
+    let result = match (method_name, argument_pointer) {
+        ("&",  Pointer::Boolean(argument)) => Pointer::from(*receiver && *argument),
+        ("|",  Pointer::Boolean(argument)) => Pointer::from(*receiver || *argument),
+        ("==", Pointer::Boolean(argument)) => Pointer::from(*receiver == *argument),
+        ("!=", Pointer::Boolean(argument)) => Pointer::from(*receiver != *argument),
+        ("==", _) => Pointer::from(false),
+        ("!=", _) => Pointer::from(true),
+
+        ("and", Pointer::Boolean(argument)) => Pointer::from(*receiver && *argument),
+        ("or",  Pointer::Boolean(argument)) => Pointer::from(*receiver || *argument),
+        ("eq",  Pointer::Boolean(argument)) => Pointer::from(*receiver == *argument),
+        ("neq", Pointer::Boolean(argument)) => Pointer::from(*receiver != *argument),
+        ("eq",  _) => Pointer::from(false),
+        ("neq", _) => Pointer::from(true),
+
+        _ => bail!("Call method error: no method `{}` in object `{}`",  method_name, receiver),
+    };
+    Ok(result)
+}
+
+fn dispatch_array_method(array: &mut ArrayInstance, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
+    match method_name {
+        "get" => dispatch_array_get_method(array, method_name, argument_pointers),
+        "set" => dispatch_array_set_method(array, method_name, argument_pointers),
+        _ => bail!("Call method error: no method `{}` in array `{}`",  method_name, array),
     }
 }
 
-macro_rules! check_arguments_one {
-    ($pointer: expr, $arguments: expr, $name: expr, $state: expr) => {{
-        // if $arguments.len() != 1 {
-        //     panic!("Call method error: method {} takes 1 argument, but {} were supplied",
-        //             $name, $arguments.len())
-        // }
-        //
-        // let argument_pointer: &Pointer = &$arguments[0];
-        // let argument = $state.dereference(argument_pointer)
-        //     .expect(&format!("Call method error: no operand object at {:?}", argument_pointer));
-        //
-        // let object = $state.dereference(&$pointer).unwrap(); /*checked earlier*/
-        // (object, argument)
-    }}
+fn dispatch_array_get_method(array: &mut ArrayInstance, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 1,
+             "Invalid number of arguments for method `{}` in array `{}`, expecting 1",
+             method_name, array);
+
+    let index_pointer = argument_pointers.first().unwrap();
+    let index = index_pointer.as_usize()?;
+    array.get_element(index).map(|e| *e)
 }
 
-macro_rules! push_result_and_finish {
-    ($result: expr, $state: expr, $program: expr) => {{
-        $state.allocate_and_push_operand($result);
-        $state.bump_instruction_pointer($program);
-    }}
+fn dispatch_array_set_method(array: &mut ArrayInstance, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
+    bail_if!(argument_pointers.len() != 2,
+             "Invalid number of arguments for method `{}` in array `{}`, expecting 2",
+             method_name, array);
+
+    let index_pointer = argument_pointers.first().unwrap();
+    let value_pointer = argument_pointers.last().unwrap();
+    let index = index_pointer.as_usize()?;
+    array.set_element(index, *value_pointer).map(|e| *e)
 }
 
-macro_rules! push_pointer_and_finish {
-    ($result: expr, $state: expr, $program: expr) => {{
-        $state.push_operand($result);
-        $state.bump_instruction_pointer($program);
-    }}
-}
+fn dispatch_object_method(program: &Program, state: &mut State,
+                          receiver_pointer: Pointer, method_name: &str,
+                          argument_pointers: Vec<Pointer>) -> Result<()> {
 
-pub fn interpret_null_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>,
-                             state: &mut State, program: &Program) {
+    let heap_reference = receiver_pointer.into_heap_reference()?; // Should never fail.
+    let heap_object = state.heap.dereference_mut(&heap_reference)?; // Should never fail.
+    let object_instance = heap_object.as_object_instance_mut()?; // Should never fail.
+    let parent_pointer = object_instance.parent.clone();
 
-    //let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-    unimplemented!();
-    // let result = match (name, operand) {
-    //     // ("==", HeapObject::Null)  => HeapObject::from_bool(true),
-    //     // ("==", _)             => HeapObject::from_bool(false),
-    //     // ("!=", HeapObject::Null)  => HeapObject::from_bool(false),
-    //     // ("!=", _)             => HeapObject::from_bool(true),
-    //     // ("eq", HeapObject::Null)  => HeapObject::from_bool(true),
-    //     // ("eq", _)             => HeapObject::from_bool(false),
-    //     // ("neq", HeapObject::Null) => HeapObject::from_bool(false),
-    //     // ("neq", _)            => HeapObject::from_bool(true),
-    //
-    //     _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
-    //                  object, name, operand),
-    // };
-    // push_result_and_finish!(result, state, program);
-}
+    let method_option = object_instance.methods.get(method_name).map(|method| method.clone());
 
-pub fn interpret_integer_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>,
-                                state: &mut State, program: &Program) {
-
-    //let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-    unimplemented!();
-    // let result = match (object, name, operand) {
-    //     // (HeapObject::Integer(i), "+",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i +  *j),
-    //     // (HeapObject::Integer(i), "-",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i -  *j),
-    //     // (HeapObject::Integer(i), "*",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i *  *j),
-    //     // (HeapObject::Integer(i), "/",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i /  *j),
-    //     // (HeapObject::Integer(i), "%",   HeapObject::Integer(j)) => HeapObject::from_i32 (*i %  *j),
-    //     // (HeapObject::Integer(i), "<=",  HeapObject::Integer(j)) => HeapObject::from_bool(*i <= *j),
-    //     // (HeapObject::Integer(i), ">=",  HeapObject::Integer(j)) => HeapObject::from_bool(*i >= *j),
-    //     // (HeapObject::Integer(i), "<",   HeapObject::Integer(j)) => HeapObject::from_bool(*i <  *j),
-    //     // (HeapObject::Integer(i), ">",   HeapObject::Integer(j)) => HeapObject::from_bool(*i >  *j),
-    //     // (HeapObject::Integer(i), "==",  HeapObject::Integer(j)) => HeapObject::from_bool(*i == *j),
-    //     // (HeapObject::Integer(i), "!=",  HeapObject::Integer(j)) => HeapObject::from_bool(*i != *j),
-    //     // (HeapObject::Integer(_), "==",  _)                  => HeapObject::from_bool(false),
-    //     // (HeapObject::Integer(_), "!=",  _)                  => HeapObject::from_bool(true),
-    //     //
-    //     // (HeapObject::Integer(i), "add", HeapObject::Integer(j)) => HeapObject::from_i32 (*i +  *j),
-    //     // (HeapObject::Integer(i), "sub", HeapObject::Integer(j)) => HeapObject::from_i32 (*i -  *j),
-    //     // (HeapObject::Integer(i), "mul", HeapObject::Integer(j)) => HeapObject::from_i32 (*i *  *j),
-    //     // (HeapObject::Integer(i), "div", HeapObject::Integer(j)) => HeapObject::from_i32 (*i /  *j),
-    //     // (HeapObject::Integer(i), "mod", HeapObject::Integer(j)) => HeapObject::from_i32 (*i %  *j),
-    //     // (HeapObject::Integer(i), "le",  HeapObject::Integer(j)) => HeapObject::from_bool(*i <= *j),
-    //     // (HeapObject::Integer(i), "ge",  HeapObject::Integer(j)) => HeapObject::from_bool(*i >= *j),
-    //     // (HeapObject::Integer(i), "lt",  HeapObject::Integer(j)) => HeapObject::from_bool(*i <  *j),
-    //     // (HeapObject::Integer(i), "gt",  HeapObject::Integer(j)) => HeapObject::from_bool(*i >  *j),
-    //     // (HeapObject::Integer(i), "eq",  HeapObject::Integer(j)) => HeapObject::from_bool(*i == *j),
-    //     // (HeapObject::Integer(i), "neq", HeapObject::Integer(j)) => HeapObject::from_bool(*i != *j),
-    //     // (HeapObject::Integer(_), "eq",  _)                  => HeapObject::from_bool(false),
-    //     // (HeapObject::Integer(_), "neq", _)                  => HeapObject::from_bool(true),
-    //
-    //     _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
-    //                  object, name, operand),
-    // };
-    // push_result_and_finish!(result, state, program);
-}
-
-pub fn interpret_boolean_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>,
-                                state: &mut State, program: &Program) {
-
-    //let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-    unimplemented!();
-    //let result = match (object, name, operand) {
-        // (HeapObject::Boolean(p), "and", HeapObject::Boolean(q)) => HeapObject::from_bool(*p && *q),
-        // (HeapObject::Boolean(p), "or",  HeapObject::Boolean(q)) => HeapObject::from_bool(*p || *q),
-        // (HeapObject::Boolean(p), "eq",  HeapObject::Boolean(q)) => HeapObject::from_bool(*p == *q),
-        // (HeapObject::Boolean(p), "neq", HeapObject::Boolean(q)) => HeapObject::from_bool(*p != *q),
-        // (HeapObject::Boolean(_), "eq",  _)                  => HeapObject::from_bool(false),
-        // (HeapObject::Boolean(_), "neq", _)                  => HeapObject::from_bool(true),
-        //
-        // (HeapObject::Boolean(p), "&",   HeapObject::Boolean(q)) => HeapObject::from_bool(*p && *q),
-        // (HeapObject::Boolean(p), "|",   HeapObject::Boolean(q)) => HeapObject::from_bool(*p || *q),
-        // (HeapObject::Boolean(p), "==",  HeapObject::Boolean(q)) => HeapObject::from_bool(*p == *q),
-        // (HeapObject::Boolean(p), "!=",  HeapObject::Boolean(q)) => HeapObject::from_bool(*p != *q),
-        // (HeapObject::Boolean(_), "==",  _)                  => HeapObject::from_bool(false),
-        // (HeapObject::Boolean(_), "!=",  _)                  => HeapObject::from_bool(true),
-    //
-    //     _ => panic!("Call method error: object {:?} has no method {} for operand {:?}",
-    //                 object, name, operand),
-    // };
-    // push_result_and_finish!(result, state, program);
-}
-
-
-pub fn interpret_array_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>,
-                              arity: Arity, state: &mut State, program: &Program) {
-
-    if arguments.len() != arity.to_usize() - 1 {
-        panic!("Call method error: Array method {} takes {} argument, but {} were supplied",
-                name, arity.value() - 1, arguments.len())
-    }
-
-    if name == "get" {
-        //let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-        unimplemented!();
-        //let result = match (object, operand) {
-            // (HeapObject::Array(element_pointers), HeapObject::Integer(index)) => {
-            //     if (*index as usize) >= element_pointers.len() {
-            //         panic!("Call method error: array index {} is out of bounds (should be < {})",
-            //                 index, element_pointers.len())
-            //     }
-            //     element_pointers.get(*index as usize)
-            //         .expect("Call method error: no array element object at {:?}")
-            // },
-            //_ => panic!("Call method error: array {:?} has no method {} for operand {:?}",
-            //             object, name, operand),
-        //}.clone();
-        //let result = Pointer::Null;
-
-        //push_pointer_and_finish!(result, state, program);
-    }
-
-    if name == "set" {
-        // let operand_1_pointer: &Pointer = &arguments[0];
-        // let operand_2_pointer: &Pointer = &arguments[1];
-        //
-        // unimplemented!();
-        // let index: usize = match state.dereference(operand_1_pointer) {
-        //     //Some(HeapObject::Integer(index)) => *index as usize,
-        //     Some(object) => panic!("Call method error: cannot index array with {:?}", object),
-        //     None => panic!("Call method error: no operand (1) object at {:?}", operand_1_pointer),
-        // };
-        //
-        // let object : &mut HeapObject = state.dereference_mut(&pointer).unwrap(); /* pre-checked elsewhere */
-        // unimplemented!();
-        // let result = Pointer::Null;
-        // let result = match object {
-        //     HeapObject::Array(element_pointers) => {
-        //         if index >= element_pointers.len() {
-        //             panic!("Call method error: array index {} is out of bounds (should be < {})",
-        //                    index, element_pointers.len())
-        //         }
-        //         element_pointers[index] = *operand_2_pointer;
-        //         HeapObject::Null
-        //     },
-        //     _ => panic!("Call method error: object {:?} has no method {}", object, name),
-        // };
-
-        //push_result_and_finish!(result, state, program)
+    match method_option {
+        Some(method) =>
+            eval_call_object_method(program, state, method, method_name, receiver_pointer, argument_pointers),
+        None if object_instance.parent.is_null() =>
+            bail!("Call method error: no method `{}` in object `{}`"),
+        None =>
+            dispatch_method(program, state, parent_pointer, method_name, argument_pointers)
     }
 }
 
+fn eval_call_object_method(program: &Program, state: &mut State,
+                      method: ProgramObject, method_name: &str,
+                      pointer: Pointer, argument_pointers: Vec<Pointer>) -> Result<()> {
 
-fn dispatch_object_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>, arity: Arity,
-                          state: &mut State, program: &Program) {
-    //
-    // let mut cursor: Pointer = pointer;
-    // loop {
-    //     let object = state.dereference(&cursor)
-    //         .expect("Call method error: no object at {:?}");
-    //
-    //     unimplemented!();
-    //     let method: ProgramObject = match object {
-    //         HeapObject::Object { parent, fields: _, methods } => {
-    //             if let Some(method) = methods.get(name) {
-    //                 method.clone()
-    //             } else {
-    //                 cursor = *parent;
-    //                 continue
-    //             }
-    //         },
-    //         // HeapObject::Null => {
-    //         //     interpret_null_method(cursor, name, arguments, state, program);
-    //         //     break
-    //         // },
-    //         // HeapObject::Boolean(_) => {
-    //         //     interpret_boolean_method(cursor, name, arguments, state, program);
-    //         //     break
-    //         // },
-    //         // HeapObject::Integer(_) => {
-    //         //     interpret_integer_method(cursor, name, arguments, state, program);
-    //         //     break
-    //         // },
-    //         HeapObject::Array(_) => {
-    //             interpret_array_method(cursor, name, arguments, arity, state, program);
-    //             break
-    //         },
-    //     };
-    //
-    //     interpret_object_method(method, cursor, name, arguments, state, program);
-    //     break
-    // }
+    let parameters = method.get_method_parameters()?;                                        // FIXME perhaps the thing to do here is to have a Method struct inside the ProgramObject::Method constructor
+    let locals = method.get_method_locals()?;
+    let address = method.get_method_start_address()?;
+
+    bail_if!(argument_pointers.len() != parameters.to_usize(),
+             "Method `{}` requires {} arguments, but {} were supplied",
+             method_name, parameters, argument_pointers.len());
+
+    let local_pointers = locals.make_vector(Pointer::Null);
+
+    state.instruction_pointer.bump(program);
+    let frame = Frame::new(state.instruction_pointer.get(), veccat!(vec![pointer], argument_pointers, local_pointers));
+    state.frame_stack.push(frame);
+    state.instruction_pointer.set(Some(*address));
+    Ok(())
 }
 
+#[inline(always)]
+pub fn eval_call_function(program: &Program, state: &mut State, index: &ConstantPoolIndex, arguments: &Arity) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?;
+    let function_index = state.frame_stack.functions.get(name)?;
+    let function = program.constant_pool.get(function_index)?;
 
-fn interpret_object_method(method: ProgramObject, pointer: Pointer, name: &str,
-                           arguments: &Vec<Pointer>, state: &mut State, program: &Program) {
+    let parameters = function.get_method_parameters()?;                                      // FIXME perhaps the thing to do here is to have a Method struct inside the ProgramObject::Method constructor
+    let locals = function.get_method_locals()?;
+    let address = function.get_method_start_address()?;
 
-    match method {
-        ProgramObject::Method { name: _, locals, parameters: arity, code } => {
-            if arguments.len() != arity.to_usize() - 1 {
-                panic!("Call method error: method {} takes {} arguments, but {} were supplied",
-                        name, arity.value() - 1, arguments.len())
-            }
+    bail_if!(arguments != parameters,
+             "Function `{}` requires {} arguments, but {} were supplied",
+             name, parameters, arguments);
 
-            let mut slots: Vec<Pointer> =
-                Vec::with_capacity(1 + arity.to_usize() + locals.to_usize());
+    let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize())?;
+    let local_pointers = locals.make_vector(Pointer::Null);
 
-            slots.push(pointer);
+    state.instruction_pointer.bump(program);
+    let frame = Frame::new(state.instruction_pointer.get(), veccat!(argument_pointers, local_pointers));
+    state.frame_stack.push(frame);
+    state.instruction_pointer.set(Some(*address));
+    Ok(())
+}
 
-            slots.extend(arguments); // TODO passes by reference... correct?
+#[inline(always)]
+pub fn eval_print<W>(program: &Program, state: &mut State, output: &mut W, index: &ConstantPoolIndex, arguments: &Arity) -> Result<()> where W: Write {
+    let program_object = program.constant_pool.get(index)?;
+    let format = program_object.as_str()?;
+    let mut argument_pointers = (0..arguments.to_usize()).map(|_| state.operand_stack.pop()).collect::<Result<Vec<Pointer>>>()?;
 
-            for _ in 0..locals.to_usize() {
-                slots.push(Pointer::Null)
-            }
-
-            state.bump_instruction_pointer(program);
-            state.new_frame(*state.instruction_pointer(), slots);
-            state.set_instruction_pointer(Some(*code.start()));
-        },
-
-        thing => panic!("Call method error: member {} in object definition should have type \
-                         Method, but it is {:?}", name, thing),
+    for (previous, character) in format.chars().pairs() {
+        match (previous, character) {
+            ('\\', '~' ) => output.write_char('~')?,
+            ('\\', '\\') => output.write_char('\\')?,
+            ('\\', '"' ) => output.write_char('"')?,
+            ('\\', 'n' ) => output.write_char('\n')?,
+            ('\\', 't' ) => output.write_char('\t')?,
+            ('\\', 'r' ) => output.write_char('\r')?,
+            ('\\', ch  )  => bail!("Unknown control sequence \\{}", ch),
+            (_,    '\\') => {},
+            (_,    '~' ) => {
+                let argument = argument_pointers.pop()
+                    .with_context(|| "Not enough arguments for format `{}`")?;
+                output.write_str(argument.evaluate_as_string(/*state.heap*/).as_str())?
+            },
+            (_,    ch  ) => output.write_char(ch)?,
+        }
     }
+    bail_if!(!argument_pointers.is_empty(),
+             "{} unused arguments for format `{}`", argument_pointers.len(), format);
+
+    state.operand_stack.push(Pointer::Null);
+    state.instruction_pointer.bump(program);
+    Ok(())
 }
+
+#[inline(always)]
+pub fn eval_label(program: &Program, state: &mut State) -> Result<()> {
+    state.instruction_pointer.bump(program);
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_jump(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?;
+    let address = *program.labels.get(name)?;
+    state.instruction_pointer.set(Some(address));
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_branch(program: &Program, state: &mut State, index: &ConstantPoolIndex) -> Result<()> {
+    let program_object = program.constant_pool.get(index)?;
+    let name = program_object.as_str()?;
+    let pointer = state.operand_stack.pop()?;
+    if !pointer.evaluate_as_condition() {
+        state.instruction_pointer.bump(program);
+    } else {
+        let address = *program.labels.get(name)?;
+        state.instruction_pointer.set(Some(address));
+    }
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_return(_program: &Program, state: &mut State) -> Result<()> {
+    let frame = state.frame_stack.pop()?;
+    state.instruction_pointer.set(frame.return_address);
+    Ok(())
+}
+
+#[inline(always)]
+pub fn eval_drop(_program: &Program, state: &mut State) -> Result<()> {
+    state.operand_stack.pop()?;
+    Ok(())
+}
+
+

@@ -162,7 +162,7 @@ impl UglyPrintWithContext for ProgramObject {
                 locals.pretty_print_no_indent(sink);
                 write_string!(sink, 0, ") :");
 
-                for opcode in code.addresses_to_code_vector(range) {
+                for opcode in code.materialize(range).unwrap() {                           // TODO error handling
                     write_string!(sink, 0, "\n");
                     //println!("indent {:?} {} -> {} ", self, indent, further!(indent));
                     opcode.pretty_print_indent(sink, further!(indent))
@@ -250,18 +250,18 @@ impl UglyPrint for OpCode {
 impl UglyPrint for Program {
     fn ugly_print<W: Write>(&self, sink: &mut W, indent: usize, _prefix_first_line: bool) {
         write_string!(sink, indent, "Constants :\n");
-        for (index, opcode) in self.constants().iter().enumerate() {
+        for (index, opcode) in self.constant_pool.iter().enumerate() {
             ConstantPoolIndex::new(index as u16).pretty_print_indent(sink, further!(indent));
             write_string!(sink, 0, ": ");
-            opcode.pretty_print_no_first_line_indent(sink, self.code(), big_further!(indent));
+            opcode.pretty_print_no_first_line_indent(sink, &self.code, big_further!(indent));
             write_string!(sink, 0, "\n");
         }
         write_string!(sink, indent, "Globals :\n");
-        for global in self.globals().iter() {
+        for global in self.globals.iter() {
             global.pretty_print_indent(sink, further!(indent));
             write_string!(sink, 0, "\n");
         }
         write_string!(sink, indent, "Entry : ");
-        self.entry().pretty_print_no_indent(sink);
+        self.entry.get().unwrap().pretty_print_no_indent(sink);                                     // TODO error handling
     }
 }

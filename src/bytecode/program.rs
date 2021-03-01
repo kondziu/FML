@@ -11,6 +11,374 @@ use anyhow::*;
 use super::serializable::Serializable;
 use std::iter::repeat;
 
+use crate::bail_if;
+
+pub struct Program {
+    pub constant_pool: ConstantPool,
+    pub labels: Labels,
+    pub code: Code,
+    pub globals: Globals,
+    pub entry: Entry,
+}
+
+impl Program {
+    pub fn new() -> Self {
+        Program {
+            labels: Labels::new(),
+            constant_pool: ConstantPool::new(),
+            code: Code::new(),
+            globals: Globals::new(),
+            entry: Entry::new(),
+        }
+    }
+
+    // pub fn emit_code(&mut self, opcode: OpCode) {
+    //     match opcode {
+    //         OpCode::Label {name: index} => {
+    //             let address = Address::from_usize(self.code.length());
+    //             self.code.push(opcode);
+    //             let constant = self.get_constant(&index);
+    //             match constant {
+    //                 Some(ProgramObject::String(name)) => {
+    //                     let name = name.to_owned();
+    //                     let result = self.labels.register_label_address(name, address);
+    //
+    //                     if result.is_some() {
+    //                          panic!("Emit code error: cannot create label {:?}, \
+    //                                            name {:?} already used by another label.",
+    //                                                opcode, self.get_constant(&index))
+    //                     }
+    //                 },
+    //                 Some(object) => panic!("Emit code error: cannot create label, \
+    //                                         constant at index {:?} should be a String, but is {:?}",
+    //                                         index, object),
+    //
+    //                 None => panic!("Emit code error: cannot create label, \
+    //                                 there is no constant at index {:?}", index),
+    //             }
+    //
+    //         }
+    //         _ => self.code.opcodes.push(opcode),
+    //     }
+    // }
+
+//     #[allow(dead_code)]
+//     pub fn new(code: Code,
+//                constants: Vec<ProgramObject>,
+//                globals: Vec<ConstantPoolIndex>,
+//                entry: ConstantPoolIndex) -> Program {
+//
+//         let labels = Program::labels_from_code(&code, &constants);
+//
+//         Program { code, labels, constants, globals, entry }
+//     }
+//
+
+//
+//     fn labels_from_code(code: &Code, constants: &Vec<ProgramObject>) -> Labels {
+//         let mut labels: HashMap<String, Address> = HashMap::new();
+//         for (i, opcode) in code.opcodes.iter().enumerate() {
+//             if let OpCode::Label { name: index } = opcode {
+//                 let constant = constants.get(index.value() as usize)
+//                     .expect(&format!("Program initialization: label {:?} expects a constant in the \
+//                                       constant pool at index {:?} but none was found",
+//                                      opcode, index));
+//
+//                 let name = match constant {
+//                     ProgramObject::String(string) => string,
+//                     _ => panic!("Program initialization: label {:?} expects a String in the \
+//                                  constant pool at index {:?} but {:?} was found",
+//                                 opcode, index, constant),
+//                 };
+//
+//                 if labels.contains_key(name) {
+//                     panic!("Program initialization: attempt to define label {:?} with a non-unique \
+//                             name: {}", opcode, name)
+//                 }
+//
+//                 labels.insert(name.to_string(), Address::from_usize(i));
+//             };
+//         }
+//         Labels::from(labels)
+//     }
+//
+//     pub fn code(&self) -> &Code {
+//         &self.code
+//     }
+//
+//     pub fn constants(&self) -> &Vec<ProgramObject> {
+//         &self.constants
+//     }
+//
+//     pub fn labels(&self) -> &HashMap<String, Address> {
+//         &self.labels.all()
+//     }
+//
+//     pub fn globals(&self) -> &Vec<ConstantPoolIndex> {
+//         &self.globals
+//     }
+//
+//     pub fn entry(&self) -> &ConstantPoolIndex {
+//         &self.entry
+//     }
+//
+//     pub fn get_constant(&self, index: &ConstantPoolIndex) -> Option<&ProgramObject> {
+//         self.constants.get(index.value() as usize)
+//     }
+//
+//     pub fn get_opcode(&self, address: &Address) -> Option<&OpCode> {
+//         self.code.get_opcode(address)
+//     }
+//
+//     pub fn get_label(&self, name: &str) -> Option<&Address> {
+//         self.labels.get_label_address(name)
+//     }
+//
+//     //-----------
+//
+
+//
+//     pub fn register_global(&mut self, constant: ConstantPoolIndex) {
+//         if self.globals.contains(&constant) {
+//             panic!("Cannot register global {:?}, this index is already registered.", constant)
+//         }
+//
+//         self.globals.push(constant)
+//     }
+//
+// //    fn register_label(&mut self, label: String) -> ConstantPoolIndex {
+// //        if let Some(index) = self.labels.get(&label) {
+// //            return *index;
+// //        }
+// //        let index = ConstantPoolIndex::from_usize(self.labels.len());
+// //        self.labels.insert(label, index);
+// //        index
+// //    }
+//
+//     // pub fn generate_new_label_name(&mut self, name: &str) -> ConstantPoolIndex {
+//     //     let label = self.labels.generate_label(name).unwrap();
+//     //     self.labels.new_group();
+//     //     let constant = ProgramObject::String(label);
+//     //     let index = self.register_constant(constant);
+//     //
+//     //     index
+//     // }
+//
+//     pub fn generate_new_label_names(&mut self, names: Vec<&str>) -> Vec<ConstantPoolIndex> {
+//         let labels: Vec<String> = names.into_iter()
+//             .map(|name| self.labels.generate_label(name))
+//             .map(|label| label.unwrap())
+//             .collect();
+//
+//         self.labels.new_group();
+//
+//         labels.into_iter()
+//             .map(|label| {
+//                 self.register_constant(ProgramObject::String(label.clone()))
+//             })
+//             .collect()
+//     }
+//
+//     pub fn get_current_address(&self) -> Address {
+//         let size = self.code.opcodes.len();
+//         Address::from_usize(size - 1)
+//     }
+//
+//     pub fn get_upcoming_address(&self) -> Address {
+//         let size = self.code.opcodes.len();
+//         Address::from_usize(size)
+//     }
+//
+//     pub fn set_entry(&mut self, function_index: ConstantPoolIndex) {
+//         self.entry = function_index;
+//     }
+//
+//     pub fn emit_conditionally(&mut self, opcode: OpCode, emit: bool) {
+//         if emit { self.emit_code(opcode) }
+//     }
+//
+//     pub fn emit_code(&mut self, opcode: OpCode) {
+//         // println!("Emitting code: {:?}", opcode);
+//         match opcode {
+//             OpCode::Label {name: index} => {
+//                 let address = Address::from_usize(self.code.opcodes.len());
+//                 self.code.opcodes.push(opcode);
+//                 let constant = self.get_constant(&index);
+//                 match constant {
+//                     Some(ProgramObject::String(name)) => {
+//                         let name = name.to_owned();
+//                         let result = self.labels.register_label_address(name, address);
+//
+//                         if result.is_some() {
+//                              panic!("Emit code error: cannot create label {:?}, \
+//                                                name {:?} already used by another label.",
+//                                                    opcode, self.get_constant(&index))
+//                         }
+//                     },
+//                     Some(object) => panic!("Emit code error: cannot create label, \
+//                                             constant at index {:?} should be a String, but is {:?}",
+//                                             index, object),
+//
+//                     None => panic!("Emit code error: cannot create label, \
+//                                     there is no constant at index {:?}", index),
+//                 }
+//
+//             }
+//             _ => self.code.opcodes.push(opcode),
+//         }
+//     }
+}
+
+pub struct Globals(Vec<ConstantPoolIndex>);
+impl Globals {
+    pub fn new() -> Self { Globals(Vec::new()) }
+    pub fn register(&mut self, name_index: ConstantPoolIndex) -> Result<()> {
+        bail_if!(self.0.contains(&name_index),
+                 "Cannot register global `{}`, index is already registered as a global.",
+                 name_index);
+        Ok(self.0.push(name_index))
+    }
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=ConstantPoolIndex> + 'a{
+        self.0.iter().map(|index| index.clone())
+    }
+}
+
+pub struct Entry(Option<ConstantPoolIndex>);
+impl Entry {
+    pub fn new() -> Self { Entry(None) }
+    pub fn get(&self) -> Result<ConstantPoolIndex> {
+        bail_if!(self.0.is_none(), "Entry point was read, but it was not set yet.", /*bad macro*/);
+        Ok(self.0.as_ref().unwrap().clone())
+    }
+    pub fn set(&mut self, index: ConstantPoolIndex) {
+        self.0 = Some(index)
+    }
+}
+impl From<ConstantPoolIndex> for Entry {
+    fn from(index: ConstantPoolIndex) -> Self {
+        Entry(Some(index))
+    }
+}
+
+pub struct Labels { names: HashMap<String, Address>, groups: usize } // FIXME
+impl Labels {
+    pub fn new() -> Self { Labels { names: HashMap::new(), groups: 0 } }
+    pub fn get(&self, label: &str) -> Result<&Address> {
+        self.names.get(label).with_context(|| format!("Label `{}` was not previously register.", label))
+    }
+    pub fn set(&mut self, label: String, index: Address) -> Result<()> {
+        let previous = self.names.insert(label.clone(), index);
+        match previous {
+            Some(old_index) =>
+                Err(anyhow!("Attempting to register `{}` at address `{}`, \
+                             but it was already registered at address `{}`",
+                             label, index, old_index)),
+            None => Ok(()),
+        }
+    }
+    pub(crate) fn generate_name_within_group<S>(&self, prefix: S, group: usize) -> Result<String> where S: Into<String> {
+        let name = format!("{}:{}", prefix.into(), group);
+        bail_if!(self.names.contains_key(&name), "Label `{}` already exists.", name);
+        Ok(name)
+    }
+    pub fn generate_name<S>(&mut self, prefix: S) -> Result<String> where S: Into<String> {
+        let name = self.generate_name_within_group(prefix, self.groups + 1)?;
+        self.groups = self.groups + 1;
+        Ok(name)
+    }
+    pub fn generate<S>(&mut self, prefix: S) -> Result<ProgramObject> where S: Into<String> {
+        self.generate_name(prefix)
+            .map(|name| ProgramObject::String(name))
+    }
+    pub fn create_group(&mut self) -> LabelGroup<'_> {
+        let group = self.groups;
+        self.groups = self.groups + 1;
+        LabelGroup { labels: self, group }
+    }
+
+    pub fn from<'a, I>(labels: I) -> Result<Self>
+        where I: IntoIterator<Item=(&'a ProgramObject, Address)> {
+
+        let names = labels.into_iter()
+            .map(|(program_object, address)| {
+                program_object.as_str().map(|name| (name.to_owned(), address))
+            })
+            .collect::<Result<HashMap<String, Address>>>()?;
+
+        let groups = names.iter().flat_map(|(label, _)| {
+            label.split(":").last().map(|s| {
+                s.parse::<usize>().map_or(None, |n| Some(n))
+            }).flatten()
+        }).max().map_or(0, |n| n + 1);
+
+        Ok(Labels { names, groups })
+    }
+}
+
+pub struct LabelGroup<'a> { labels: &'a Labels, group: usize }
+
+impl LabelGroup<'_> {
+    pub fn generate_name<S>(&self, prefix: S) -> Result<String> where S: Into<String> {
+        self.labels.generate_name_within_group(prefix, self.group)
+    }
+
+    pub fn generate<S>(&self, prefix: S) -> Result<ProgramObject> where S: Into<String> {
+        self.labels.generate_name_within_group(prefix, self.group)
+            .map(|name| ProgramObject::String(name))
+    }
+}
+
+
+// pub struct Dictionary<T>(HashMap<String, T>);                                                       // TODO make implementation just for globals to makje the error messages good.
+// impl<T> Dictionary<T> {
+//     pub fn new() -> Self { Dictionary(HashMap::new()) }
+//     pub fn get(&self, name: &str) -> Result<&T> {
+//         self.0.get(name)
+//             .with_context(|| Err(anyhow!("Cannot reference `{}`: key not found.", name)))
+//     }
+//     pub fn set(&mut self, name: String, pointer: T) -> Result<()> {
+//         self.0.insert(name, pointer)
+//             .with_context(|| Err(anyhow!("Cannot set value of `{}`: key not found.", name)))
+//     }
+// }
+
+pub struct ConstantPool(Vec<ProgramObject>);
+impl ConstantPool {
+    pub fn new() -> Self { ConstantPool(Vec::new()) }
+    pub fn get(&self, index: &ConstantPoolIndex) -> Result<&ProgramObject> {
+        self.0.get(index.as_usize())
+            .with_context(||
+                format!("Cannot dereference object from the constant pool at index: `{}`", index))
+    }
+    pub fn get_all(&self, indices: Vec<&ConstantPoolIndex>) -> Result<Vec<&ProgramObject>> {
+        indices.iter()
+            .map(|index| self.get(index))
+            .collect()
+    }
+    pub fn push(&mut self, program_object: ProgramObject) -> ConstantPoolIndex {
+        self.0.push(program_object);
+        ConstantPoolIndex::from_usize(self.0.len() - 1)
+    }
+    pub fn find(&self, program_object: &ProgramObject) -> Option<ConstantPoolIndex> {
+        self.0.iter()
+            .position(|c| c == program_object)
+            .map(|position| ConstantPoolIndex::from_usize(position))
+    }
+    pub fn register(&mut self, program_object: ProgramObject) -> ConstantPoolIndex {
+        let index = self.find(&program_object);
+        match index {
+            Some(index) => index,
+            None => self.push(program_object),
+        }
+    }
+    pub fn iter(&self) -> impl Iterator<Item=&ProgramObject> {
+        self.0.iter()
+    }
+    pub fn size(&self) -> usize {
+        self.0.len()
+    }
+}
+
 #[derive(PartialEq,Debug,Clone)]
 pub enum ProgramObject {
     /**
@@ -217,12 +585,12 @@ impl SerializableWithContext for ProgramObject {
                 name.serialize(sink)?;
                 arguments.serialize(sink)?;
                 locals.serialize(sink)?;
-                OpCode::write_opcode_vector(sink, &code.addresses_to_code_vector(range))
+                OpCode::write_opcode_vector(sink, &code.materialize(range)?)
             }
         }
     }
 
-    fn from_bytes<R: Read>(input: &mut R, code: &mut Code) -> Self {
+    fn from_bytes<R: Read>(input: &mut R, code: &mut Code) -> Self {                                // TODO error handling
         let tag = serializable::read_u8(input);
         match tag {
             0x00 => ProgramObject::Integer(serializable::read_i32(input)),
@@ -231,7 +599,7 @@ impl SerializableWithContext for ProgramObject {
             0x03 => ProgramObject::Method { name: ConstantPoolIndex::from_bytes(input),
                 parameters: Arity::from_bytes(input),
                 locals: Size::from_bytes(input),
-                code: code.register_opcodes(OpCode::read_opcode_vector(input))},
+                code: code.append(OpCode::read_opcode_vector(input))},
             0x04 => ProgramObject::Slot { name: ConstantPoolIndex::from_bytes(input) },
             0x05 => ProgramObject::Class(ConstantPoolIndex::read_cpi_vector(input)),
             0x06 => ProgramObject::Boolean(serializable::read_bool(input)),
@@ -288,331 +656,230 @@ impl ProgramObject {
 
 
 #[derive(PartialEq,Debug,Clone)]
-pub struct Code {
-    opcodes: Vec<OpCode>,
-}
-
+pub struct Code(Vec<OpCode>);
 impl Code {
-    pub fn new() -> Code {
-        Code { opcodes: Vec::new() }
+    pub fn new() -> Self { Code(Vec::new()) }
+    pub fn current_address(&self) -> Address {
+        Address::from_usize(self.0.len() - 1)
     }
-
-    #[allow(dead_code)]
-    pub fn from(opcodes: Vec<OpCode>) -> Code {
-        Code { opcodes }
+    pub fn upcoming_address(&self) -> Address {
+        Address::from_usize(self.0.len())
     }
-
-    #[allow(dead_code)]
-    pub fn all_opcodes(&self) -> Vec<(Address, OpCode)> {
-        self.opcodes.iter().enumerate().map(|(i, opcode)| {
-            (Address::from_usize(i), opcode.clone())
-        }).collect()
+    pub fn emit(&mut self, opcode: OpCode) {
+        self.0.push(opcode)
     }
-
-    pub fn register_opcodes(&mut self, opcodes: Vec<OpCode>) -> AddressRange {
-        let start = self.opcodes.len();
-        let length = opcodes.len();
-        self.opcodes.extend(opcodes);
-        AddressRange::new(Address::from_usize(start), length)
+    pub fn emit_if(&mut self, opcode: OpCode, condition: bool) {
+        if condition { self.emit(opcode) }
     }
-
-    pub fn addresses_to_code_vector(&self, range: &AddressRange) -> Vec<&OpCode> {
+    pub fn emit_unless(&mut self, opcode: OpCode, condition: bool) {
+        if !condition { self.emit(opcode) }
+    }
+    pub fn length(&self) -> usize {
+        self.0.len()
+    }
+    pub fn materialize(&self, range: &AddressRange) -> Result<Vec<&OpCode>> {
         let start = range.start().value_usize();
         let end = start + range.length();
-        let mut result: Vec<&OpCode> = Vec::new();
-        for i in start..end {
-            result.push(&self.opcodes[i]);
-        }
-        result
-    }
 
-    pub fn next_address(&self, address: Option<Address>) -> Option<Address> {
-        match address {
-            Some(address) => {
-                let new_address = Address::from_usize(address.value_usize() + 1);
-                if self.opcodes.len() > new_address.value_usize() {
-                    Some(new_address)
-                } else {
-                    None
-                }
-            }
-            None => panic!("Cannot advance a nothing address.")
-        }
-    }
+        bail_if!(end >= self.0.len(),
+                 "Address range exceeds code size: {} + {} >= {}.",
+                 start, range.length, self.0.len());
 
-    pub fn get_opcode(&self, address: &Address) -> Option<&OpCode> {
-        //self.table[address.value() as usize]
-        self.opcodes.get(address.value_usize())
+        Ok((start..end).map(|index| &self.0[index]).collect())
     }
-
-    // pub fn dump(&self) { // TODO pretty print
-    //     for (i, opcode) in self.opcodes.iter().enumerate() {
-    //         println!("{}: {:?}", i, opcode);
-    //     }
-    // }
-}
-
-#[derive(PartialEq,Debug,Clone)]
-pub struct Labels {
-    labels: HashMap<String, Address>,
-    groups: usize,
-}
-
-impl Labels {
-    pub fn new() -> Self {
-        Labels { labels: HashMap::new(), groups: 0 }
+    pub fn append(&mut self, opcodes: Vec<OpCode>) -> AddressRange {
+        let start = self.0.len();
+        let length = opcodes.len();
+        self.0.extend(opcodes);
+        AddressRange::new(Address::from_usize(start), length)
     }
-    pub fn from(labels: HashMap<String, Address>) -> Self {
-        let groups = labels.iter().flat_map(|(label, _)| {
-            label.split(":").last().map(|s| {
-                s.parse::<usize>().map_or(None, |n| Some(n))
-            }).flatten()
-        }).max().map_or(0, |n| n + 1);
-        Labels { labels, groups }
+    pub fn labels(&self) -> Vec<&ConstantPoolIndex> {
+        self.0.iter().flat_map(|opcode| match opcode {
+            OpCode::Label { name } => Some(name),
+            _ => None
+        }).collect()
     }
-    pub fn generate_label<S>(&mut self, name: S) -> Option<String> where S: Into<String> {
-        let label = format!("{}:{}", name.into(), self.groups);
-        if self.labels.contains_key(&label) {
-            None
+    pub fn label_addresses(&self) -> Vec<Address> {
+        self.0.iter().enumerate().flat_map(|(address, opcode)| match opcode {
+            OpCode::Label { .. } => Some(Address::from_usize(address)),
+            _ => None
+        }).collect()
+    }
+    pub fn next(&self, address: Address) -> Option<Address> {
+        let index = address.value_usize() + 1;
+        if index < self.0.len() {
+            Some(Address::from_usize(index))
         } else {
-            Some(label)
-        }
-    }
-    pub fn register_label_address<S>(&mut self, name: S, address: Address) -> Option<Address> where S: Into<String> {
-        self.labels.insert(name.into(), address)
-    }
-    pub fn new_group(&mut self) {
-        self.groups = self.groups + 1
-    }
-    pub fn get_label_address(&self, name: &str) -> Option<&Address> {
-        self.labels.get(name)
-    }
-    pub fn all(&self) -> &HashMap<String, Address> {
-        &self.labels
-    }
-}
-
-#[derive(PartialEq,Debug,Clone)]
-pub struct Program {
-    code: Code,
-    labels: Labels,
-    constants: Vec<ProgramObject>,
-    globals: Vec<ConstantPoolIndex>,
-    entry: ConstantPoolIndex,
-}
-
-impl Program {
-    #[allow(dead_code)]
-    pub fn new(code: Code,
-               constants: Vec<ProgramObject>,
-               globals: Vec<ConstantPoolIndex>,
-               entry: ConstantPoolIndex) -> Program {
-
-        let labels = Program::labels_from_code(&code, &constants);
-
-        Program { code, labels, constants, globals, entry }
-    }
-
-    pub fn empty() -> Program {
-        Program {
-            code: Code::new(),
-            labels: Labels::new(),
-            constants: Vec::new(),
-            globals: Vec::new(),
-            entry: ConstantPoolIndex::new(0) // FIXME
-        }
-    }
-
-    fn labels_from_code(code: &Code, constants: &Vec<ProgramObject>) -> Labels {
-        let mut labels: HashMap<String, Address> = HashMap::new();
-        for (i, opcode) in code.opcodes.iter().enumerate() {
-            if let OpCode::Label { name: index } = opcode {
-                let constant = constants.get(index.value() as usize)
-                    .expect(&format!("Program initialization: label {:?} expects a constant in the \
-                                      constant pool at index {:?} but none was found",
-                                     opcode, index));
-
-                let name = match constant {
-                    ProgramObject::String(string) => string,
-                    _ => panic!("Program initialization: label {:?} expects a String in the \
-                                 constant pool at index {:?} but {:?} was found",
-                                opcode, index, constant),
-                };
-
-                if labels.contains_key(name) {
-                    panic!("Program initialization: attempt to define label {:?} with a non-unique \
-                            name: {}", opcode, name)
-                }
-
-                labels.insert(name.to_string(), Address::from_usize(i));
-            };
-        }
-        Labels::from(labels)
-    }
-
-    pub fn code(&self) -> &Code {
-        &self.code
-    }
-
-    pub fn constants(&self) -> &Vec<ProgramObject> {
-        &self.constants
-    }
-
-    pub fn labels(&self) -> &HashMap<String, Address> {
-        &self.labels.all()
-    }
-
-    pub fn globals(&self) -> &Vec<ConstantPoolIndex> {
-        &self.globals
-    }
-
-    pub fn entry(&self) -> &ConstantPoolIndex {
-        &self.entry
-    }
-
-    pub fn get_constant(&self, index: &ConstantPoolIndex) -> Option<&ProgramObject> {
-        self.constants.get(index.value() as usize)
-    }
-
-    pub fn get_opcode(&self, address: &Address) -> Option<&OpCode> {
-        self.code.get_opcode(address)
-    }
-
-    pub fn get_label(&self, name: &str) -> Option<&Address> {
-        self.labels.get_label_address(name)
-    }
-
-    //-----------
-
-    pub fn register_constant(&mut self, constant: ProgramObject) -> ConstantPoolIndex {
-        match self.constants.iter().position(|c| *c == constant) {
-            Some(position) => ConstantPoolIndex::from_usize(position),
-            None => {
-                let index = ConstantPoolIndex::from_usize(self.constants.len());
-                self.constants.push(constant);
-                index
-            }
-        }
-    }
-
-    pub fn register_global(&mut self, constant: ConstantPoolIndex) {
-        if self.globals.contains(&constant) {
-            panic!("Cannot register global {:?}, this index is already registered.", constant)
-        }
-
-        self.globals.push(constant)
-    }
-
-//    fn register_label(&mut self, label: String) -> ConstantPoolIndex {
-//        if let Some(index) = self.labels.get(&label) {
-//            return *index;
-//        }
-//        let index = ConstantPoolIndex::from_usize(self.labels.len());
-//        self.labels.insert(label, index);
-//        index
-//    }
-
-    // pub fn generate_new_label_name(&mut self, name: &str) -> ConstantPoolIndex {
-    //     let label = self.labels.generate_label(name).unwrap();
-    //     self.labels.new_group();
-    //     let constant = ProgramObject::String(label);
-    //     let index = self.register_constant(constant);
-    //
-    //     index
-    // }
-
-    pub fn generate_new_label_names(&mut self, names: Vec<&str>) -> Vec<ConstantPoolIndex> {
-        let labels: Vec<String> = names.into_iter()
-            .map(|name| self.labels.generate_label(name))
-            .map(|label| label.unwrap())
-            .collect();
-
-        self.labels.new_group();
-
-        labels.into_iter()
-            .map(|label| {
-                self.register_constant(ProgramObject::String(label.clone()))
-            })
-            .collect()
-    }
-
-    pub fn get_current_address(&self) -> Address {
-        let size = self.code.opcodes.len();
-        Address::from_usize(size - 1)
-    }
-
-    pub fn get_upcoming_address(&self) -> Address {
-        let size = self.code.opcodes.len();
-        Address::from_usize(size)
-    }
-
-    pub fn set_entry(&mut self, function_index: ConstantPoolIndex) {
-        self.entry = function_index;
-    }
-
-    pub fn emit_conditionally(&mut self, opcode: OpCode, emit: bool) {
-        if emit { self.emit_code(opcode) }
-    }
-
-    pub fn emit_code(&mut self, opcode: OpCode) {
-        // println!("Emitting code: {:?}", opcode);
-        match opcode {
-            OpCode::Label {name: index} => {
-                let address = Address::from_usize(self.code.opcodes.len());
-                self.code.opcodes.push(opcode);
-                let constant = self.get_constant(&index);
-                match constant {
-                    Some(ProgramObject::String(name)) => {
-                        let name = name.to_owned();
-                        let result = self.labels.register_label_address(name, address);
-
-                        if result.is_some() {
-                             panic!("Emit code error: cannot create label {:?}, \
-                                               name {:?} already used by another label.",
-                                                   opcode, self.get_constant(&index))
-                        }
-                    },
-                    Some(object) => panic!("Emit code error: cannot create label, \
-                                            constant at index {:?} should be a String, but is {:?}",
-                                            index, object),
-
-                    None => panic!("Emit code error: cannot create label, \
-                                    there is no constant at index {:?}", index),
-                }
-
-            }
-            _ => self.code.opcodes.push(opcode),
+            None
         }
     }
 }
+
+// impl Code { // TODO refactor
+//     pub fn new() -> Code {
+//         Code(Vec::new())
+//     }
+//
+//     #[allow(dead_code)]
+//     pub fn from(opcodes: Vec<OpCode>) -> Code {
+//         Code(opcodes)
+//     }
+//
+//     #[allow(dead_code)]
+//     pub fn all_opcodes(&self) -> Vec<(Address, OpCode)> {
+//         self.opcodes.iter().enumerate().map(|(i, opcode)| {
+//             (Address::from_usize(i), opcode.clone())
+//         }).collect()
+//     }
+//
+//     pub fn register_opcodes(&mut self, opcodes: Vec<OpCode>) -> AddressRange {
+//         let start = self.opcodes.len();
+//         let length = opcodes.len();
+//         self.opcodes.extend(opcodes);
+//         AddressRange::new(Address::from_usize(start), length)
+//     }
+//
+//     pub fn addresses_to_code_vector(&self, range: &AddressRange) -> Vec<&OpCode> {
+//         let start = range.start().value_usize();
+//         let end = start + range.length();
+//         let mut result: Vec<&OpCode> = Vec::new();
+//         for i in start..end {
+//             result.push(&self.opcodes[i]);
+//         }
+//         result
+//     }
+//
+//     pub fn next_address(&self, address: Option<Address>) -> Option<Address> {
+//         match address {
+//             Some(address) => {
+//                 let new_address = Address::from_usize(address.value_usize() + 1);
+//                 if self.opcodes.len() > new_address.value_usize() {
+//                     Some(new_address)
+//                 } else {
+//                     None
+//                 }
+//             }
+//             None => panic!("Cannot advance a nothing address.")
+//         }
+//     }
+//
+//     pub fn get_opcode(&self, address: &Address) -> Option<&OpCode> {
+//         //self.table[address.value() as usize]
+//         self.opcodes.get(address.value_usize())
+//     }
+//
+//     // pub fn dump(&self) { // TODO pretty print
+//     //     for (i, opcode) in self.opcodes.iter().enumerate() {
+//     //         println!("{}: {:?}", i, opcode);
+//     //     }
+//     // }
+// }
+
+// #[derive(PartialEq,Debug,Clone)]
+// pub struct Labels {
+//     labels: HashMap<String, Address>,
+//     groups: usize,
+// }
+
+// impl Labels {
+//     pub fn new() -> Self {
+//         Labels { labels: HashMap::new(), groups: 0 }
+//     }
+//     pub fn from(labels: HashMap<String, Address>) -> Self {
+//         let groups = labels.iter().flat_map(|(label, _)| {
+//             label.split(":").last().map(|s| {
+//                 s.parse::<usize>().map_or(None, |n| Some(n))
+//             }).flatten()
+//         }).max().map_or(0, |n| n + 1);
+//         Labels { labels, groups }
+//     }
+//     pub fn generate_label<S>(&mut self, name: S) -> Option<String> where S: Into<String> {
+//         let label = format!("{}:{}", name.into(), self.groups);
+//         if self.labels.contains_key(&label) {
+//             None
+//         } else {
+//             Some(label)
+//         }
+//     }
+//     pub fn register_label_address<S>(&mut self, name: S, address: Address) -> Option<Address> where S: Into<String> {
+//         self.labels.insert(name.into(), address)
+//     }
+//     pub fn new_group(&mut self) {
+//         self.groups = self.groups + 1
+//     }
+//     pub fn get_label_address(&self, name: &str) -> Option<&Address> {
+//         self.labels.get(name)
+//     }
+//     pub fn all(&self) -> &HashMap<String, Address> {
+//         &self.labels
+//     }
+// }
+
+// #[derive(PartialEq,Debug,Clone)]
+// pub struct Program {
+//     code: Code,
+//     labels: Labels,
+//     constants: Vec<ProgramObject>,
+//     globals: Vec<ConstantPoolIndex>,
+//     entry: ConstantPoolIndex,
+// }
+//
+
 
 impl Serializable for Program {
     fn serialize<W: Write>(&self, sink: &mut W) -> anyhow::Result<()> {
-
-        serializable::write_usize_as_u16(sink, self.constants.len())?;
-        for constant in self.constants.iter() {
-            constant.serialize(sink, self.code())?;
-        }
-
-        ConstantPoolIndex::write_cpi_vector(sink, &self.globals)?;
-
+        self.constant_pool.serialize(sink, &self.code)?;
+        self.globals.serialize(sink)?;
         self.entry.serialize(sink)
     }
 
     fn from_bytes<R: Read>(input: &mut R) -> Self {
         let mut code = Code::new();
 
+        let constant_pool = ConstantPool::from_bytes(input, &mut code);
+        let globals = Globals::from_bytes(input);
+        let entry = Entry::from_bytes(input);
+
+        let label_names = code.labels();
+        let label_constants = constant_pool.get_all(label_names).unwrap().into_iter();                // TODO error handling
+        let label_addresses = code.label_addresses().into_iter();
+        let labels = Labels::from(label_constants.zip(label_addresses)).unwrap();
+
+        Program { constant_pool, labels, code, globals, entry }
+    }
+}
+
+impl SerializableWithContext for ConstantPool {
+    fn serialize<W: Write>(&self, sink: &mut W, code: &Code) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    fn from_bytes<R: Read>(input: &mut R, code: &mut Code) -> Self {
         let size = serializable::read_u16_as_usize(input);
-        let mut constants: Vec<ProgramObject> = Vec::new();
-        for _ in 0..size {
-            constants.push(ProgramObject::from_bytes(input, &mut code))
-        }
+        let constants: Vec<ProgramObject> =
+            (0..size).map(|_| ProgramObject::from_bytes(input, code)).collect();
 
-        let globals = ConstantPoolIndex::read_cpi_vector(input);
-        let entry = ConstantPoolIndex::from_bytes(input);
-        let labels = Program::labels_from_code(&code, &constants);
+        ConstantPool(constants)
+    }
+}
 
-        Program { code, constants, globals, entry, labels }
+impl Serializable for Globals {
+    fn serialize<W: Write>(&self, sink: &mut W) -> Result<(), Error> {
+        ConstantPoolIndex::write_cpi_vector(sink, &self.0)
+    }
+
+    fn from_bytes<R: Read>(input: &mut R) -> Self {
+        Globals(ConstantPoolIndex::read_cpi_vector(input))
+    }
+}
+
+impl Serializable for Entry {
+    fn serialize<W: Write>(&self, sink: &mut W) -> Result<(), Error> {
+        self.0.expect("Cannot serialize an empty entry point.").serialize(sink)
+    }
+
+    fn from_bytes<R: Read>(input: &mut R) -> Self {
+        Entry(Some(ConstantPoolIndex::from_bytes(input)))
     }
 }
 

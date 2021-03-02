@@ -1201,7 +1201,8 @@ fn dispatch_object_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>
                 }
             },
             RuntimeObject::Null => {
-                interpret_null_method(cursor, name, arguments, state, program);
+                panic!("Call method error: no object at {:?}");
+                //interpret_null_method(cursor, name, arguments, state, program);
                 break
             },
             RuntimeObject::Boolean(_) => {

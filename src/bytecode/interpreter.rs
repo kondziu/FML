@@ -1125,17 +1125,17 @@ pub fn interpret_array_method(pointer: Pointer, name: &str, arguments: &Vec<Poin
                 name, arity.value() - 1, arguments.len())
     }
 
-    if name == "==" || name == "eq" {
-        let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-        let result = RuntimeObject::from_bool(compare(state, object, operand));
-        push_result_and_finish!(result, state, program);
-    }
-
-    if name == "!=" || name == "neq" {
-        let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-        let result = RuntimeObject::from_bool(!compare(state, object, operand));
-        push_result_and_finish!(result, state, program);
-    }
+    // if name == "==" || name == "eq" {
+    //     let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
+    //     let result = RuntimeObject::from_bool(compare(state, object, operand));
+    //     push_result_and_finish!(result, state, program);
+    // }
+    //
+    // if name == "!=" || name == "neq" {
+    //     let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
+    //     let result = RuntimeObject::from_bool(!compare(state, object, operand));
+    //     push_result_and_finish!(result, state, program);
+    // }
 
     if name == "get" {
         let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
@@ -1196,20 +1196,6 @@ fn dispatch_object_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>
                 if let Some(method) = methods.get(name) {
                     method.clone()
                 } else {
-                    if name == "==" || name == "eq" {
-                        let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-                        let result = RuntimeObject::from_bool(compare(state, object, operand));
-                        push_result_and_finish!(result, state, program);
-                        break;
-                    }
-
-                    if name == "!=" || name == "neq" {
-                        let (object, operand) = check_arguments_one!(pointer, arguments, name, state);
-                        let result = RuntimeObject::from_bool(!compare(state, object, operand));
-                        push_result_and_finish!(result, state, program);
-                        break;
-                    }
-
                     cursor = *parent;
                     continue
                 }
@@ -1269,53 +1255,53 @@ fn interpret_object_method(method: ProgramObject, pointer: Pointer, name: &str,
     }
 }
 
-pub fn compare(state: &State, a: &RuntimeObject, b: &RuntimeObject) -> bool {
-    match (a, b) {
-        (RuntimeObject::Null, RuntimeObject::Null) => true,
-        (RuntimeObject::Integer(a), RuntimeObject::Integer(b)) => a == b,
-        (RuntimeObject::Boolean(a), RuntimeObject::Boolean(b)) => a == b,
-        (RuntimeObject::Array(a), RuntimeObject::Array(b)) if a.len() == b.len() =>
-            a.iter().zip(b.iter()).all(|(a, b)| {
-                let a = state.memory.dereference(a).unwrap();
-                let b = state.memory.dereference(b).unwrap();
-                compare(state, a, b)
-            }),
-        (RuntimeObject::Object {
-            parent: a_parent,
-            fields: a_fields,
-            methods: a_methods
-        },
-        RuntimeObject::Object {
-            parent: b_parent,
-            fields: b_fields,
-            methods: b_methods
-        }) => {
-            let a_parent = state.memory.dereference(a_parent).unwrap();
-            let b_parent = state.memory.dereference(b_parent).unwrap();
-            if !compare(state, a_parent, b_parent) {
-                false
-            } else {
-                let same_fields =
-                    a_fields.iter().zip(b_fields.iter())
-                        .all(|((a_name, a), (b_name, b))| {
-                            let a = state.memory.dereference(a).unwrap();
-                            let b = state.memory.dereference(b).unwrap();
-                            if a_name == b_name {
-                                compare(state, a, b)
-                            } else {
-                                false
-                            }
-                        });
-                if same_fields {
-                    a_methods.iter().zip(b_methods.iter())
-                        .all(|((a_name, a), (b_name, b))| {
-                            a_name == b_name && a == b
-                        })
-                } else {
-                    false
-                }
-            }
-        },
-        _ => false
-    }
-}
+// pub fn compare(state: &State, a: &RuntimeObject, b: &RuntimeObject) -> bool {
+//     match (a, b) {
+//         (RuntimeObject::Null, RuntimeObject::Null) => true,
+//         (RuntimeObject::Integer(a), RuntimeObject::Integer(b)) => a == b,
+//         (RuntimeObject::Boolean(a), RuntimeObject::Boolean(b)) => a == b,
+//         (RuntimeObject::Array(a), RuntimeObject::Array(b)) if a.len() == b.len() =>
+//             a.iter().zip(b.iter()).all(|(a, b)| {
+//                 let a = state.memory.dereference(a).unwrap();
+//                 let b = state.memory.dereference(b).unwrap();
+//                 compare(state, a, b)
+//             }),
+//         (RuntimeObject::Object {
+//             parent: a_parent,
+//             fields: a_fields,
+//             methods: a_methods
+//         },
+//         RuntimeObject::Object {
+//             parent: b_parent,
+//             fields: b_fields,
+//             methods: b_methods
+//         }) => {
+//             let a_parent = state.memory.dereference(a_parent).unwrap();
+//             let b_parent = state.memory.dereference(b_parent).unwrap();
+//             if !compare(state, a_parent, b_parent) {
+//                 false
+//             } else {
+//                 let same_fields =
+//                     a_fields.iter().zip(b_fields.iter())
+//                         .all(|((a_name, a), (b_name, b))| {
+//                             let a = state.memory.dereference(a).unwrap();
+//                             let b = state.memory.dereference(b).unwrap();
+//                             if a_name == b_name {
+//                                 compare(state, a, b)
+//                             } else {
+//                                 false
+//                             }
+//                         });
+//                 if same_fields {
+//                     a_methods.iter().zip(b_methods.iter())
+//                         .all(|((a_name, a), (b_name, b))| {
+//                             a_name == b_name && a == b
+//                         })
+//                 } else {
+//                     false
+//                 }
+//             }
+//         },
+//         _ => false
+//     }
+// }

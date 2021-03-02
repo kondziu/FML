@@ -1189,7 +1189,7 @@ fn dispatch_object_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>
     let mut cursor: Pointer = pointer;
     loop {
         let object = state.dereference(&cursor)
-            .expect("Call method error: no object at {:?}");
+            .expect(&format!("Call method error: no object at {:?}", cursor));
 
         let method: ProgramObject = match object {
             RuntimeObject::Object { parent, fields: _, methods } => {
@@ -1201,9 +1201,9 @@ fn dispatch_object_method(pointer: Pointer, name: &str, arguments: &Vec<Pointer>
                 }
             },
             RuntimeObject::Null => {
-                panic!("Call method error: no object at {:?}");
+                panic!("Call method error: method `{}` not found in object `{}` or its parents", name, pointer);
                 //interpret_null_method(cursor, name, arguments, state, program);
-                break
+                //break
             },
             RuntimeObject::Boolean(_) => {
                 interpret_boolean_method(cursor, name, arguments, state, program);

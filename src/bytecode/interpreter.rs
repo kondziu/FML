@@ -1155,6 +1155,7 @@ pub fn interpret_array_method(pointer: Pointer, name: &str, arguments: &Vec<Poin
         }.clone();
 
         push_pointer_and_finish!(result, state, program);
+        return
     }
 
     if name == "set" {
@@ -1180,7 +1181,8 @@ pub fn interpret_array_method(pointer: Pointer, name: &str, arguments: &Vec<Poin
             _ => panic!("Call method error: object {:?} has no method {}", object, name),
         };
 
-        push_result_and_finish!(result, state, program)
+        push_result_and_finish!(result, state, program);
+        return
     }
 
     panic!("Call method error: method `{}` not found in array `{}`", name, pointer);

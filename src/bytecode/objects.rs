@@ -222,7 +222,7 @@ impl Pointer {
 
 impl std::fmt::Display for Pointer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{:x>8}", self.0)
+        write!(f, "0x{:0>8}", self.0)
     }
 }
 

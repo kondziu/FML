@@ -468,7 +468,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
     };
 
     //eprintln!("{ :<width$}", "-", width=80);
-/*
+
     eprintln!("| {: <code$} |", "CODE", code=30);
     for (address, opcode) in program.code().all_opcodes() {
         let here = if state.instruction_pointer().unwrap() == address { "*" } else { " " };
@@ -493,7 +493,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
     for (i, pointer) in state.operands.iter().enumerate() {
         eprintln!("| {: >4} {} |", i, pointer);
     }
-    eprintln!();*/
+    eprintln!();
 
     match opcode {
         OpCode::Literal { index } => {
@@ -772,6 +772,8 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 panic!("Call method error: method must have at least one parameter (receiver)");
             }
 
+            println!("name: {:?}, arguments: {:?}", program.get_constant(index), parameters);
+            println!("{:?}", state.operands);
             let mut arguments: VecDeque<Pointer> = VecDeque::with_capacity(parameters.value() as usize);
             for index in 0..(parameters.to_usize() - 1) {
                 let element = state.pop_operand()
@@ -1180,6 +1182,8 @@ pub fn interpret_array_method(pointer: Pointer, name: &str, arguments: &Vec<Poin
 
         push_result_and_finish!(result, state, program)
     }
+
+    panic!("Call method error: method `{}` not found in array `{}`", name, pointer);
 }
 
 

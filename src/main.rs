@@ -64,11 +64,11 @@ struct CompilerAction {
     #[clap(name="FILE", parse(from_os_str))]
     pub input: Option<PathBuf>,
 
-    #[clap(long = "output-format", alias = "bc", name = "AST_FORMAT",
+    #[clap(long = "output-format", alias = "bc", name = "BC_FORMAT",
     about = "The output format for the bytecode: bytes or string")]
     pub output_format: Option<BCSerializer>,
 
-    #[clap(long = "input-format", alias = "ast", name = "BC_FORMAT",
+    #[clap(long = "input-format", alias = "ast", name = "AST_FORMAT",
     about = "The output format of the AST: JSON, LISP, YAML")]
     pub input_format: Option<ASTSerializer>,
 }

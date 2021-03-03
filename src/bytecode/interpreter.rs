@@ -469,31 +469,31 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
 
     //eprintln!("{ :<width$}", "-", width=80);
 
-    eprintln!("| {: <code$} |", "CODE", code=30);
-    for (address, opcode) in program.code().all_opcodes() {
-        let here = if state.instruction_pointer().unwrap() == address { "*" } else { " " };
-        eprintln!("| {}{} {: <width$} |", here, address, opcode.to_string(), width=24);
-    }
-    eprintln!();
-
-    eprintln!("| {: <constant_pool$} |", "CONSTANT POOL", constant_pool=50);
-    for (i, constant) in program.constants().iter().enumerate() {
-        let index = ConstantPoolIndex::from_usize(i);
-        eprintln!("|  {: >4} {: <width$} |", index.to_string(), constant.to_string(), width=44);
-    }
-    eprintln!();
-
-    eprintln!("| {: <globals$} |", "GLOBALS", globals=7);
-    for (i, index) in program.globals().iter().enumerate() {
-        eprintln!("| {: >2} {: >width$} |", i, index.to_string(), width=4);
-    }
-    eprintln!();
-
-    eprintln!("| {: <stack$} |", "STACK", stack=16);
-    for (i, pointer) in state.operands.iter().enumerate() {
-        eprintln!("| {: >4} {} |", i, pointer);
-    }
-    eprintln!();
+    // eprintln!("| {: <code$} |", "CODE", code=30);
+    // for (address, opcode) in program.code().all_opcodes() {
+    //     let here = if state.instruction_pointer().unwrap() == address { "*" } else { " " };
+    //     eprintln!("| {}{} {: <width$} |", here, address, opcode.to_string(), width=24);
+    // }
+    // eprintln!();
+    //
+    // eprintln!("| {: <constant_pool$} |", "CONSTANT POOL", constant_pool=50);
+    // for (i, constant) in program.constants().iter().enumerate() {
+    //     let index = ConstantPoolIndex::from_usize(i);
+    //     eprintln!("|  {: >4} {: <width$} |", index.to_string(), constant.to_string(), width=44);
+    // }
+    // eprintln!();
+    //
+    // eprintln!("| {: <globals$} |", "GLOBALS", globals=7);
+    // for (i, index) in program.globals().iter().enumerate() {
+    //     eprintln!("| {: >2} {: >width$} |", i, index.to_string(), width=4);
+    // }
+    // eprintln!();
+    //
+    // eprintln!("| {: <stack$} |", "STACK", stack=16);
+    // for (i, pointer) in state.operands.iter().enumerate() {
+    //     eprintln!("| {: >4} {} |", i, pointer);
+    // }
+    // eprintln!();
 
     match opcode {
         OpCode::Literal { index } => {

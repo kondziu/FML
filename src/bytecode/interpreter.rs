@@ -772,8 +772,8 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                 panic!("Call method error: method must have at least one parameter (receiver)");
             }
 
-            println!("name: {:?}, arguments: {:?}", program.get_constant(index), parameters);
-            println!("{:?}", state.operands);
+            //println!("name: {:?}, arguments: {:?}", program.get_constant(index), parameters);
+            //println!("{:?}", state.operands);
             let mut arguments: VecDeque<Pointer> = VecDeque::with_capacity(parameters.value() as usize);
             for index in 0..(parameters.to_usize() - 1) {
                 let element = state.pop_operand()

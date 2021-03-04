@@ -1,0 +1,33 @@
+// Expected output:
+// > 1
+// > 2
+// > 3 fizz
+// > 4
+// > 5 buzz
+// > 6 fizz
+// > 7
+// > 8
+// > 9 fizz
+// > 10 buzz
+// > 11
+// > 12 fizz
+// > 13
+// > 14
+// > 15 fizz buzz
+// > 16 not considered
+
+function fizzbuzz(i, n) ->
+begin
+  if i <= n
+  then begin
+    print("~", i);
+    if i % 3 == 0 then print(" fizz");
+    if i % 5 == 0 then print(" buzz");
+    print("\n");
+    fizzbuzz(i + 1, n);
+  end
+  else
+    print("~ not considered\n", i);
+end;
+
+fizzbuzz(1, 15)

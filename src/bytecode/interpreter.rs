@@ -886,7 +886,7 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
             let mut escape = false;
             for character in format.chars() {
                 match (character, escape) {
-                    ('~', _) => {
+                    ('~', false) => {
                         let string = &argument_values.pop()
                             .map(|e| state.dereference_to_string(&e))
                             .expect(&format!("Print error: Not enough arguments for format {}",
@@ -895,6 +895,11 @@ pub fn interpret<Output>(state: &mut State, output: &mut Output, /*memory: &mut 
                         output.write_str(string)
                             .expect("Print error: Could not write to output stream.")
                     },
+                    ('~', true) => {
+                        output.write_char('~')
+                            .expect("Print error: Could not write to output stream.");
+                        escape = false;
+                    }
                     ('\\', false) => {
                         escape = true;
                     }

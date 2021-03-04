@@ -1,27 +1,79 @@
 // Expected output:
-// > x=1, y=2
-// > x=0, y=2
-// > x=3, y=2, z=3
-// > x=3, y=5, z=4
-// > x=3, y=5, z=3
+// > true things are true
+// > false things are not true
+// > null is not true
+// > zero is true
+// > one is true
+// > x is true
+// > y is not true
+// > true-false block is not true
+// > false-true block is true
+// > z is not true
+// > now z is true
+// > consequent is true
+// > alternative is false
+// > consequent is always true
+// > alternative is sometimes null
 
-let x = 1;
-let y = 2;
+if true
+then print("true things are true\n")
+else print("true things are not true\n");
 
-print("x=~, y=~\n", x, y);
+if false
+then print("false things are true\n")
+else print("false things are not true\n");
 
-x <- 0;
+if null
+then print("null is true\n")
+else print("null is not true\n");
 
-print("x=~, y=~\n", x, y);
+if 0
+then print("zero is true\n")
+else print("zero is not true\n");
 
-x <- (let z = 3);
+if 1
+then print("one is true\n")
+else print("one is not true\n");
 
-print("x=~, y=~, z=~\n", x, y, z);
+let x = true;
+if x
+then print("x is true\n")
+else print("x is not true\n");
 
-begin
-    let z = 4;
-    y <- 5;
-    print("x=~, y=~, z=~\n", x, y, z);
+let y = false;
+if y
+then print("y is true\n")
+else print("y is not true\n");
+
+if begin true; false; end
+then print("true-false block is true\n")
+else print("true-false block is not true\n");
+
+if begin false; true end
+then print("false-true block is true\n")
+else print("false-true block is not true\n");
+
+let z = false;
+z <- if z
+then print("z is true\n")
+else begin
+  print("z is not true\n");
+  true;
 end;
 
-print("x=~, y=~, z=~\n", x, y, z);
+if z
+then print("now z is true\n")
+else print("now z is not true\n");
+
+let consequent = if true then true else false;
+print("consequent is ~\n", consequent);
+
+let alternative = if false then true else false;
+print("alternative is ~\n", alternative);
+
+consequent <- if true then true;
+print("consequent is always ~\n", consequent);
+
+alternative <- if false then true;
+print("alternative is sometimes ~\n", alternative);
+

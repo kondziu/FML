@@ -1,3 +1,7 @@
 // Expected output:
-// > Hello world!
-print("Hello world!\n");
+// > null
+// > false true
+// > -42 -1 0 1 42
+print("~\n", null);
+print("~ ~\n", false, true);
+print("~ ~ ~ ~ ~\n", -42, -1, 0, 1, 42);

@@ -5,7 +5,7 @@ lalrpop_mod!(pub fml); // load module synthesized by LALRPOP
 mod parser;
 mod bytecode;
 
-//#[cfg(test)] mod tests;
+#[cfg(test)] mod tests;
 
 use std::path::PathBuf;
 use std::fs::File;

@@ -581,9 +581,9 @@ impl SerializableWithContext for ProgramObject {
             Class(v)    => ConstantPoolIndex::write_cpi_vector(sink, v),
             Slot {name} => name.serialize(sink),
 
-            Method {name, parameters: arguments, locals, code: range} => {
+            Method {name, parameters, locals, code: range} => {
                 name.serialize(sink)?;
-                arguments.serialize(sink)?;
+                parameters.serialize(sink)?;
                 locals.serialize(sink)?;
                 OpCode::write_opcode_vector(sink, &code.materialize(range)?)
             }
@@ -681,7 +681,7 @@ impl Code {
         let start = range.start().value_usize();
         let end = start + range.length();
 
-        bail_if!(end >= self.0.len(),
+        bail_if!(end > self.0.len(),
                  "Address range exceeds code size: {} + {} >= {}.",
                  start, range.length, self.0.len());
 
@@ -712,6 +712,12 @@ impl Code {
         } else {
             None
         }
+    }
+}
+
+impl From<Vec<OpCode>> for Code {
+    fn from(vector: Vec<OpCode>) -> Self {
+        Code(vector)
     }
 }
 

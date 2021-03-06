@@ -38,13 +38,19 @@ pub fn evaluate(program: &Program) -> Result<()> {
     let entry_address = entry_method.get_method_start_address()?;
     let entry_locals = entry_method.get_method_locals()?;                                     // TODO probably better way to do this method thing.
 
-    unimplemented!();
-    Ok(())
+    state.frame_stack.push(Frame::with_capacity(None, entry_locals.to_usize(), Pointer::Null));
+    state.instruction_pointer.set(Some(*entry_address));
+
+    evaluate_with(program, &mut state, &mut output)
 }
 
 pub fn evaluate_with<W>(program: &Program, state: &mut State, output: &mut W) -> Result<()> where W: Write {
 
-    unimplemented!();
+    while let Some(address) = state.instruction_pointer.get() {
+        let opcode = program.code.get(address)?;
+        eval_opcode(program, state,output, opcode)?;
+    }
+
     Ok(())
 }
 

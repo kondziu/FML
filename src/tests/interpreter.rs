@@ -21,8 +21,8 @@ macro_rules! hashmap {
         }};
     }
 
-fn interpret<W>(program: &Program, output: &mut W, state: &mut State) {
-    unimplemented!()
+fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: std::fmt::Write {
+    evaluate_with(program, state, output).unwrap()
 }
 
 #[test] fn literal() {

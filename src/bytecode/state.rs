@@ -70,8 +70,8 @@ impl Frame {
     pub fn new() -> Self {
         Frame { locals: Vec::new(), return_address: None }
     }
-    pub fn with_capacity(size: usize, initial: Pointer) -> Self {
-        Frame { locals: (0..size).map(|_| initial.clone()).collect(), return_address: None }
+    pub fn with_capacity(return_address: Option<Address>, size: usize, initial: Pointer) -> Self {
+        Frame { locals: (0..size).map(|_| initial.clone()).collect(), return_address }
     }
     pub fn from(return_address: Option<Address>, locals: Vec<Pointer>) -> Self {
         Frame { locals, return_address }
@@ -96,14 +96,26 @@ impl Frame {
 #[derive(Eq, PartialEq, Debug)]
 pub struct FrameStack { pub globals: GlobalFrame, pub functions: GlobalFunctions, frames: Vec<Frame> }
 impl FrameStack {
-    pub fn new() -> Self { unimplemented!() }
-    pub fn pop(&mut self) -> Result<Frame> { unimplemented!() }
-    pub fn push(&mut self, frame: Frame) { unimplemented!() }
-    pub fn get_locals(&self) -> Result<&Frame> { unimplemented!() }
-    pub fn get_locals_mut(&mut self) -> Result<&mut Frame> { unimplemented!() }
-    // pub fn from(globals: GlobalFrame, functions: GlobalFunctions) -> Self {
-    //     FrameStack { globals, functions, frames: Vec::new() }
-    // }
+    pub fn new() -> Self {
+        FrameStack {
+            globals: GlobalFrame::new(),
+            functions: GlobalFunctions::new(),
+            frames: Vec::new()}
+    }
+    pub fn pop(&mut self) -> Result<Frame> {
+        self.frames.pop().with_context(|| format!("Attempting to pop frame from empty stack."))
+    }
+    pub fn push(&mut self, frame: Frame) {
+        self.frames.push(frame)
+    }
+    pub fn get_locals(&self) -> Result<&Frame> {
+        self.frames.last()
+            .with_context(|| format!("Attempting to access frame from empty stack."))
+    }
+    pub fn get_locals_mut(&mut self) -> Result<&mut Frame> {
+        self.frames.last_mut()
+            .with_context(|| format!("Attempting to access frame from empty stack."))
+    }
 }
 
 impl From<(GlobalFrame, GlobalFunctions)> for FrameStack {

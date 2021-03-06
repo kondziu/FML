@@ -762,6 +762,14 @@ impl Code {
             None
         }
     }
+    pub fn get(&self, address: Address) -> Result<&OpCode> {
+        let index = address.value_usize();
+        if index < self.0.len() {
+            Ok(&self.0[index])
+        } else {
+            Err(anyhow!("Code address {} out of bounds (0..{})", address, self.0.len()))
+        }
+    }
 }
 
 impl From<Vec<OpCode>> for Code {

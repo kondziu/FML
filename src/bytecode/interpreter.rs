@@ -14,7 +14,8 @@ use crate::veccat;
 use super::helpers::PairIterator;
 use super::helpers::Pairable;
 use crate::bytecode::program::*;
-use crate::bytecode::state::{State, Frame};
+use crate::bytecode::state::*;
+
 
 trait OpCodeEvaluationResult<T> {
     #[inline(always)]
@@ -29,7 +30,22 @@ impl<T> OpCodeEvaluationResult<T> for Result<T> {
 }
 
 pub fn evaluate(program: &Program) -> Result<()> {
-    unimplemented!()
+    let mut state = State::from(program)?;
+    let mut output = Output::new();
+
+    let entry_index = program.entry.get()?;
+    let entry_method = program.constant_pool.get(&entry_index)?;
+    let entry_address = entry_method.get_method_start_address()?;
+    let entry_locals = entry_method.get_method_locals()?;                                     // TODO probably better way to do this method thing.
+
+    unimplemented!();
+    Ok(())
+}
+
+pub fn evaluate_with<W>(program: &Program, state: &mut State, output: &mut W) -> Result<()> where W: Write {
+
+    unimplemented!();
+    Ok(())
 }
 
 pub fn eval_opcode<W>(program: &Program, state: &mut State, output: &mut W, opcode: &OpCode) -> Result<()> where W: Write {
@@ -376,7 +392,7 @@ fn eval_call_object_method(program: &Program, state: &mut State,
     let local_pointers = locals.make_vector(Pointer::Null);
 
     state.instruction_pointer.bump(program);
-    let frame = Frame::new(state.instruction_pointer.get(), veccat!(vec![pointer], argument_pointers, local_pointers));
+    let frame = Frame::from(state.instruction_pointer.get(), veccat!(vec![pointer], argument_pointers, local_pointers));
     state.frame_stack.push(frame);
     state.instruction_pointer.set(Some(*address));
     Ok(())
@@ -401,7 +417,7 @@ pub fn eval_call_function(program: &Program, state: &mut State, index: &Constant
     let local_pointers = locals.make_vector(Pointer::Null);
 
     state.instruction_pointer.bump(program);
-    let frame = Frame::new(state.instruction_pointer.get(), veccat!(argument_pointers, local_pointers));
+    let frame = Frame::from(state.instruction_pointer.get(), veccat!(argument_pointers, local_pointers));
     state.frame_stack.push(frame);
     state.instruction_pointer.set(Some(*address));
     Ok(())

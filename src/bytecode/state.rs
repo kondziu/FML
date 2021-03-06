@@ -1,11 +1,14 @@
 use crate::bytecode::program::*;
 use crate::bytecode::heap::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::*;
+use std::io::Write as IOWrite;
+use crate::bytecode::helpers::MapResult;
 
 // TODO anyhow has ensure which will replace bailf_if
 
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Copy)]
 pub struct InstructionPointer(Option<Address>);
 impl InstructionPointer {
     pub fn new() -> Self { InstructionPointer(None) }
@@ -27,7 +30,14 @@ impl From<Address> for InstructionPointer {
 impl From<&Address> for InstructionPointer {
     fn from(address: &Address) -> Self { InstructionPointer(Some(address.clone())) }
 }
+impl From<u32> for InstructionPointer {
+    fn from(n: u32) -> Self { InstructionPointer(Some(Address::from_u32(n))) }
+}
+impl From<usize> for InstructionPointer {
+    fn from(n: usize) -> Self { InstructionPointer(Some(Address::from_usize(n))) }
+}
 
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone)]
 pub struct OperandStack(Vec<Pointer>);
 impl OperandStack {
     pub fn new() -> Self { OperandStack(Vec::new()) }
@@ -48,15 +58,42 @@ impl OperandStack {
     }
 }
 
-pub struct Frame { pub(crate) return_address: Option<Address>, locals: Vec<Pointer> }
-impl Frame {
-    pub fn new(return_address: Option<Address>, locals: Vec<Pointer>) -> Self {
-        Frame { locals: Vec::new(), return_address: None }
+impl From<Vec<Pointer>> for OperandStack {
+    fn from(vector: Vec<Pointer>) -> Self {
+        OperandStack(vector)
     }
-    pub fn get(&self, index: &LocalFrameIndex) -> Result<&Pointer> { unimplemented!() }
-    pub fn set(&mut self, index: &LocalFrameIndex, pointer: Pointer) -> Result<()> { unimplemented!() }
 }
 
+#[derive(Eq, PartialEq, Debug)]
+pub struct Frame { pub(crate) return_address: Option<Address>, locals: Vec<Pointer> }
+impl Frame {
+    pub fn new() -> Self {
+        Frame { locals: Vec::new(), return_address: None }
+    }
+    pub fn with_capacity(size: usize, initial: Pointer) -> Self {
+        Frame { locals: (0..size).map(|_| initial.clone()).collect(), return_address: None }
+    }
+    pub fn from(return_address: Option<Address>, locals: Vec<Pointer>) -> Self {
+        Frame { locals, return_address }
+    }
+    pub fn get(&self, index: &LocalFrameIndex) -> Result<&Pointer> {
+        let index = index.value() as usize;
+        if index >= self.locals.len() {
+            bail!("Local frame index {} out of range (0..{})", index, self.locals.len());
+        }
+        Ok(&self.locals[index])
+    }
+    pub fn set(&mut self, index: &LocalFrameIndex, pointer: Pointer) -> Result<()> {
+        let index = index.value() as usize;
+        if index >= self.locals.len() {
+            bail!("Local frame index {} out of range (0..{})", index, self.locals.len());
+        }
+        self.locals[index] = pointer;
+        Ok(())
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
 pub struct FrameStack { pub globals: GlobalFrame, pub functions: GlobalFunctions, frames: Vec<Frame> }
 impl FrameStack {
     pub fn new() -> Self { unimplemented!() }
@@ -64,8 +101,28 @@ impl FrameStack {
     pub fn push(&mut self, frame: Frame) { unimplemented!() }
     pub fn get_locals(&self) -> Result<&Frame> { unimplemented!() }
     pub fn get_locals_mut(&mut self) -> Result<&mut Frame> { unimplemented!() }
+    // pub fn from(globals: GlobalFrame, functions: GlobalFunctions) -> Self {
+    //     FrameStack { globals, functions, frames: Vec::new() }
+    // }
 }
 
+impl From<(GlobalFrame, GlobalFunctions)> for FrameStack {
+    fn from((globals, functions): (GlobalFrame, GlobalFunctions)) -> Self {
+        FrameStack { globals, functions, frames: Vec::new() }
+    }
+}
+
+impl From<Frame> for FrameStack {
+    fn from(frame: Frame) -> Self {
+        FrameStack {
+            globals: GlobalFrame::new(),
+            functions: GlobalFunctions::new(),
+            frames: vec![frame]
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
 pub struct GlobalFunctions(HashMap<String, ConstantPoolIndex>);
 impl GlobalFunctions {
     pub fn new() -> Self { GlobalFunctions(HashMap::new()) }
@@ -83,8 +140,22 @@ impl GlobalFunctions {
         bail_if!(result.is_some(), "Cannot define function `{}`: already defined.", name);
         Ok(())
     }
+    pub fn from(methods: Vec<(String, ConstantPoolIndex)>) -> Result<Self> {
+        let mut unique = HashSet::new();
+        let functions = methods.into_iter()
+            .map(|(name, index)| {
+                if unique.insert(name.clone()) {
+                    Ok((name, index))
+                } else {
+                    Err(anyhow!("Function is a duplicate: {}", name))
+                }
+            })
+            .collect::<Result<HashMap<String, ConstantPoolIndex>>>()?;
+        Ok(GlobalFunctions(functions))
+    }
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct GlobalFrame(HashMap<String, Pointer>);
 impl GlobalFrame {
     pub fn new() -> Self { GlobalFrame(HashMap::new()) }
@@ -102,8 +173,22 @@ impl GlobalFrame {
         bail_if!(result.is_some(), "Cannot define global `{}`: already defined.", name);
         Ok(())
     }
+    pub fn from(names: Vec<String>, initial: Pointer) -> Result<Self> {
+        let mut unique = HashSet::new();
+        let globals = names.into_iter()
+            .map(|name| {
+                if unique.insert(name.clone()) {
+                    Ok((name, initial.clone()))
+                } else {
+                    Err(anyhow!("Global is a duplicate: {}", name))
+                }
+            })
+            .collect::<Result<HashMap<String, Pointer>>>()?;
+        Ok(GlobalFrame(globals))
+    }
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct State {
     pub operand_stack: OperandStack,
     pub frame_stack: FrameStack,
@@ -120,65 +205,57 @@ pub struct State {
 //     pub memory: Heap,
 // }
 
+
 impl State {
     pub fn from(program: &Program) -> Result<Self> {                                                // TODO error handling is a right mess here.
 
-        let entry_index = program.entry.get()?;
+        let entry_index = program.entry.get()
+            .with_context(|| format!("Cannot find entry method."))?;
         let entry_method = program.constant_pool.get(&entry_index)
-            .expect(&format!("State init error: entry method is not in the constant pool \
-                              at index {:?}", entry_index));
+            .with_context(|| format!("Cannot find entry method."))?;
 
-        let instruction_pointer = InstructionPointer::from(match entry_method {
-            ProgramObject::Method { name: _, parameters: _, locals: _, code } => code.start(),
-            _ => panic!("State init error: entry method is not a Method {:?}", entry_method),
-        });
+        let instruction_pointer =
+            InstructionPointer::from(entry_method.get_method_start_address()?);
 
-        let mut globals: HashMap<String, Pointer> = HashMap::new();
-        let mut functions: HashMap<String, ProgramObject> = HashMap::new();
+        let global_objects = program.globals.iter()
+            .map(|index| {
+                program.constant_pool.get(&index).map(|object| (index, object))
+            })
+            .collect::<Result<Vec<(ConstantPoolIndex, &ProgramObject)>>>()?;
 
-        for index in program.globals.iter() {
-            let thing = program.constant_pool.get(&index)
-                .expect(&format!("State init error: no such entry at index pool: {:?}", index));
+        ensure!(global_objects.iter().all(|(_, object)| object.is_slot() || object.is_method()),
+                "Illegal global constant: expecting Method or Slot.");
 
-            match thing {
-                ProgramObject::Slot { name: index } => {
-                    let constant = program.constant_pool.get(index)
-                        .expect(&format!("State init error: no such entry at index pool: {:?} \
-                                 (expected by slot: {:?})", index, thing));
-                    let name = match constant {
-                        ProgramObject::String(string) => string,
-                        constant => panic!("State init error: name of global at index {:?} is \
-                                            not a String {:?}", index, constant),
-                    };
-                    if globals.contains_key(name) {
-                        panic!("State init error: duplicate name for global {:?}", name)
-                    }
-
-                    globals.insert(name.to_string(), Pointer::Null);
-                }
-
-                ProgramObject::Method { name: index, parameters: _, locals: _, code: _ } => {
-                    let constant = program.constant_pool.get(index)
-                        .expect(&format!("State init error: no such entry at index pool: {:?} \
-                                 (expected by method: {:?})", index, thing));
-                    let name = match constant {
-                        ProgramObject::String(string) => string,
-                        constant => panic!("State init error: name of function at index {:?} \
-                                            is not a String {:?}", index, constant),
-                    };
-                    if functions.contains_key(name) {
-                        panic!("State init error: duplicate name for function {:?}", name)
-                    }
-                    functions.insert(name.to_string(), thing.clone());
-                }
-                _ => panic!("State init error: name of global at index {:?} is not a String {:?}",
-                            index, thing),
-            };
+        fn extract_slot(program: &Program, slot: &ProgramObject) -> Result<String> {
+            let name_index = slot.as_slot_index()?;
+            let name_object = program.constant_pool.get(name_index)?;
+            let name = name_object.as_str()?;
+            Ok(name.to_owned())
         }
 
-        let frame_stack = FrameStack::new();
+        let globals = global_objects.iter()
+            .filter(|(_, program_object)| program_object.is_slot())
+            .map(|(_, slot)| extract_slot(program, slot))
+            .collect::<Result<Vec<String>>>()?;
+
+        fn extract_function(program: &Program, index: &ConstantPoolIndex, method: &ProgramObject) -> Result<(String, ConstantPoolIndex)> {
+            let name_index = method.get_method_name()?;
+            let name_object = program.constant_pool.get(name_index)?;
+            let name = name_object.as_str()?;
+            Ok((name.to_owned(), index.clone()))
+        }
+
+        let functions = global_objects.iter()
+            .filter(|(_, program_object)| program_object.is_method())
+            .map(|(index, method)| extract_function(program, index, method))
+            .collect::<Result<Vec<(String, ConstantPoolIndex)>>>()?;
+
+        let global_frame = GlobalFrame::from(globals, Pointer::Null)?;
+        let global_functions = GlobalFunctions::from(functions)?;
+        let frame_stack = FrameStack::from((global_frame, global_functions));
+
         let operand_stack = OperandStack::new();
-        let mut heap: Heap = Heap::new();
+        let heap: Heap = Heap::new();
 
         Ok(State { operand_stack, frame_stack, instruction_pointer, heap })
     }
@@ -378,5 +455,20 @@ impl LocalFrame {
         self.locals.push(local);
         assert!(self.locals.len() <= 65_535usize);
         LocalFrameIndex::new(self.locals.len() as u16 - 1u16)
+    }
+}
+
+pub struct Output();
+
+impl Output {
+    pub fn new() -> Self { Output() }
+}
+
+impl std::fmt::Write for Output {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        match std::io::stdout().write_all(s.as_bytes()) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(std::fmt::Error),
+        }
     }
 }

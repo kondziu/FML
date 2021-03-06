@@ -5,8 +5,8 @@ use anyhow::*;
 use crate::bytecode::state::OperandStack;
 use crate::bytecode::program::ProgramObject;
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct Heap(Vec<HeapObject>);
-
 impl Heap {
     pub fn new() -> Self {
         Heap(Vec::new())
@@ -32,7 +32,7 @@ impl From<Vec<HeapObject>> for Heap {
     fn from(objects: Vec<HeapObject>) -> Self { Heap(objects) }
 }
 
-#[derive(PartialEq,Debug,Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum HeapObject {
     Array(ArrayInstance),
     Object(ObjectInstance)
@@ -84,7 +84,7 @@ impl std::fmt::Display for HeapObject {
 }
 
 
-#[derive(PartialEq,Debug,Clone)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone)]
 pub struct ArrayInstance(Vec<Pointer>);
 
 impl ArrayInstance {
@@ -133,7 +133,7 @@ impl std::fmt::Display for ArrayInstance {
     }
 }
 
-#[derive(PartialEq,Debug,Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct ObjectInstance {
     pub parent: Pointer,
     pub fields: HashMap<String, Pointer>, // TODO make private
@@ -170,7 +170,7 @@ impl std::fmt::Display for ObjectInstance {
     }
 }
 
-#[derive(PartialEq,Eq,Debug,Hash,Clone,Copy)]
+#[derive(PartialEq, Eq, Debug, Hash, Clone, Copy, Ord, PartialOrd)]
 pub struct HeapIndex(usize);
 
 impl From<usize> for HeapIndex {
@@ -211,7 +211,7 @@ impl std::fmt::Display for HeapIndex {
     }
 }
 
-#[derive(PartialEq,Eq,Debug,Hash,Clone,Copy)]
+#[derive(PartialEq, Eq, Debug, Hash, Clone, Copy, Ord, PartialOrd)]
 pub enum Pointer {
     Null,
     Integer(i32),

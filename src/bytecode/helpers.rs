@@ -39,3 +39,24 @@ impl<T, I> Iterator for PairIterator<T, I> where I: Iterator<Item=T>, T: Copy {
         next
     }
 }
+
+
+pub trait MapResult<I> {
+    type IntoIter;
+    fn into_result(self) -> Result<Self::IntoIter>;
+}
+
+impl<I, T> MapResult<I> for I where I: Iterator<Item=Result<T>> + Clone {
+    type IntoIter = std::iter::Map<I, fn(Result<T>) -> T>;
+
+    fn into_result(self) -> Result<Self::IntoIter> {
+        let error = self.clone()
+            .filter(|e| e.is_err())
+            .take(1)
+            .last();
+
+        if let Some(error) = error { error?; }
+
+        Ok(self.map(|e| e.unwrap()))
+    }
+}

@@ -32,6 +32,15 @@ impl Program {
         }
     }
 
+    pub fn from(code: Code, constant_pool: ConstantPool, globals: Globals, entry: Entry) -> Result<Self> {
+        let label_names = code.labels();
+        let label_constants = constant_pool.get_all(label_names)?.into_iter();
+        let label_addresses = code.label_addresses().into_iter();
+        let labels = Labels::from(label_constants.zip(label_addresses)).unwrap();
+
+        Ok(Program { labels, constant_pool, code, globals, entry })
+    }
+
     // pub fn emit_code(&mut self, opcode: OpCode) {
     //     match opcode {
     //         OpCode::Label {name: index} => {
@@ -243,6 +252,12 @@ impl Globals {
     }
 }
 
+impl From<Vec<ConstantPoolIndex>> for Globals {
+    fn from(vector: Vec<ConstantPoolIndex>) -> Self {
+        Globals(vector)
+    }
+}
+
 pub struct Entry(Option<ConstantPoolIndex>);
 impl Entry {
     pub fn new() -> Self { Entry(None) }
@@ -258,6 +273,9 @@ impl From<ConstantPoolIndex> for Entry {
     fn from(index: ConstantPoolIndex) -> Self {
         Entry(Some(index))
     }
+}
+impl From<u16> for Entry {
+    fn from(index: u16) -> Self { Entry(Some(ConstantPoolIndex::from(index))) }
 }
 
 pub struct Labels { names: HashMap<String, Address>, groups: usize } // FIXME
@@ -379,7 +397,31 @@ impl ConstantPool {
     }
 }
 
-#[derive(PartialEq,Debug,Clone)]
+impl From<Vec<ProgramObject>> for ConstantPool {
+    fn from(vector: Vec<ProgramObject>) -> Self {
+        ConstantPool(vector)
+    }
+}
+
+impl From<Vec<i32>> for ConstantPool {
+    fn from(vector: Vec<i32>) -> Self {
+        ConstantPool(vector.into_iter().map(|n| ProgramObject::from_i32(n)).collect())
+    }
+}
+
+impl From<Vec<&str>> for ConstantPool {
+    fn from(vector: Vec<&str>) -> Self {
+        ConstantPool(vector.into_iter().map(|s| ProgramObject::from_str(s)).collect())
+    }
+}
+
+impl From<Vec<bool>> for ConstantPool {
+    fn from(vector: Vec<bool>) -> Self {
+        ConstantPool(vector.into_iter().map(|b| ProgramObject::from_bool(b)).collect())
+    }
+}
+
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone)]
 pub enum ProgramObject {
     /**
      * Represents a 32 bit integer. Used by the `Literal` instruction.
@@ -499,6 +541,13 @@ impl ProgramObject {
     pub fn get_method_parameters(&self) -> anyhow::Result<&Arity> {
         match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
             ProgramObject::Method { parameters, .. } => Ok(parameters),
+            pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
+        }
+    }
+
+    pub fn get_method_name(&self) -> anyhow::Result<&ConstantPoolIndex> {
+        match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
+            ProgramObject::Method { name, .. } => Ok(name),
             pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
         }
     }
@@ -953,6 +1002,19 @@ impl ConstantPoolIndex {
     }
     pub fn as_usize(&self) -> usize {
         self.value() as usize
+    }
+}
+
+impl From<u16> for ConstantPoolIndex {
+    fn from(n: u16) -> Self {
+        ConstantPoolIndex(n)
+    }
+}
+
+impl From<usize> for ConstantPoolIndex {
+    fn from(n: usize) -> Self {
+        assert!(n <= 65535usize);
+        ConstantPoolIndex(n as u16)
     }
 }
 

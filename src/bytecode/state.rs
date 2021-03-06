@@ -4,7 +4,6 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::*;
 use std::io::Write as IOWrite;
-use crate::bytecode::helpers::MapResult;
 
 // TODO anyhow has ensure which will replace bailf_if
 
@@ -50,6 +49,7 @@ impl OperandStack {
     pub fn peek(&self) -> Result<&Pointer> {
         self.0.last().with_context(|| format!("Cannot peek from an empty operand stack."))
     }
+    #[allow(dead_code)]
     pub fn pop_sequence(&mut self, n: usize) -> Result<Vec<Pointer>> {
         (0..n).map(|_| self.pop()).collect::<Result<Vec<Pointer>>>()
     }
@@ -88,7 +88,9 @@ impl Frame {
         if index >= self.locals.len() {
             bail!("Local frame index {} out of range (0..{})", index, self.locals.len());
         }
+        //println!("set {} {} <- {}", index, self.locals[index], pointer);
         self.locals[index] = pointer;
+        //println!("= set {} {}", index, self.locals[index]);
         Ok(())
     }
 }
@@ -142,11 +144,13 @@ impl GlobalFunctions {
         self.0.get(name)
             .with_context(|| format!("No such function `{}`.", name))
     }
+    #[allow(dead_code)]
     pub fn update(&mut self, name: String, index: ConstantPoolIndex) -> Result<()> {
         let result = self.0.insert(name.clone(), index);
         bail_if!(result.is_none(), "No such function `{}`.", name);
         Ok(())
     }
+    #[allow(dead_code)]
     pub fn define(&mut self, name: String, index: ConstantPoolIndex) -> Result<()> {
         let result = self.0.insert(name.clone(), index);
         bail_if!(result.is_some(), "Cannot define function `{}`: already defined.", name);
@@ -175,11 +179,13 @@ impl GlobalFrame {
         self.0.get(name)
             .with_context(|| format!("No such global `{}`.", name))
     }
+    #[allow(dead_code)]
     pub fn update(&mut self, name: String, pointer: Pointer) -> Result<()> {
         let result = self.0.insert(name.clone(), pointer);
         bail_if!(result.is_none(), "No such global `{}`.", name);
         Ok(())
     }
+    #[allow(dead_code)]
     pub fn define(&mut self, name: String, pointer: Pointer) -> Result<()> {
         let result = self.0.insert(name.clone(), pointer);
         bail_if!(result.is_some(), "Cannot define global `{}`: already defined.", name);
@@ -286,7 +292,7 @@ impl State {
     pub fn minimal() -> Self {
         State {
             operand_stack: OperandStack::new(),
-            frame_stack: FrameStack::new(),
+            frame_stack: FrameStack::from(Frame::new()),
             instruction_pointer: InstructionPointer::from(Address::from_usize(0)),
             heap: Heap::new()
         }
@@ -418,57 +424,57 @@ impl State {
 }
 
 
-#[derive(PartialEq,Debug)]
-pub struct LocalFrame {
-    locals: Vec<Pointer>, /* ProgramObject::Slot */
-    return_address: Option<Address>, /* address */
-}
-
-impl LocalFrame {
-    pub fn empty() -> Self {
-        LocalFrame {
-            locals: vec!(),
-            return_address: None,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn from(return_address: Option<Address>, slots: Vec<Pointer>) -> Self {
-        LocalFrame {
-            return_address,
-            locals: slots,
-        }
-    }
-
-    pub fn return_address(&self) -> &Option<Address> {
-        &self.return_address
-    }
-
-    pub fn get_local(&self, index: &LocalFrameIndex) -> Option<Pointer> {
-        match index.value() {
-            index if index as usize >= self.locals.len() => None,
-            index => Some(self.locals[index as usize].clone()), // new ref
-        }
-    }
-
-    pub fn update_local(&mut self, index: &LocalFrameIndex, local: Pointer) -> Result<(), String> {
-        match index.value() {
-            index if index as usize >= self.locals.len() =>
-                Err(format!("No local at index {} in frame", index)),
-            index => {
-                self.locals[index as usize] = local;
-                Ok(())
-            },
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn push_local(&mut self, local: Pointer) -> LocalFrameIndex {
-        self.locals.push(local);
-        assert!(self.locals.len() <= 65_535usize);
-        LocalFrameIndex::new(self.locals.len() as u16 - 1u16)
-    }
-}
+// #[derive(PartialEq,Debug)]
+// pub struct LocalFrame {
+//     locals: Vec<Pointer>, /* ProgramObject::Slot */
+//     return_address: Option<Address>, /* address */
+// }
+//
+// impl LocalFrame {
+//     pub fn empty() -> Self {
+//         LocalFrame {
+//             locals: vec!(),
+//             return_address: None,
+//         }
+//     }
+//
+//     #[allow(dead_code)]
+//     pub fn from(return_address: Option<Address>, slots: Vec<Pointer>) -> Self {
+//         LocalFrame {
+//             return_address,
+//             locals: slots,
+//         }
+//     }
+//
+//     pub fn return_address(&self) -> &Option<Address> {
+//         &self.return_address
+//     }
+//
+//     pub fn get_local(&self, index: &LocalFrameIndex) -> Option<Pointer> {
+//         match index.value() {
+//             index if index as usize >= self.locals.len() => None,
+//             index => Some(self.locals[index as usize].clone()), // new ref
+//         }
+//     }
+//
+//     pub fn update_local(&mut self, index: &LocalFrameIndex, local: Pointer) -> Result<(), String> {
+//         match index.value() {
+//             index if index as usize >= self.locals.len() =>
+//                 Err(format!("No local at index {} in frame", index)),
+//             index => {
+//                 self.locals[index as usize] = local;
+//                 Ok(())
+//             },
+//         }
+//     }
+//
+//     #[allow(dead_code)]
+//     pub fn push_local(&mut self, local: Pointer) -> LocalFrameIndex {
+//         self.locals.push(local);
+//         assert!(self.locals.len() <= 65_535usize);
+//         LocalFrameIndex::new(self.locals.len() as u16 - 1u16)
+//     }
+// }
 
 pub struct Output();
 

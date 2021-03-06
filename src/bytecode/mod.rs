@@ -10,6 +10,8 @@ pub mod interpreter;
 pub mod heap;
 pub mod state;
 
-pub fn compile(ast: &AST) -> program::Program {
+use anyhow::Result;
+
+pub fn compile(ast: &AST) -> Result<program::Program> {
     compiler::compile(ast)
 }

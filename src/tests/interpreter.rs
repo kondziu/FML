@@ -1,28 +1,39 @@
+#[allow(unused_imports)]
 use std::collections::HashMap;
 
 use crate::bytecode::bytecode::*;
 use crate::bytecode::program::*;
 use crate::bytecode::interpreter::*;
-use crate::bytecode::heap::{Pointer, Heap, HeapObject};
-use crate::bytecode::state::{State, LocalFrame, OperandStack, FrameStack, Frame, InstructionPointer, GlobalFrame, GlobalFunctions};
-use crate::bytecode::interpreter::evaluate;
+use crate::bytecode::heap::*;
+use crate::bytecode::state::*;
+use indexmap::map::IndexMap;
 
+#[allow(unused_macros)]
 macro_rules! hashmap {
-        ($key: expr, $value: expr) => {{
-            let mut map = HashMap::new();
-            map.insert($key, $value);
-            map
-        }};
-        ($key1: expr, $value1: expr, $key2: expr, $value2: expr) => {{
-            let mut map = HashMap::new();
-            map.insert($key1, $value1);
-            map.insert($key2, $value2);
-            map
-        }};
-    }
+    ($key: expr, $value: expr) => {{
+        let mut map = HashMap::new();
+        map.insert($key, $value);
+        map
+    }};
+    ($key1: expr, $value1: expr, $key2: expr, $value2: expr) => {{
+        let mut map = HashMap::new();
+        map.insert($key1, $value1);
+        map.insert($key2, $value2);
+        map
+    }};
+    ($(($key: expr, $value: expr)),+) => {{
+        let mut map = HashMap::new();
+        $(map.insert($key, $value);)+
+        map
+    }};
+}
 
-fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: std::fmt::Write {
-    evaluate_with(program, state, output).unwrap()
+macro_rules! indexmap {
+    ($(($key: expr, $value: expr)),+) => {{
+        let mut map = IndexMap::new();
+        $(map.insert($key, $value);)+
+        map
+    }};
 }
 
 #[test] fn literal() {
@@ -39,9 +50,9 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(42)));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
@@ -67,9 +78,9 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::new();
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
@@ -95,15 +106,18 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let pointer = Pointer::from(42i32);
-    let frame = Frame::from(None, vec![pointer]);
+    state.frame_stack = FrameStack::from(Frame::from(None, vec![Pointer::from(42i32)]));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(42i32)));
+    let expected_frame_stack =
+        FrameStack::from(Frame::from(None, vec![Pointer::from(42i32)]));
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
+
+    println!("expected frame stack: {:?}", expected_frame_stack);
+    println!("actual frame stack:   {:?}", state.frame_stack);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -127,20 +141,13 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut output: String = String::new();
 
     state.operand_stack.push(Pointer::from(42i32));
-    let pointer = Pointer::from(0i32);
-    state.frame_stack.push(Frame::from(None, vec![pointer]));
+    state.frame_stack = FrameStack::from(Frame::from(None, vec![Pointer::from(0i32)]));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(0)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::from(None, vec!(Pointer::from(0)))), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(42)));
+    let expected_frame_stack =
+        FrameStack::from(Frame::from(None, vec![Pointer::from(42i32)]));
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
 
@@ -165,23 +172,17 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let pointer = Pointer::from(666i32);
+    let pointer = Pointer::from(666);
     state.frame_stack.globals = GlobalFrame::from(vec!["skippy".to_owned()], pointer).unwrap();
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(0)), "test operands");
-    // assert_eq!(state.globals, hashmap!("skippy".to_string(), Pointer::from(0)), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(666)));
+    let mut expected_frame_stack = FrameStack::from(Frame::new());
+    expected_frame_stack.globals =
+        GlobalFrame::from(vec!["skippy".to_owned()], Pointer::from(666)).unwrap();
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
-
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -204,21 +205,16 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.operand_stack.push(Pointer::from(42i32));
+    state.operand_stack.push(Pointer::from(42));
     state.frame_stack.globals =
-        GlobalFrame::from(vec!["skippy".to_owned()], Pointer::from(666i32)).unwrap();
+        GlobalFrame::from(vec!["skippy".to_owned()], Pointer::from(666)).unwrap();
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(0)), "test operands");
-    // assert_eq!(state.globals, hashmap!("skippy".to_string(), Pointer::from(0)), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(42)));
+    let mut expected_frame_stack = FrameStack::from(Frame::new());
+    expected_frame_stack.globals =
+        GlobalFrame::from(vec!["skippy".to_owned()], Pointer::from(42)).unwrap();
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
 
@@ -245,19 +241,15 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
 
     state.operand_stack.push(Pointer::from(7i32));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, Vec::new(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::new();
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
+
+    println!("expected ip: {:?}", expected_instruction_pointer);
+    println!("actual   ip: {:?}", state.instruction_pointer);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -284,16 +276,9 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
 
     state.instruction_pointer.set(Some(Address::from_usize(2)));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, Vec::new(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory")
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::new();
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(0u32);
     let expected_heap = Heap::new();
@@ -324,16 +309,9 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     state.instruction_pointer.set(Some(Address::from_usize(2)));
     state.operand_stack.push(Pointer::from(true));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, Vec::new(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::new();
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(0u32);
     let expected_heap = Heap::new();
@@ -364,16 +342,9 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     state.instruction_pointer.set(Some(Address::from_usize(2)));
     state.operand_stack.push(Pointer::from(false));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, Vec::new(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(3)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::new();
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(3u32);
     let expected_heap = Heap::new();
@@ -399,16 +370,9 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "Ahoj przygodo!\n", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(0)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::Null));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
@@ -434,18 +398,11 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.operand_stack.push(Pointer::from(2i32));
+    state.operand_stack.push(Pointer::from(42i32));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "42!\n", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(1)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory")
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(1)));
+    let expected_operand_stack = OperandStack::from(vec![Pointer::Null]);
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
@@ -472,23 +429,131 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut output: String = String::new();
 
     state.operand_stack.push(Pointer::from(0i32));
-    state.operand_stack.push(Pointer::from(2i32));
+    state.operand_stack.push(Pointer::from(42i32));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "0x42!\n", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(2)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory")
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(2)));
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::Null));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
 
     assert_eq!(&output, "0x42!\n", "test output");
+    assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
+    assert_eq!(state.instruction_pointer, expected_instruction_pointer, "test instruction pointer");
+    assert_eq!(state.frame_stack, expected_frame_stack, "test frames");
+    assert_eq!(state.heap, expected_heap, "test memory");
+}
+
+#[test] fn print_array() {
+    let code = Code::from(vec!(
+        OpCode::Print { format: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
+        OpCode::Return,
+    ));
+
+    let constants = ConstantPool::from(vec!["~\n"]);
+    let globals = Globals::new();
+    let entry = Entry::from(0);
+    let program = Program::from(code, constants, globals, entry).unwrap();
+
+    let mut state = State::minimal();
+    let mut output: String = String::new();
+
+    let pointers = vec![Pointer::from(1i32), Pointer::from(2i32), Pointer::from(3i32)];
+    let array = HeapObject::from_pointers(pointers);
+    let pointer = state.heap.allocate(array.clone());
+    state.operand_stack.push(Pointer::from(pointer));
+
+    step_with(&program, &mut state, &mut output).unwrap();
+
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::Null));
+    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_instruction_pointer = InstructionPointer::from(1u32);
+    let expected_heap = Heap::from(vec![array]);
+
+    assert_eq!(&output, "[1, 2, 3]\n", "test output");
+    assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
+    assert_eq!(state.instruction_pointer, expected_instruction_pointer, "test instruction pointer");
+    assert_eq!(state.frame_stack, expected_frame_stack, "test frames");
+    assert_eq!(state.heap, expected_heap, "test memory");
+}
+
+#[test] fn print_object_with_parent() {
+    let code = Code::from(vec!(
+        OpCode::Print { format: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
+        OpCode::Return,
+    ));
+
+    let constants = ConstantPool::from(vec!["~\n"]);
+    let globals = Globals::new();
+    let entry = Entry::from(0);
+    let program = Program::from(code, constants, globals, entry).unwrap();
+
+    let mut state = State::minimal();
+    let mut output: String = String::new();
+
+    let parent = Pointer::from(true);
+    let fields = indexmap![
+        ("a".to_owned(), Pointer::from(1i32)),
+        ("b".to_owned(), Pointer::from(2i32)),
+        ("c".to_owned(), Pointer::from(3i32))
+    ];
+
+    let methods = IndexMap::new();
+    let object = HeapObject::new_object(parent, fields, methods);
+    let pointer = state.heap.allocate(object.clone());
+
+    state.operand_stack.push(Pointer::from(pointer));
+
+    step_with(&program, &mut state, &mut output).unwrap();
+
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::Null));
+    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_instruction_pointer = InstructionPointer::from(1u32);
+    let expected_heap = Heap::from(vec![object]);
+
+    assert_eq!(&output, "object(..=true, a=1, b=2, c=3)\n", "test output");
+    assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
+    assert_eq!(state.instruction_pointer, expected_instruction_pointer, "test instruction pointer");
+    assert_eq!(state.frame_stack, expected_frame_stack, "test frames");
+    assert_eq!(state.heap, expected_heap, "test memory");
+}
+
+#[test] fn print_object_without_parent() {
+    let code = Code::from(vec!(
+        OpCode::Print { format: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
+        OpCode::Return,
+    ));
+
+    let constants = ConstantPool::from(vec!["~\n"]);
+    let globals = Globals::new();
+    let entry = Entry::from(0);
+    let program = Program::from(code, constants, globals, entry).unwrap();
+
+    let mut state = State::minimal();
+    let mut output: String = String::new();
+
+    let parent = Pointer::Null;
+    let fields = indexmap![
+        ("a".to_owned(), Pointer::from(1i32)),
+        ("b".to_owned(), Pointer::from(2i32)),
+        ("c".to_owned(), Pointer::from(3i32))
+    ];
+
+    let methods = IndexMap::new();
+    let object = HeapObject::new_object(parent, fields, methods);
+    let pointer = state.heap.allocate(object.clone());
+
+    state.operand_stack.push(Pointer::from(pointer));
+
+    step_with(&program, &mut state, &mut output).unwrap();
+
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::Null));
+    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_instruction_pointer = InstructionPointer::from(1u32);
+    let expected_heap = Heap::from(vec![object]);
+
+    assert_eq!(&output, "object(a=1, b=2, c=3)\n", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
     assert_eq!(state.instruction_pointer, expected_instruction_pointer, "test instruction pointer");
     assert_eq!(state.frame_stack, expected_frame_stack, "test frames");
@@ -512,16 +577,10 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     state.operand_stack.push(Pointer::from(0i32));
     state.operand_stack.push(Pointer::Null);
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(2)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(HeapObject::empty_array())), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(2)));
+    let expected_operand_stack =
+        OperandStack::from(vec!(Pointer::Reference(HeapIndex::from(0))));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::from(vec!(HeapObject::empty_array()));
@@ -550,19 +609,13 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     state.operand_stack.push(Pointer::from(1i32));
     state.operand_stack.push(Pointer::Null);
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(3)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(HeapObject::from_pointers(vec!(Pointer::from(2))))), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(3)));
+    let expected_operand_stack =
+        OperandStack::from(vec!(Pointer::Reference(HeapIndex::from(0))));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::from(vec!(HeapObject::from_pointers(vec!(Pointer::from(2)))));
+    let expected_heap = Heap::from(vec!(HeapObject::from_pointers(vec![Pointer::Null])));
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -588,19 +641,10 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     state.operand_stack.push(Pointer::from(3i32));
     state.operand_stack.push(Pointer::from(0i32));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(5)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(
-    //                                          HeapObject::from_pointers(vec!(Pointer::from(0i32),
-    //                                                                         Pointer::from(0i32),
-    //                                                                         Pointer::from(0i32))))), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(5)));
+    let expected_operand_stack =
+        OperandStack::from(vec!(Pointer::from(HeapIndex::from(0))));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::from(vec!(HeapObject::from_pointers(vec!(Pointer::from(0i32),
@@ -638,7 +682,7 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
 
     let mut output: String = String::new();
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
     // assert_eq!(&output, "", "test output");
     // assert_eq!(state.operands, vec!(), "test operands");
@@ -648,8 +692,12 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     //                               LocalFrame::from(Some(Address::from_usize(2)), vec!())), "test frames");
     // assert_eq!(state.memory, Heap::new())
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new()); //TODO
+    let expected_operand_stack = OperandStack::new();
+    let mut expected_frame_stack = FrameStack::new();
+    expected_frame_stack.push(Frame::new());
+    expected_frame_stack.push(Frame::from(Some(Address::from_usize(2)), vec![]));
+    expected_frame_stack.functions =
+        GlobalFunctions::from(vec![("bar".to_string(), ConstantPoolIndex::from(1usize))]).unwrap();
     let expected_instruction_pointer = InstructionPointer::from(0u32);
     let expected_heap = Heap::new();
 
@@ -685,26 +733,21 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
 
     let mut output: String = String::new();
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty(),
-    //                               LocalFrame::from(Some(Address::from_usize(2)),
-    //                                                vec!(Pointer::from(0)))), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_operand_stack = OperandStack::new();
+    let mut expected_frame_stack = FrameStack::new();
+    expected_frame_stack.push(Frame::new());
+    expected_frame_stack.push(Frame::from(Some(Address::from_usize(2)), vec![Pointer::from(2)]));
+    expected_frame_stack.functions =
+        GlobalFunctions::from(vec![("foo".to_string(), ConstantPoolIndex::from(1usize))]).unwrap();
     let expected_instruction_pointer = InstructionPointer::from(0u32);
     let expected_heap = Heap::new();
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
     assert_eq!(state.instruction_pointer, expected_instruction_pointer, "test instruction pointer");
-    assert_eq!(state.frame_stack, expected_frame_stack, "test frames"); // TODO
+    assert_eq!(state.frame_stack, expected_frame_stack, "test frames");
     assert_eq!(state.heap, expected_heap, "test memory");
 }
 
@@ -728,30 +771,26 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     state.frame_stack.functions =
         GlobalFunctions::from(vec![("fun".to_string(), ConstantPoolIndex::from(1usize))]).unwrap();
 
-    state.operand_stack.push(Pointer::from(1i32));
-    state.operand_stack.push(Pointer::from(2i32));
     state.operand_stack.push(Pointer::from(3i32));
+    state.operand_stack.push(Pointer::from(2i32));
+    state.operand_stack.push(Pointer::from(1i32));
 
     state.instruction_pointer.set(Some(Address::from_usize(1)));
 
     let mut output: String = String::new();
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty(),
-    //                               LocalFrame::from(Some(Address::from_usize(2)),
-    //                                                vec!(Pointer::from(0),
-    //                                                     Pointer::from(1),
-    //                                                     Pointer::from(2),))), "test frames");
-    // assert_eq!(state.memory, Heap::new())
+    let expected_operand_stack = OperandStack::new();
+    let mut expected_frame_stack = FrameStack::new();
+    expected_frame_stack.push(Frame::new());
+    expected_frame_stack.push(Frame::from(Some(Address::from_usize(2)), vec![Pointer::from(1),
+                                                                             Pointer::from(2),
+                                                                             Pointer::from(3)]));
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
-    let expected_instruction_pointer = InstructionPointer::from(1u32);
+    expected_frame_stack.functions =
+        GlobalFunctions::from(vec![("fun".to_string(), ConstantPoolIndex::from(1usize))]).unwrap();
+    let expected_instruction_pointer = InstructionPointer::from(0u32);
     let expected_heap = Heap::new();
 
     assert_eq!(&output, "", "test output");
@@ -765,7 +804,7 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let code = Code::from(vec!(
         /*0*/ OpCode::Return,
         /*1*/ OpCode::CallFunction { name: ConstantPoolIndex::new(1), arguments: Arity::new(3) },
-        // /*2*/ OpCode::Skip,
+        /*2*/ OpCode::Drop,
     ));
 
     let constants = ConstantPool::from(vec![
@@ -774,6 +813,7 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
             parameters: Arity::new(3),
             locals: Size::new(0),
             code: AddressRange::from(0,1) }]);
+
     let globals = Globals::from(vec![ConstantPoolIndex::new(1)]);
     let entry = Entry::from(0);
     let program = Program::from(code, constants, globals, entry).unwrap();
@@ -781,27 +821,14 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    //state.instruction_pointer.set(Some(Address::from_usize(0)));
-
-    let pointer1 = Pointer::from(1i32);
-    let pointer2 = Pointer::from(2i32);
-    let pointer3 = Pointer::from(3i32);
-
     state.frame_stack.push(Frame::from(Some(Address::from_usize(2)),
-                                       vec![pointer1, pointer2, pointer3]));
+                                       vec![Pointer::from(1), Pointer::from(2), Pointer::from(3)]));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::new(), "test memory");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::new();
     let expected_frame_stack = FrameStack::from(Frame::new());
-    let expected_instruction_pointer = InstructionPointer::from(1u32);
+    let expected_instruction_pointer = InstructionPointer::from(2u32);
     let expected_heap = Heap::new();
 
     assert_eq!(&output, "", "test output");
@@ -813,9 +840,8 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
 
 #[test] fn object_zero() {
     let code = Code::from(vec!(
-        /*0*/ OpCode::Return,
-        /*1*/ OpCode::Object { class: ConstantPoolIndex::new(2) },
-        /*2*/ OpCode::Return
+        /*0*/ OpCode::Object { class: ConstantPoolIndex::new(2) },
+        /*1*/ OpCode::Return
     ));
 
     let constants = ConstantPool::from(vec![
@@ -833,33 +859,23 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.instruction_pointer.set(Some(Address::from_usize(1)));
+    state.instruction_pointer.set(Some(Address::from_usize(0)));
     state.operand_stack.push(Pointer::Null);
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(1)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(
-    //                                          HeapObject::from(Pointer::Null,
-    //                                                           HashMap::new(),
-    //                                                           hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
-    //                                                                                                               parameters: Arity::new(1),
-    //                                                                                                               locals: Size::new(0),
+    let method = ProgramObject::Method {
+        name: ConstantPoolIndex::new(0),
+        parameters: Arity::new(1),
+        locals: Size::new(0),
+        code: AddressRange::from(0, 1)
+    };
 
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec![Pointer::from(HeapIndex::from(0))]);
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::from(vec![HeapObject::from(Pointer::Null,
-                                                         HashMap::new(),
-                                                         hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
-                                                                                                           parameters: Arity::new(1),
-                                                                                                           locals: Size::new(0),
-                                                                                                           code: AddressRange::from(0, 1)}))]);
+    let expected_heap = Heap::from(vec![HeapObject::from(Pointer::Null, IndexMap::new(),
+                                              indexmap!(("+".to_string(), method)))]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -870,9 +886,8 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
 
 #[test] fn object_one() {
     let code = Code::from(vec!(
-        /*0*/ OpCode::Return,
-        /*1*/ OpCode::Object { class: ConstantPoolIndex::new(4) },
-        /*2*/ OpCode::Return
+        /*0*/ OpCode::Object { class: ConstantPoolIndex::new(4) },
+        /*1*/ OpCode::Return
     ));
 
     let constants = ConstantPool::from(vec![
@@ -888,6 +903,7 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
         /*4*/ ProgramObject::Class(vec!(ConstantPoolIndex::new(1),
                                         ConstantPoolIndex::new(3)))
     ]);
+
     let globals = Globals::new();
     let entry = Entry::from(0);
     let program = Program::from(code, constants, globals, entry).unwrap();
@@ -895,29 +911,25 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.instruction_pointer.set(Some(Address::from_usize(1)));
+    state.instruction_pointer.set(Some(Address::from_usize(0)));
     state.operand_stack.push(Pointer::Null);          // parent
     state.operand_stack.push(Pointer::from(0i32));     // x
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(2)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(
-    //                                          HeapObject::from(Pointer::Null,
-    //                                                           hashmap!("x".to_string(), Pointer::from(0i32)),
-    //                                                           hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(2),
-    //                                                                                                               parameters: Arity::new(1),
-    //                                                                                                               locals: Size::new(0),
-    //                                                                                                               code: AddressRange::from(0, 1)})))));
+    let method = ProgramObject::Method {
+        name: ConstantPoolIndex::new(2),
+        parameters: Arity::new(1),
+        locals: Size::new(0),
+        code: AddressRange::from(0, 1)
+    };
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec![Pointer::from(HeapIndex::from(0))]);
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_heap = Heap::from(vec![HeapObject::from(Pointer::Null,
+                                                         indexmap!(("x".to_owned(), Pointer::from(0i32))),
+                                                         indexmap!(("+".to_string(), method)))]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -928,9 +940,8 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
 
 #[test] fn object_two() {
     let code = Code::from(vec!(
-        /*0*/ OpCode::Return,
-        /*1*/ OpCode::Object { class: ConstantPoolIndex::new(6) },
-        /*2*/ OpCode::Return
+        /*0*/ OpCode::Object { class: ConstantPoolIndex::new(6) },
+        /*1*/ OpCode::Return
     ));
 
     let constants = ConstantPool::from(vec![
@@ -957,32 +968,27 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    state.instruction_pointer.set(Some(Address::from_usize(1)));
-    state.operand_stack.push(Pointer::Null);                 // parent
-    state.operand_stack.push(Pointer::from(0i32));       // x
-    state.operand_stack.push(Pointer::from(2i32));      // y
+    state.instruction_pointer.set(Some(Address::from_usize(0)));
+    state.operand_stack.push(Pointer::Null);                        // parent
+    state.operand_stack.push(Pointer::from(0i32));                  // x
+    state.operand_stack.push(Pointer::from(2i32));                  // y
 
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    interpret( &program, &mut output, &mut state);
+    let method = ProgramObject::Method {
+        name: ConstantPoolIndex::new(4),
+        parameters: Arity::new(1),
+        locals: Size::new(0),
+        code: AddressRange::from(0, 1)
+    };
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(3)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(2)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(
-    //                                          HeapObject::from(Pointer::Null,
-    //                                                           hashmap!("x".to_string(), Pointer::from(0i32), "y".to_string(), Pointer::from(42i32)),
-    //                                                           hashmap!("+".to_string(), ProgramObject::Method {
-    //                                                                                         name: ConstantPoolIndex::new(4),
-    //                                                                                         parameters: Arity::new(1),
-    //                                                                                         locals: Size::new(0),
-    //                                                                                         code: AddressRange::from(0, 1)})))));
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec![Pointer::from(HeapIndex::from(0))]);
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_heap = Heap::from(vec![HeapObject::from(Pointer::Null,
+                                                         indexmap!(("x".to_owned(), Pointer::from(0)),
+                                                                   ("y".to_owned(), Pointer::from(2))),
+                                                         indexmap!(("+".to_string(), method)))]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -1007,26 +1013,19 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
 
     let head_index =
         state.heap.allocate(HeapObject::from(Pointer::Null,
-                                             hashmap!("value".to_string(), Pointer::from(42i32)),
-                                             HashMap::new()));
+                                             indexmap!(("value".to_string(), Pointer::from(42i32))),
+                                             IndexMap::new()));
+
     state.operand_stack.push(Pointer::from(head_index));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(1)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(
-    //                                          HeapObject::from(Pointer::Null,
-    //                                                           hashmap!("value".to_string(), Pointer::from(42i32)),
-    //                                                           HashMap::new()))));
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(42)));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_heap = Heap::from(vec![HeapObject::from(Pointer::Null,
+                                              indexmap!(("value".to_owned(), Pointer::from(42))),
+                                              IndexMap::new())]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -1050,33 +1049,21 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut output: String = String::new();
 
     let object = HeapObject::from(Pointer::Null,
-                                  hashmap!("value".to_string(), Pointer::from(1)),
-                                  HashMap::new());
+                                  indexmap!(("value".to_string(), Pointer::from(1))),
+                                  IndexMap::new());
 
     let head_index = state.heap.allocate(object);
     state.operand_stack.push(Pointer::from(head_index));
-    state.operand_stack.push(Pointer::from(6i32));
+    state.operand_stack.push(Pointer::from(6));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(2)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(
-    //                                          HeapObject::from(Pointer::Null,
-    //                                                           hashmap!("value".to_string(), Pointer::from(666i32)),
-    //                                                           HashMap::new()))));
-    //
-    // assert_eq!(object, HeapObject::from(Pointer::from(0),
-    //                                     hashmap!("value".to_string(), Pointer::from(1)),
-    //                                     HashMap::new()));
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(6)));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_heap = Heap::from(vec![HeapObject::from(Pointer::Null,
+                                                         indexmap!(("value".to_owned(), Pointer::from(6))),
+                                                         IndexMap::new())]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -1100,33 +1087,26 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut state = State::minimal();
     let mut output: String = String::new();
 
-    let receiver = HeapObject::from(Pointer::from(0),
-                                    HashMap::new(),
-                                    hashmap!("f".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
-                                                                                      parameters: Arity::new(0 + 1),
-                                                                                      locals: Size::new(0),
-                                                                                      code: AddressRange::from(0, 1) }));
+    let receiver = HeapObject::from(Pointer::Null,
+                                    IndexMap::new(),
+                                    indexmap!(("f".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
+                                                                                        parameters: Arity::new(0 + 1),
+                                                                                        locals: Size::new(0),
+                                                                                        code: AddressRange::from(0, 1) })));
 
     state.instruction_pointer.set(Some(Address::from_usize(1)));
-    //state.allocate(HeapObject::Null);
-    let head_index = state.heap.allocate(receiver.clone());
-    state.operand_stack.push(Pointer::from(head_index));
 
-    interpret( &program, &mut output, &mut state);
+    let heap_index = state.heap.allocate(receiver.clone());
+    state.operand_stack.push(Pointer::from(heap_index));
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, Vec::new(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty(),
-    //                               LocalFrame::from(Some(Address::from_usize(2)),
-    //                                                vec!(Pointer::from(1)))), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(receiver.clone())))
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
-    let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_operand_stack = OperandStack::new();
+    let mut expected_frame_stack = FrameStack::new();
+    expected_frame_stack.push(Frame::from(None, vec![]));
+    expected_frame_stack.push(Frame::from(Some(Address::from_usize(2)), vec![Pointer::Reference(HeapIndex::from(0))]));
+    let expected_instruction_pointer = InstructionPointer::from(0u32);
+    let expected_heap = Heap::from(vec![receiver]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -1151,34 +1131,27 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut output: String = String::new();
 
     let receiver = HeapObject::from(Pointer::from(0),
-                                    HashMap::new(),
-                                    hashmap!("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
-                                                                                      parameters: Arity::new(1 + 1),
-                                                                                      locals: Size::new(0),
-                                                                                      code: AddressRange::from(0, 1) }));
+                                    IndexMap::new(),
+                                    indexmap!(("+".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
+                                                                                        parameters: Arity::new(1 + 1),
+                                                                                        locals: Size::new(0),
+                                                                                        code: AddressRange::from(0, 1) })));
 
     state.instruction_pointer.set(Some(Address::from_usize(1)));
 
     let head_index = state.heap.allocate(receiver.clone());
     state.operand_stack.push(Pointer::from(head_index));
-    state.operand_stack.push(Pointer::from(1i32));
+    state.operand_stack.push(Pointer::from(1));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, Vec::new(), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(0)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty(),
-    //                               LocalFrame::from(Some(Address::from_usize(2)),
-    //                                                vec!(Pointer::from(1usize),
-    //                                                     Pointer::from(1i32)))), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(receiver.clone())))
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
-    let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_operand_stack = OperandStack::new();
+    let mut expected_frame_stack = FrameStack::new();
+    expected_frame_stack.push(Frame::from(None, vec![]));
+    expected_frame_stack.push(Frame::from(Some(Address::from_usize(2)),
+                                          vec![Pointer::Reference(HeapIndex::from(0)), Pointer::from(1)]));
+    let expected_instruction_pointer = InstructionPointer::from(0u32);
+    let expected_heap = Heap::from(vec![receiver]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -1203,19 +1176,19 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     let mut output: String = String::new();
 
     let receiver = HeapObject::from(Pointer::from(0),
-                                    HashMap::new(),
-                                    hashmap!("g".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
+                                    IndexMap::new(),
+                                    indexmap!(("g".to_string(), ProgramObject::Method { name: ConstantPoolIndex::new(0),
                                                                                       parameters: Arity::new(3 + 1),
                                                                                       locals: Size::new(0),
-                                                                                      code: AddressRange::from(0, 1) }));
+                                                                                      code: AddressRange::from(0, 1) })));
 
     state.instruction_pointer.set(Some(Address::from_usize(1)));
     state.operand_stack.push(Pointer::from(state.heap.allocate(receiver.clone())));
-    state.operand_stack.push(Pointer::from(1i32));
-    state.operand_stack.push(Pointer::from(2i32));
     state.operand_stack.push(Pointer::from(3i32));
+    state.operand_stack.push(Pointer::from(2i32));
+    state.operand_stack.push(Pointer::from(1i32));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
     //
     // assert_eq!(&output, "", "test output");
     // assert_eq!(state.operands, Vec::new(), "test operands");
@@ -1229,10 +1202,16 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     //                                                     Pointer::from(3i32),))), "test frames");
     // assert_eq!(state.memory, Heap::from(vec!(receiver.clone())))
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
-    let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_operand_stack = OperandStack::new();
+    let mut expected_frame_stack = FrameStack::new();
+    expected_frame_stack.push(Frame::from(None, vec![]));
+    expected_frame_stack.push(Frame::from(Some(Address::from_usize(2)),
+                                          vec![Pointer::Reference(HeapIndex::from(0)),
+                                               Pointer::from(1),
+                                               Pointer::from(2),
+                                               Pointer::from(3)]));
+    let expected_instruction_pointer = InstructionPointer::from(0u32);
+    let expected_heap = Heap::from(vec![receiver]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -1241,55 +1220,51 @@ fn interpret<W>(program: &Program, output: &mut W, state: &mut State) where W: s
     assert_eq!(state.heap, expected_heap, "test memory");
 }
 
-fn call_method(receiver: HeapObject, argument: HeapObject, operation: &str, result: HeapObject) {
-    let code = Code::from(vec!(
-        OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1 + 1) },
-        OpCode::Return,
-    ));
-
-    let constants = ConstantPool::from(vec![operation]);
-    let globals = Globals::new();
-    let entry = Entry::from(0);
-    let program = Program::from(code, constants, globals, entry).unwrap();
-
-    let mut state = State::minimal();
-    let mut output: String = String::new();
-
-    state.instruction_pointer.set(Some(Address::from_usize(0)));
-    state.operand_stack.push(Pointer::from(state.heap.allocate(receiver.clone())));
-    state.operand_stack.push(Pointer::from(state.heap.allocate(argument.clone())));
-
-    interpret( &program, &mut output, &mut state);
-
-    let mut expected_memory = Heap::new();
-    expected_memory.allocate(receiver.clone());
-    expected_memory.allocate(argument.clone());
-    let result_pointer = Pointer::from(expected_memory.allocate(result.clone()));
-
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(result_pointer), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, expected_memory)
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
-    let expected_frame_stack = FrameStack::from(Frame::new());
-    let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
-
-    assert_eq!(&output, "", "test output");
-    assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
-    assert_eq!(state.instruction_pointer, expected_instruction_pointer, "test instruction pointer");
-    assert_eq!(state.frame_stack, expected_frame_stack, "test frames");
-    assert_eq!(state.heap, expected_heap, "test memory");
-}
+// fn call_method(receiver: HeapObject, argument: HeapObject, operation: &str, result: HeapObject) {
+//     let code = Code::from(vec!(
+//         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1 + 1) },
+//         OpCode::Return,
+//     ));
+//
+//     let constants = ConstantPool::from(vec![operation]);
+//     let globals = Globals::new();
+//     let entry = Entry::from(0);
+//     let program = Program::from(code, constants, globals, entry).unwrap();
+//
+//     let mut state = State::minimal();
+//     let mut output: String = String::new();
+//
+//     state.instruction_pointer.set(Some(Address::from_usize(0)));
+//     state.operand_stack.push(Pointer::from(state.heap.allocate(receiver.clone())));
+//     state.operand_stack.push(Pointer::from(state.heap.allocate(argument.clone())));
+//
+//     step_with(&program, &mut state, &mut output).unwrap();
+//
+//     let mut expected_memory = Heap::new();
+//     expected_memory.allocate(receiver.clone());
+//     expected_memory.allocate(argument.clone());
+//     let result_pointer = Pointer::from(expected_memory.allocate(result.clone()));
+//
+//     // assert_eq!(&output, "", "test output");
+//     // assert_eq!(state.operands, vec!(result_pointer), "test operands");
+//     // assert_eq!(state.globals, HashMap::new(), "test globals");
+//     // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
+//     // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
+//     // assert_eq!(state.memory, expected_memory)
+//
+//     let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+//     let expected_frame_stack = FrameStack::from(Frame::new());
+//     let expected_instruction_pointer = InstructionPointer::from(1u32);
+//     let expected_heap = Heap::new();
+//
+//     assert_eq!(&output, "", "test output");
+//     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
+//     assert_eq!(state.instruction_pointer, expected_instruction_pointer, "test instruction pointer");
+//     assert_eq!(state.frame_stack, expected_frame_stack, "test frames");
+//     assert_eq!(state.heap, expected_heap, "test memory");
+// }
 
 fn call_method_on_pointers(receiver: Pointer, argument: Pointer, operation: &str, result: Pointer) {
-    // call_method(HeapObject::from_i32(receiver),
-    //             HeapObject::from_i32(argument),
-    //             operation,
-    //             HeapObject::from_i32(result));
     let code = Code::from(vec!(
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1 + 1) },
         OpCode::Return,
@@ -1307,10 +1282,7 @@ fn call_method_on_pointers(receiver: Pointer, argument: Pointer, operation: &str
     state.operand_stack.push(Pointer::from(receiver));
     state.operand_stack.push(Pointer::from(argument));
 
-    interpret( &program, &mut output, &mut state);
-
-    let mut expected_memory = Heap::new();
-    let result_pointer = Pointer::from(result);
+    step_with(&program, &mut state, &mut output).unwrap();
 
     // assert_eq!(&output, "", "test output");
     // assert_eq!(state.operands, vec!(result_pointer), "test operands");
@@ -1319,7 +1291,7 @@ fn call_method_on_pointers(receiver: Pointer, argument: Pointer, operation: &str
     // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
     // assert_eq!(state.memory, expected_memory)
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec!(result));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
     let expected_heap = Heap::new();
@@ -1467,6 +1439,7 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     ));
 
     let constants = ConstantPool::from(vec!["get"]);
+
     let globals = Globals::new();
     let entry = Entry::from(0);
     let program = Program::from(code, constants, globals, entry).unwrap();
@@ -1476,27 +1449,18 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
 
     state.instruction_pointer.set(Some(Address::from_usize(0)));
 
-    state.operand_stack.push(Pointer::from(0));
+    let array =
+        HeapObject::from_pointers(vec![Pointer::from(42), Pointer::from(666), Pointer::from(0)]);
+    let array_index = state.heap.allocate(array.clone());
+    state.operand_stack.push(Pointer::from(array_index));
     state.operand_stack.push(Pointer::from(1));
-    state.operand_stack.push(Pointer::from(2));
-    state.operand_stack.push(Pointer::from(1i32));
 
-    interpret( &program, &mut output, &mut state);
-    //
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(1)), "test operands");
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(
-    //                                          HeapObject::from_pointers(vec!(Pointer::from(1i32),
-    //                                                                         Pointer::from(2i32),
-    //                                                                         Pointer::from(3i32))))), "test memory")
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(666)));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_heap = Heap::from(vec![array]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
@@ -1523,35 +1487,23 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     let mut output: String = String::new();
 
     let array = HeapObject::from_pointers(vec!(Pointer::from(0),
-                                               Pointer::from(1),
-                                               Pointer::from(2)));
+                                                          Pointer::from(1),
+                                                          Pointer::from(2)));
 
     state.instruction_pointer.set(Some(Address::from_usize(0)));
 
     state.operand_stack.push(Pointer::from(state.heap.allocate(array)));
-    state.operand_stack.push(Pointer::from(1i32));
-    state.operand_stack.push(Pointer::from(2i32));
+    state.operand_stack.push(Pointer::from(42));
+    state.operand_stack.push(Pointer::from(1));
 
-    interpret( &program, &mut output, &mut state);
+    step_with(&program, &mut state, &mut output).unwrap();
 
-    // assert_eq!(&output, "", "test output");
-    // assert_eq!(state.operands, vec!(Pointer::from(6)), "test operands");    // returns null
-    // assert_eq!(state.globals, HashMap::new(), "test globals");
-    // assert_eq!(state.instruction_pointer, Some(Address::from_usize(1)), "test instruction pointer");
-    // assert_eq!(state.frames, vec!(LocalFrame::empty()), "test frames");
-    // assert_eq!(state.memory, Heap::from(vec!(
-    //                                          HeapObject::from_pointers(vec!(Pointer::from(1i32),
-    //                                                                         Pointer::from(42i32),
-    //                                                                         Pointer::from(3i32))))), "test memory");
-    //
-    // assert_eq!(array, HeapObject::from_pointers(vec!(Pointer::from(1i32),
-    //                                                  Pointer::from(42i32),
-    //                                                  Pointer::from(3i32))), "test object state");
-
-    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(0)));
+    let expected_operand_stack = OperandStack::from(vec!(Pointer::from(42)));
     let expected_frame_stack = FrameStack::from(Frame::new());
     let expected_instruction_pointer = InstructionPointer::from(1u32);
-    let expected_heap = Heap::new();
+    let expected_heap = Heap::from(vec![HeapObject::from_pointers(vec!(Pointer::from(0),
+                                                                             Pointer::from(42),
+                                                                             Pointer::from(2)))]);
 
     assert_eq!(&output, "", "test output");
     assert_eq!(state.operand_stack, expected_operand_stack, "test operands");

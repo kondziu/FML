@@ -5,20 +5,18 @@ use crate::bytecode::heap::*;
 
 use anyhow::*;
 use anyhow::Context;
-use std::collections::HashMap;
 use std::iter::repeat;
 
 use crate::bail_if;
 use crate::veccat;
 
-use super::helpers::PairIterator;
 use super::helpers::Pairable;
 use crate::bytecode::program::*;
 use crate::bytecode::state::*;
+use indexmap::map::IndexMap;
 
 
 trait OpCodeEvaluationResult<T> {
-    #[inline(always)]
     fn attach(self, opcode: &OpCode) -> Result<T>;
 }
 
@@ -47,11 +45,20 @@ pub fn evaluate(program: &Program) -> Result<()> {
 pub fn evaluate_with<W>(program: &Program, state: &mut State, output: &mut W) -> Result<()> where W: Write {
 
     while let Some(address) = state.instruction_pointer.get() {
+        println!("Before: {:?}", state.instruction_pointer);
         let opcode = program.code.get(address)?;
-        eval_opcode(program, state,output, opcode)?;
+        eval_opcode(program, state, output, opcode)?;
+        println!("After: {:?}", state.instruction_pointer);
     }
 
     Ok(())
+}
+
+#[allow(dead_code)]
+pub fn step_with<W>(program: &Program, state: &mut State, output: &mut W) -> Result<()> where W: Write {
+    let address = state.instruction_pointer.get().with_context(|| "Nothing to execute.")?;
+    let opcode = program.code.get(address)?;
+    eval_opcode(program, state, output, opcode)
 }
 
 pub fn eval_opcode<W>(program: &Program, state: &mut State, output: &mut W, opcode: &OpCode) -> Result<()> where W: Write {
@@ -119,7 +126,6 @@ pub fn eval_set_global(program: &Program, state: &mut State, index: &ConstantPoo
     let name = program_object.as_str()?.to_owned();
     let pointer = *state.operand_stack.peek()?;
     state.frame_stack.globals.update(name, pointer)?;
-    state.operand_stack.push(pointer);
     state.instruction_pointer.bump(program);
     Ok(())
 }
@@ -132,8 +138,7 @@ pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolInd
         .collect::<Result<Vec<&ProgramObject>>>()?;
 
     let mut slots = Vec::new();
-    let mut methods = HashMap::new();
-
+    let mut methods = IndexMap::new();
 
     for member in members {                                                           // TODO this could probably be a method in ProgramObject, something like: `create prototype object om class`
         match member {
@@ -145,23 +150,25 @@ pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolInd
             ProgramObject::Method { name: index, .. } => {                         // TODO, probably don't need to store methods, tbh, just the class, which would simplify this a lot
                 let program_object = program.constant_pool.get(index)?;
                 let name = program_object.as_str()?.to_owned();
-                methods.insert(name.clone(), member.clone())
-                    .with_context(|| format!("Member method `{}` has a non-unique name within object.", name))?;
+                let previous = methods.insert(name.clone(), member.clone());
+                ensure!(previous.is_none(),
+                        "Member method `{}` has a non-unique name within object.", name)
             }
             _ => bail!("Class members must be either Methods or Slots, but found `{}`.", member)
         }
     }
 
-    let mut fields = HashMap::new();
+    let mut fields = IndexMap::new();
     for name in slots.into_iter().rev() {
         let pointer = state.operand_stack.pop()?;
-        fields.insert(name.to_owned(), pointer)
-            .with_context(|| format!("Member field `{}` has a non-unique name in object", name))?;
+        let previous = fields.insert(name.to_owned(), pointer);
+        ensure!(previous.is_none(), "Member field `{}` has a non-unique name in object", name)
     }
+    fields = fields.into_iter().rev().collect();
 
     let parent = state.operand_stack.pop()?;
 
-    let heap_index = state.heap.allocate(HeapObject::Object(ObjectInstance { parent, fields, methods })); // TODO simplify
+    let heap_index = state.heap.allocate(HeapObject::new_object(parent, fields, methods)); // TODO simplify
     state.operand_stack.push(Pointer::from(heap_index));
     state.instruction_pointer.bump(program);
     Ok(())
@@ -209,7 +216,7 @@ pub fn eval_set_field(program: &Program, state: &mut State, index: &ConstantPool
     let object = state.heap.dereference_mut(&heap_pointer)?;
 
     let object_instance = object.as_object_instance_mut()?;
-    let pointer = object_instance.set_field(name, value_pointer.clone())?;
+    object_instance.set_field(name, value_pointer.clone())?;
     state.operand_stack.push(value_pointer);
     state.instruction_pointer.bump(program);
     Ok(())
@@ -222,28 +229,40 @@ pub fn eval_call_method(program: &Program, state: &mut State, index: &ConstantPo
     let program_object = program.constant_pool.get(index)?;
     let method_name = program_object.as_str()?;
 
-    let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize())?;
+    ensure!(arguments.to_usize() > 0,
+            "Method arity is zero, which does not account for a receiver object.");
+    let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize() - 1)?;
     let receiver_pointer = state.operand_stack.pop()?;
+
+    println!("{:?} {:?}", receiver_pointer, argument_pointers);
 
     dispatch_method(program, state, receiver_pointer, method_name, argument_pointers)
 }
 
 fn dispatch_method(program: &Program, state: &mut State, receiver_pointer: Pointer, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<()> {
     match receiver_pointer {
-        Pointer::Null =>
+        Pointer::Null => {
             dispatch_null_method(method_name, argument_pointers)?
-                .push_onto(&mut state.operand_stack),
-        Pointer::Integer(i) =>
+                .push_onto(&mut state.operand_stack);
+            state.instruction_pointer.bump(program);
+        }
+        Pointer::Integer(i) => {
             dispatch_integer_method(&i, method_name, argument_pointers)?
-                .push_onto(&mut state.operand_stack),
-        Pointer::Boolean(b) =>
+                .push_onto(&mut state.operand_stack);
+            state.instruction_pointer.bump(program);
+        }
+        Pointer::Boolean(b) => {
             dispatch_boolean_method(&b, method_name, argument_pointers)?
-                .push_onto(&mut state.operand_stack),
+                .push_onto(&mut state.operand_stack);
+            state.instruction_pointer.bump(program);
+        }
         Pointer::Reference(index) =>
             match state.heap.dereference_mut(&index)? {
-                HeapObject::Array(array) =>
+                HeapObject::Array(array) => {
                     dispatch_array_method(array, method_name, argument_pointers)?
-                        .push_onto(&mut state.operand_stack),
+                        .push_onto(&mut state.operand_stack);
+                    state.instruction_pointer.bump(program);
+                }
                 HeapObject::Object(_) =>
                     dispatch_object_method(program, state, receiver_pointer,
                                            method_name, argument_pointers)?,
@@ -260,10 +279,11 @@ fn dispatch_null_method(method_name: &str, argument_pointers: Vec<Pointer>) -> R
     let result = match (method_name, argument)  {
         ("==", Pointer::Null) | ("eq", Pointer::Null)  => Pointer::from(true),
         ("==", _) | ("eq", _)                          => Pointer::from(false),
-        ("!=", Pointer::Null) | ("neq", Pointer::Null) => Pointer::from(true),
-        ("!=", _) | ("neq", _)                         => Pointer::from(false),
+        ("!=", Pointer::Null) | ("neq", Pointer::Null) => Pointer::from(false),
+        ("!=", _) | ("neq", _)                         => Pointer::from(true),
         _ => bail!("Call method error: no method `{}` in object `null`", method_name),
     };
+
     Ok(result)
 }
 
@@ -371,7 +391,9 @@ fn dispatch_object_method(program: &Program, state: &mut State,
     let object_instance = heap_object.as_object_instance_mut()?; // Should never fail.
     let parent_pointer = object_instance.parent.clone();
 
-    let method_option = object_instance.methods.get(method_name).map(|method| method.clone());
+    let method_option = object_instance.methods
+            .get(&method_name.to_string())
+            .map(|method| method.clone());
 
     match method_option {
         Some(method) =>
@@ -391,7 +413,7 @@ fn eval_call_object_method(program: &Program, state: &mut State,
     let locals = method.get_method_locals()?;
     let address = method.get_method_start_address()?;
 
-    bail_if!(argument_pointers.len() != parameters.to_usize(),
+    bail_if!(argument_pointers.len() != parameters.to_usize() - 1,
              "Method `{}` requires {} arguments, but {} were supplied",
              method_name, parameters, argument_pointers.len());
 
@@ -448,7 +470,7 @@ pub fn eval_print<W>(program: &Program, state: &mut State, output: &mut W, index
             (_,    '~' ) => {
                 let argument = argument_pointers.pop()
                     .with_context(|| "Not enough arguments for format `{}`")?;
-                output.write_str(argument.evaluate_as_string(/*state.heap*/).as_str())?
+                output.write_str(argument.evaluate_as_string(&state.heap)?.as_str())?
             },
             (_,    ch  ) => output.write_char(ch)?,
         }
@@ -498,8 +520,10 @@ pub fn eval_return(_program: &Program, state: &mut State) -> Result<()> {
 }
 
 #[inline(always)]
-pub fn eval_drop(_program: &Program, state: &mut State) -> Result<()> {
+pub fn eval_drop(program: &Program, state: &mut State) -> Result<()> {
     state.operand_stack.pop()?;
+    state.instruction_pointer.bump(program);
+    println!("instruction_pointer: {:?}", state.instruction_pointer);
     Ok(())
 }
 

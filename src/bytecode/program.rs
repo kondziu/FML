@@ -32,6 +32,7 @@ impl Program {
         }
     }
 
+    #[allow(dead_code)]
     pub fn from(code: Code, constant_pool: ConstantPool, globals: Globals, entry: Entry) -> Result<Self> {
         let label_names = code.labels();
         let label_constants = constant_pool.get_all(label_names)?.into_iter();
@@ -304,6 +305,7 @@ impl Labels {
         self.groups = self.groups + 1;
         Ok(name)
     }
+    #[allow(dead_code)]
     pub fn generate<S>(&mut self, prefix: S) -> Result<ProgramObject> where S: Into<String> {
         self.generate_name(prefix)
             .map(|name| ProgramObject::String(name))
@@ -339,7 +341,7 @@ impl LabelGroup<'_> {
     pub fn generate_name<S>(&self, prefix: S) -> Result<String> where S: Into<String> {
         self.labels.generate_name_within_group(prefix, self.group)
     }
-
+    #[allow(dead_code)]
     pub fn generate<S>(&self, prefix: S) -> Result<ProgramObject> where S: Into<String> {
         self.labels.generate_name_within_group(prefix, self.group)
             .map(|name| ProgramObject::String(name))
@@ -392,6 +394,7 @@ impl ConstantPool {
     pub fn iter(&self) -> impl Iterator<Item=&ProgramObject> {
         self.0.iter()
     }
+    #[allow(dead_code)]
     pub fn size(&self) -> usize {
         self.0.len()
     }
@@ -501,6 +504,7 @@ pub enum ProgramObject {
 }
 
 impl ProgramObject {
+    #[allow(dead_code)]
     pub fn is_literal(&self) -> bool {
         match self {
             ProgramObject::Null => true,
@@ -509,70 +513,60 @@ impl ProgramObject {
             _ => false,
         }
     }
-
     pub fn as_str(&self) -> anyhow::Result<&str> {
         match self {
             ProgramObject::String(string) => Ok(string),
             _ => anyhow::bail!("Expecting a program object representing a String, found `{}`", self)
         }
     }
-
     pub fn as_class_definition(&self) -> anyhow::Result<&Vec<ConstantPoolIndex>> {
         match self {
             ProgramObject::Class(members) => Ok(members),
             _ => anyhow::bail!("Expecting a program object representing a Class, found `{}`", self)
         }
     }
-
     pub fn is_slot(&self) -> bool {
         match self {
             ProgramObject::Slot { .. } => true,
             _ => false,
         }
     }
-
     pub fn is_method(&self) -> bool {
         match self {
             ProgramObject::Method { .. } => true,
             _ => false,
         }
     }
-
     pub fn get_method_parameters(&self) -> anyhow::Result<&Arity> {
         match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
             ProgramObject::Method { parameters, .. } => Ok(parameters),
             pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
         }
     }
-
     pub fn get_method_name(&self) -> anyhow::Result<&ConstantPoolIndex> {
         match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
             ProgramObject::Method { name, .. } => Ok(name),
             pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
         }
     }
-
     pub fn get_method_locals(&self) -> anyhow::Result<&Size> {
         match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
             ProgramObject::Method { locals, .. } => Ok(locals),
             pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
         }
     }
-
     pub fn get_method_start_address(&self) -> anyhow::Result<&Address> {
         match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
             ProgramObject::Method { code, .. } => Ok(code.start()),
             pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
         }
     }
-
     pub fn as_slot_index(&self) -> anyhow::Result<&ConstantPoolIndex> {
         match self {
             ProgramObject::Slot { name } => Ok(name),
             _ => anyhow::bail!("Expecting a program object representing a Slot, found `{}`", self)
         }
     }
-
     // pub fn as_method(&self) -> bool {
     //     match self {
     //         ProgramObject::Method { name, arguments, locals, code } => true,
@@ -717,12 +711,14 @@ impl Code {
     pub fn emit(&mut self, opcode: OpCode) {
         self.0.push(opcode)
     }
+    #[allow(dead_code)]
     pub fn emit_if(&mut self, opcode: OpCode, condition: bool) {
         if condition { self.emit(opcode) }
     }
     pub fn emit_unless(&mut self, opcode: OpCode, condition: bool) {
         if !condition { self.emit(opcode) }
     }
+    #[allow(dead_code)]
     pub fn length(&self) -> usize {
         self.0.len()
     }
@@ -913,7 +909,7 @@ impl Serializable for Program {
 }
 
 impl SerializableWithContext for ConstantPool {
-    fn serialize<W: Write>(&self, sink: &mut W, code: &Code) -> Result<(), Error> {
+    fn serialize<W: Write>(&self, _sink: &mut W, _code: &Code) -> Result<(), Error> {
         unimplemented!()
     }
 

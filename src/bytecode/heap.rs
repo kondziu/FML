@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::*;
+use indexmap::IndexMap;
 
 use crate::bytecode::state::OperandStack;
 use crate::bytecode::program::ProgramObject;
@@ -39,38 +38,42 @@ pub enum HeapObject {
 }
 
 impl HeapObject {
-    pub fn new_object(parent: Pointer, fields: HashMap<String, Pointer>, methods: HashMap<String, ProgramObject>) -> Self {
+    #[allow(dead_code)]
+    pub fn new_object(parent: Pointer, fields: IndexMap<String, Pointer>, methods: IndexMap<String, ProgramObject>) -> Self {
         HeapObject::Object(ObjectInstance { parent, fields, methods })
     }
-
     pub fn as_object_instance(&self) -> Result<&ObjectInstance> {
         match self {
             HeapObject::Object(instance) => Ok(instance),
             array => Err(anyhow!("Attempt to cast an array as an object instance `{}`.", array)),
         }
     }
-
     pub fn as_object_instance_mut(&mut self) -> Result<&mut ObjectInstance> {
         match self {
             HeapObject::Object(instance) => Ok(instance),
             array => Err(anyhow!("Attempt to cast an array as an object instance `{}`.", array)),
         }
     }
-
+    #[allow(dead_code)]
     pub fn empty_object() -> Self {
         HeapObject::Object(ObjectInstance::new())
     }
-
+    #[allow(dead_code)]
     pub fn empty_array() -> Self {
         HeapObject::Array(ArrayInstance::new())
     }
-
     pub fn from_pointers(v: Vec<Pointer>) -> Self {
         HeapObject::Array(ArrayInstance::from(v))
     }
-
-    pub fn from(parent: Pointer, fields: HashMap<String, Pointer>, methods: HashMap<String, ProgramObject>) -> Self {
+    #[allow(dead_code)]
+    pub fn from(parent: Pointer, fields: IndexMap<String, Pointer>, methods: IndexMap<String, ProgramObject>) -> Self {
         HeapObject::Object(ObjectInstance { parent, fields, methods })
+    }
+    pub fn evaluate_as_string(&self, heap: &Heap) -> Result<String> {
+        match self {
+            HeapObject::Array(array) => array.evaluate_as_string(heap),
+            HeapObject::Object(object) => object.evaluate_as_string(heap),
+        }
     }
 }
 
@@ -88,18 +91,18 @@ impl std::fmt::Display for HeapObject {
 pub struct ArrayInstance(Vec<Pointer>);
 
 impl ArrayInstance {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         ArrayInstance(vec![])
     }
-
+    #[allow(dead_code)]
     pub fn iter<'a>(&'a self) -> impl Iterator<Item=&Pointer> + 'a {
         self.0.iter()
     }
-
+    #[allow(dead_code)]
     pub fn length(&self) -> usize {
         self.0.len()
     }
-
     pub fn get_element(&self, index: usize) -> Result<&Pointer> {
         let length = self.0.len();
         bail_if!(index >= length,
@@ -107,7 +110,6 @@ impl ArrayInstance {
                  index, self, length);
         Ok(&self.0[index])
     }
-
     pub fn set_element(&mut self, index: usize, value_pointer: Pointer) -> Result<&Pointer> {
         let length = self.0.len();
         bail_if!(index >= length,
@@ -115,6 +117,12 @@ impl ArrayInstance {
                  index, self, length);
         self.0[index] = value_pointer;
         Ok(&self.0[index])
+    }
+    pub fn evaluate_as_string(&self, heap: &Heap) -> Result<String> {
+        let elements = self.0.iter()
+            .map(|element| element.evaluate_as_string(heap))
+            .collect::<Result<Vec<String>>>()?;
+        Ok(format!("[{}]", elements.join(", ")))
     }
 }
 
@@ -136,27 +144,43 @@ impl std::fmt::Display for ArrayInstance {
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct ObjectInstance {
     pub parent: Pointer,
-    pub fields: HashMap<String, Pointer>, // TODO make private
-    pub methods: HashMap<String, ProgramObject> // TODO make private
+    pub fields: IndexMap<String, Pointer>, // TODO make private
+    pub methods: IndexMap<String, ProgramObject> // TODO make private
 }
 
 impl ObjectInstance {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         ObjectInstance  {
             parent: Pointer::Null,
-            fields: HashMap::new(),
-            methods: HashMap::new(),
+            fields: IndexMap::new(),
+            methods: IndexMap::new(),
         }
     }
-
     pub fn get_field(&self, name: &str) -> Result<&Pointer> {
         self.fields.get(name)
             .with_context(|| format!("There is no field named `{}` in object `{}`", name, self))
     }
-
     pub fn set_field(&mut self, name: &str, pointer: Pointer) -> Result<Pointer> {
         self.fields.insert(name.to_owned(), pointer)
             .with_context(|| format!("There is no field named `{}` in object `{}`", name, self))
+    }
+    pub fn evaluate_as_string(&self, heap: &Heap) -> Result<String> {
+        let parent = match self.parent {
+            Pointer::Null => None,
+            parent => Some(parent.evaluate_as_string(heap)?),
+        };
+
+        let fields = self.fields.iter()
+            .map(|(name, value)| {
+                value.evaluate_as_string(heap).map(|value| format!("{}={}", name, value))
+            })
+            .collect::<Result<Vec<String>>>()?;
+
+        match parent {
+            Some(parent) => Ok(format!("object(..={}, {})", parent, fields.join(", "))),
+            None => Ok(format!("object({})", fields.join(", "))),
+        }
     }
 }
 
@@ -241,13 +265,14 @@ impl Pointer {
             _ => bail!("Expecting either a null, an integer, or a boolean, but found `{}`.", program_object),
         }
     }
-
+    #[allow(dead_code)]
     pub fn is_heap_reference(&self) -> bool {
         match self {
             Pointer::Reference(_) => true,
             _ => false,
         }
     }
+    #[allow(dead_code)]
     pub fn as_heap_reference(&self) -> Option<&HeapIndex> {
         match self {
             Pointer::Reference(reference) => Some(reference),
@@ -267,13 +292,14 @@ impl Pointer {
             _ => false,
         }
     }
+    #[allow(dead_code)]
     pub fn as_null(&self) -> Option<()> {
         match self {
             Pointer::Null => Some(()),
             _ => None,
         }
     }
-
+    #[allow(dead_code)]
     pub fn is_i32(&self) -> bool {
         match self {
             Pointer::Integer(_) => true,
@@ -286,20 +312,20 @@ impl Pointer {
             pointer => Err(anyhow!("Expecting an integer, but found `{}`", pointer)),
         }
     }
-
     pub fn as_usize(&self) -> Result<usize> {
         match self {
             Pointer::Integer(i) if *i >= 0 => Ok(*i as usize),
             pointer => Err(anyhow!("Expecting a positive integer, but found `{}`", pointer)),
         }
     }
-
+    #[allow(dead_code)]
     pub fn is_bool(&self) -> bool {
         match self {
             Pointer::Boolean(_) => true,
             _ => false,
         }
     }
+    #[allow(dead_code)]
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             Pointer::Boolean(b) => Some(*b),
@@ -316,8 +342,13 @@ impl Pointer {
         }
     }
 
-    pub fn evaluate_as_string(&self) -> String {
-        unimplemented!()
+    pub fn evaluate_as_string(&self, heap: &Heap) -> Result<String> { // TODO trait candidate
+        match self {
+            Pointer::Null => Ok("null".to_owned()),
+            Pointer::Integer(i) => Ok(i.to_string()),
+            Pointer::Boolean(b) => Ok(b.to_string()),
+            Pointer::Reference(index) => heap.dereference(index)?.evaluate_as_string(heap),
+        }
     }
 }
 

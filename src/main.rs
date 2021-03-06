@@ -123,7 +123,9 @@ impl RunAction {
             .expect("Error reading input"))
             .expect("Parse error");
 
-        let program = bytecode::compile(&ast);
+        let program = bytecode::compile(&ast)
+            .expect("Compiler error");
+
         evaluate(&program)
             .expect("Interpreter error")
     }
@@ -165,7 +167,8 @@ impl CompilerAction {
         let ast = input_serializer.deserialize(&source)
             .expect("Error parsing AST from input file");
 
-        let program = bytecode::compile(&ast);
+        let program = bytecode::compile(&ast)
+            .expect("Compiler Error");
 
         output_serializer.serialize(&program, &mut sink)
             .expect("Cannot serialize program to output.");

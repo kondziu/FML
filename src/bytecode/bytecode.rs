@@ -8,7 +8,7 @@ use crate::bytecode::program::*;
  * # Bytecode operation
  *
  */
-#[derive(PartialEq,Debug,Copy,Clone)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum OpCode {
     /**
      * ## Push literal onto stack

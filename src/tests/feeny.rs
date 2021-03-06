@@ -5,7 +5,7 @@ use crate::bytecode::program::*;
 use crate::bytecode::interpreter::*;
 use crate::bytecode::serializable::*;
 use crate::bytecode::debug::*;
-use crate::bytecode::state::State;
+use crate::bytecode::state::*;
 
 fn feeny_hello_world_source() -> &'static str {
     r#"Constants :
@@ -35,7 +35,7 @@ fn feeny_hello_world_program() -> Program {
         /* 5 */ OpCode::Return,
     ));
 
-    let constants = vec!(
+    let constant_pool = ConstantPool::from(vec![
         /* #0 */ ProgramObject::String("Hello World\n".to_string()),
         /* #1 */ ProgramObject::String("main".to_string()),
         /* #2 */ ProgramObject::Method {
@@ -52,12 +52,11 @@ fn feeny_hello_world_program() -> Program {
             locals: Size::new(0),
             code: AddressRange::from(2, 4),
         },
-    );
+    ]);
 
-    let globals = vec!(ConstantPoolIndex::new(2));
-    let entry = ConstantPoolIndex::new(5);
+    let globals = Globals::from(vec![ConstantPoolIndex::new(2)]);
 
-    Program::new(code, constants, globals, entry)
+    Program::from(code, constant_pool, globals, Entry::from(5)).unwrap()
 }
 
 fn feeny_hello_world_bytes() -> Vec<u8> {
@@ -90,15 +89,10 @@ fn feeny_hello_world_bytes() -> Vec<u8> {
 
 #[test] fn feeny_hello_world_eval() {
     let program = feeny_hello_world_program();
-    let mut state = State::from(&program);
+    let mut state = State::from(&program).unwrap();
     let mut output = String::new();
 
-    loop {
-        interpret(&mut state, &mut output, &program);
-        if let None = state.instruction_pointer() {
-            break;
-        }
-    }
+    evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, "Hello World\n");
 }
@@ -376,7 +370,7 @@ fn feeny_fibonacci_program () -> Program {
         /* 74 */ OpCode::Return
     ));
 
-    let constants = vec!(
+    let constants = ConstantPool::from(vec![
         /* #0  0x00 */ ProgramObject::String("conseq39".to_string()),
         /* #1  0x01 */ ProgramObject::String("end40".to_string()),
         /* #2  0x02 */ ProgramObject::Integer(0),
@@ -417,16 +411,16 @@ fn feeny_fibonacci_program () -> Program {
             locals: Size::new(0),
             code: AddressRange::from(71,4),
         }
-    );
+    ]);
 
-    let globals = vec!(
+    let globals = Globals::from(vec![
         ConstantPoolIndex::new(15),
         ConstantPoolIndex::new(22)
-    );
+    ]);
 
-    let entry = ConstantPoolIndex::new(24);
+    let entry = Entry::from(24);
 
-    Program::new (code, constants, globals, entry)
+    Program::from(code, constants, globals, entry).unwrap()
 }
 
 #[test] fn feeny_fibonacci_deserialize() {
@@ -448,7 +442,7 @@ fn feeny_fibonacci_program () -> Program {
 
 #[test] fn feeny_fibonacci_eval() {
     let program = feeny_fibonacci_program();
-    let mut state = State::from(&program);
+    let mut state = State::from(&program).unwrap();
     let mut output = String::new();
 
 
@@ -456,21 +450,23 @@ fn feeny_fibonacci_program () -> Program {
     program.pretty_print(&mut source);
     println!("{}", String::from_utf8(source).unwrap());
 
-    loop {
-        match state.instruction_pointer() {
-            Some(address) => println!("{:?} => {:?}", address, program.get_opcode(address)),
-            _ => println!("None => ..."),
-        }
-        println!("stack before: {:?}", state.operands);
-        println!("frame before: {:?}", state.frames.last());
-        interpret(&mut state, &mut output, &program);
-        if let None = state.instruction_pointer() {
-            break;
-        }
-        println!("stack after:  {:?}", state.operands);
-        println!("frame after:  {:?}", state.frames.last());
-        println!();
-    }
+    // loop {
+    //     match state.instruction_pointer.get() {
+    //         Some(address) => println!("{:?} => {:?}", address, program.get_opcode(address)),
+    //         _ => println!("None => ..."),
+    //     }
+    //     println!("stack before: {:?}", state.operands);
+    //     println!("frame before: {:?}", state.frames.last());
+    //     step_with(&program, &mut state, &mut output);
+    //     if let None = state.instruction_pointer() {
+    //         break;
+    //     }
+    //     println!("stack after:  {:?}", state.operands);
+    //     println!("frame after:  {:?}", state.frames.last());
+    //     println!();
+    // }
+
+    evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, feeny_fibonacci_expected_output());
 }

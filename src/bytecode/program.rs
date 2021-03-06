@@ -13,6 +13,7 @@ use std::iter::repeat;
 
 use crate::bail_if;
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct Program {
     pub constant_pool: ConstantPool,
     pub labels: Labels,
@@ -239,6 +240,7 @@ impl Program {
 //     }
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct Globals(Vec<ConstantPoolIndex>);
 impl Globals {
     pub fn new() -> Self { Globals(Vec::new()) }
@@ -259,6 +261,7 @@ impl From<Vec<ConstantPoolIndex>> for Globals {
     }
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct Entry(Option<ConstantPoolIndex>);
 impl Entry {
     pub fn new() -> Self { Entry(None) }
@@ -279,6 +282,7 @@ impl From<u16> for Entry {
     fn from(index: u16) -> Self { Entry(Some(ConstantPoolIndex::from(index))) }
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct Labels { names: HashMap<String, Address>, groups: usize } // FIXME
 impl Labels {
     pub fn new() -> Self { Labels { names: HashMap::new(), groups: 0 } }
@@ -362,6 +366,7 @@ impl LabelGroup<'_> {
 //     }
 // }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct ConstantPool(Vec<ProgramObject>);
 impl ConstantPool {
     pub fn new() -> Self { ConstantPool(Vec::new()) }
@@ -698,7 +703,7 @@ impl ProgramObject {
 }
 
 
-#[derive(PartialEq,Debug,Clone)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct Code(Vec<OpCode>);
 impl Code {
     pub fn new() -> Self { Code(Vec::new()) }

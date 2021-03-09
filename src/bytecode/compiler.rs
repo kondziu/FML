@@ -217,8 +217,9 @@ impl Bookkeeping {
         !(self.frames.is_empty() && self.top.in_outermost_scope())
     }
 
-    fn register_global(&mut self, id: &str) {
-        self.globals.insert(id.to_string());
+    // returns true if value is new
+    fn register_global(&mut self, id: &str) -> bool {
+        self.globals.insert(id.to_string())
     }
 
     fn has_local(&self, id: &str) -> bool {
@@ -325,7 +326,10 @@ impl Compiled for AST {
                     program.emit_code(OpCode::SetLocal { index });
 
                 } else {
-                    environment.register_global(name);                  // TODO necessary?
+                    let new = environment.register_global(name);
+                    if !new {
+                        panic!("Cannot create global variable `{}`: already exists", &name);
+                    }
                     value.deref().compile_into(program, environment, true);
                     let index = program.register_constant(ProgramObject::from_str(name));
                     program.emit_code(OpCode::SetGlobal { name: index });
@@ -339,7 +343,10 @@ impl Compiled for AST {
                     program.emit_code(OpCode::GetLocal { index });      // FIXME scoping!!!
                 } else {
                     let index = program.register_constant(ProgramObject::from_str(name));
-                    environment.register_global(name);                  // TODO necessary?
+                    let new = environment.register_global(name);
+                    if new {
+                        panic!("Cannot access global variable `{}`: does not exist", &name);
+                    }
                     program.emit_code(OpCode::GetGlobal { name: index });
                 }
             }
@@ -351,7 +358,10 @@ impl Compiled for AST {
                     program.emit_code(OpCode::SetLocal { index });
                 } else {
                     let index = program.register_constant(ProgramObject::from_str(name));
-                    environment.register_global(name);                  // TODO necessary?
+                    let new = environment.register_global(name);
+                    if new {
+                        panic!("Cannot assign to global variable `{}`: does not exist", &name);
+                    }
                     value.deref().compile_into(program, environment, true);
                     program.emit_code(OpCode::SetGlobal { name: index });
                 }

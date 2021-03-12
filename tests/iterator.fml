@@ -1,0 +1,96 @@
+function simple_sequence(first, last) ->
+begin
+  let i = 0;
+  let n = last - first + 1;
+  let arr = array(n, null);
+  while (i < n) do
+  begin
+      arr[i] <- i + first;
+      i <- i + 1;
+  end;
+  arr
+end;
+
+function array_iterator(collection, size) -> object
+begin
+  let collection = collection;
+  let size = size;
+  let pointer = 0;
+
+  function reset() -> this.pointer <- 0;
+
+  function has_next() -> this.pointer < this.size;
+
+  function next() ->
+  begin
+    if this.has_next() then
+    begin
+      let next = this.collection[this.pointer];
+      this.pointer <- this.pointer + 1;
+      next
+    end;
+  end;
+
+  function for_each(f) -> begin
+    this.reset();
+    while this.has_next() do f.apply(this.pointer, this.next());
+  end;
+
+  function map(f) ->
+  begin
+    this.reset();
+    let result = array(this.size, null);
+    while this.has_next() do
+    begin
+      result[this.pointer] <- f.apply(this.pointer, this.next());
+    end;
+    result;
+  end;
+end;
+
+let print_lambda = object begin
+  function apply(index, value) -> print("~: ~\n", index, value);
+end;
+
+let increment_lambda = object begin
+  function apply(index, value) -> value + 1;
+end;
+
+let collection_length = 10;
+let collection = simple_sequence(10, 10 + collection_length - 1);
+
+print("collection: ~\n", collection);
+// > collection: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+
+let iterator = array_iterator(collection, collection_length);
+while iterator.has_next() do
+  print("gimme more: ~\n", iterator.next());
+print("gimme too much: ~\n", iterator.next());
+iterator.reset();
+// > gimme more: 10
+// > gimme more: 11
+// > gimme more: 12
+// > gimme more: 13
+// > gimme more: 14
+// > gimme more: 15
+// > gimme more: 16
+// > gimme more: 17
+// > gimme more: 18
+// > gimme more: 19
+// > gimme too much: null
+
+iterator.for_each(print_lambda);
+// > 0: 10
+// > 1: 11
+// > 2: 12
+// > 3: 13
+// > 4: 14
+// > 5: 15
+// > 6: 16
+// > 7: 17
+// > 8: 18
+// > 9: 19
+
+let incremented_collection = iterator.map(increment_lambda);
+print("incremented collection: ~\n", incremented_collection);
+// > incremented collection: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]

@@ -42,202 +42,6 @@ impl Program {
 
         Ok(Program { labels, constant_pool, code, globals, entry })
     }
-
-    // pub fn emit_code(&mut self, opcode: OpCode) {
-    //     match opcode {
-    //         OpCode::Label {name: index} => {
-    //             let address = Address::from_usize(self.code.length());
-    //             self.code.push(opcode);
-    //             let constant = self.get_constant(&index);
-    //             match constant {
-    //                 Some(ProgramObject::String(name)) => {
-    //                     let name = name.to_owned();
-    //                     let result = self.labels.register_label_address(name, address);
-    //
-    //                     if result.is_some() {
-    //                          panic!("Emit code error: cannot create label {:?}, \
-    //                                            name {:?} already used by another label.",
-    //                                                opcode, self.get_constant(&index))
-    //                     }
-    //                 },
-    //                 Some(object) => panic!("Emit code error: cannot create label, \
-    //                                         constant at index {:?} should be a String, but is {:?}",
-    //                                         index, object),
-    //
-    //                 None => panic!("Emit code error: cannot create label, \
-    //                                 there is no constant at index {:?}", index),
-    //             }
-    //
-    //         }
-    //         _ => self.code.opcodes.push(opcode),
-    //     }
-    // }
-
-//     #[allow(dead_code)]
-//     pub fn new(code: Code,
-//                constants: Vec<ProgramObject>,
-//                globals: Vec<ConstantPoolIndex>,
-//                entry: ConstantPoolIndex) -> Program {
-//
-//         let labels = Program::labels_from_code(&code, &constants);
-//
-//         Program { code, labels, constants, globals, entry }
-//     }
-//
-
-//
-//     fn labels_from_code(code: &Code, constants: &Vec<ProgramObject>) -> Labels {
-//         let mut labels: HashMap<String, Address> = HashMap::new();
-//         for (i, opcode) in code.opcodes.iter().enumerate() {
-//             if let OpCode::Label { name: index } = opcode {
-//                 let constant = constants.get(index.value() as usize)
-//                     .expect(&format!("Program initialization: label {:?} expects a constant in the \
-//                                       constant pool at index {:?} but none was found",
-//                                      opcode, index));
-//
-//                 let name = match constant {
-//                     ProgramObject::String(string) => string,
-//                     _ => panic!("Program initialization: label {:?} expects a String in the \
-//                                  constant pool at index {:?} but {:?} was found",
-//                                 opcode, index, constant),
-//                 };
-//
-//                 if labels.contains_key(name) {
-//                     panic!("Program initialization: attempt to define label {:?} with a non-unique \
-//                             name: {}", opcode, name)
-//                 }
-//
-//                 labels.insert(name.to_string(), Address::from_usize(i));
-//             };
-//         }
-//         Labels::from(labels)
-//     }
-//
-//     pub fn code(&self) -> &Code {
-//         &self.code
-//     }
-//
-//     pub fn constants(&self) -> &Vec<ProgramObject> {
-//         &self.constants
-//     }
-//
-//     pub fn labels(&self) -> &HashMap<String, Address> {
-//         &self.labels.all()
-//     }
-//
-//     pub fn globals(&self) -> &Vec<ConstantPoolIndex> {
-//         &self.globals
-//     }
-//
-//     pub fn entry(&self) -> &ConstantPoolIndex {
-//         &self.entry
-//     }
-//
-//     pub fn get_constant(&self, index: &ConstantPoolIndex) -> Option<&ProgramObject> {
-//         self.constants.get(index.value() as usize)
-//     }
-//
-//     pub fn get_opcode(&self, address: &Address) -> Option<&OpCode> {
-//         self.code.get_opcode(address)
-//     }
-//
-//     pub fn get_label(&self, name: &str) -> Option<&Address> {
-//         self.labels.get_label_address(name)
-//     }
-//
-//     //-----------
-//
-
-//
-//     pub fn register_global(&mut self, constant: ConstantPoolIndex) {
-//         if self.globals.contains(&constant) {
-//             panic!("Cannot register global {:?}, this index is already registered.", constant)
-//         }
-//
-//         self.globals.push(constant)
-//     }
-//
-// //    fn register_label(&mut self, label: String) -> ConstantPoolIndex {
-// //        if let Some(index) = self.labels.get(&label) {
-// //            return *index;
-// //        }
-// //        let index = ConstantPoolIndex::from_usize(self.labels.len());
-// //        self.labels.insert(label, index);
-// //        index
-// //    }
-//
-//     // pub fn generate_new_label_name(&mut self, name: &str) -> ConstantPoolIndex {
-//     //     let label = self.labels.generate_label(name).unwrap();
-//     //     self.labels.new_group();
-//     //     let constant = ProgramObject::String(label);
-//     //     let index = self.register_constant(constant);
-//     //
-//     //     index
-//     // }
-//
-//     pub fn generate_new_label_names(&mut self, names: Vec<&str>) -> Vec<ConstantPoolIndex> {
-//         let labels: Vec<String> = names.into_iter()
-//             .map(|name| self.labels.generate_label(name))
-//             .map(|label| label.unwrap())
-//             .collect();
-//
-//         self.labels.new_group();
-//
-//         labels.into_iter()
-//             .map(|label| {
-//                 self.register_constant(ProgramObject::String(label.clone()))
-//             })
-//             .collect()
-//     }
-//
-//     pub fn get_current_address(&self) -> Address {
-//         let size = self.code.opcodes.len();
-//         Address::from_usize(size - 1)
-//     }
-//
-//     pub fn get_upcoming_address(&self) -> Address {
-//         let size = self.code.opcodes.len();
-//         Address::from_usize(size)
-//     }
-//
-//     pub fn set_entry(&mut self, function_index: ConstantPoolIndex) {
-//         self.entry = function_index;
-//     }
-//
-//     pub fn emit_conditionally(&mut self, opcode: OpCode, emit: bool) {
-//         if emit { self.emit_code(opcode) }
-//     }
-//
-//     pub fn emit_code(&mut self, opcode: OpCode) {
-//         // println!("Emitting code: {:?}", opcode);
-//         match opcode {
-//             OpCode::Label {name: index} => {
-//                 let address = Address::from_usize(self.code.opcodes.len());
-//                 self.code.opcodes.push(opcode);
-//                 let constant = self.get_constant(&index);
-//                 match constant {
-//                     Some(ProgramObject::String(name)) => {
-//                         let name = name.to_owned();
-//                         let result = self.labels.register_label_address(name, address);
-//
-//                         if result.is_some() {
-//                              panic!("Emit code error: cannot create label {:?}, \
-//                                                name {:?} already used by another label.",
-//                                                    opcode, self.get_constant(&index))
-//                         }
-//                     },
-//                     Some(object) => panic!("Emit code error: cannot create label, \
-//                                             constant at index {:?} should be a String, but is {:?}",
-//                                             index, object),
-//
-//                     None => panic!("Emit code error: cannot create label, \
-//                                     there is no constant at index {:?}", index),
-//                 }
-//
-//             }
-//             _ => self.code.opcodes.push(opcode),
-//         }
-//     }
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -351,20 +155,6 @@ impl LabelGroup<'_> {
             .map(|name| ProgramObject::String(name))
     }
 }
-
-
-// pub struct Dictionary<T>(HashMap<String, T>);                                                       // TODO make implementation just for globals to makje the error messages good.
-// impl<T> Dictionary<T> {
-//     pub fn new() -> Self { Dictionary(HashMap::new()) }
-//     pub fn get(&self, name: &str) -> Result<&T> {
-//         self.0.get(name)
-//             .with_context(|| Err(anyhow!("Cannot reference `{}`: key not found.", name)))
-//     }
-//     pub fn set(&mut self, name: String, pointer: T) -> Result<()> {
-//         self.0.insert(name, pointer)
-//             .with_context(|| Err(anyhow!("Cannot set value of `{}`: key not found.", name)))
-//     }
-// }
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct ConstantPool(Vec<ProgramObject>);
@@ -779,6 +569,15 @@ impl From<Vec<OpCode>> for Code {
     }
 }
 
+impl std::fmt::Display for Code {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (i, opcode) in self.0.iter().enumerate() {
+            writeln!(f, "{}: {}", i, opcode)?;
+        }
+        Ok(())
+    }
+}
+
 // impl Code { // TODO refactor
 //     pub fn new() -> Code {
 //         Code(Vec::new())
@@ -914,8 +713,11 @@ impl Serializable for Program {
 }
 
 impl SerializableWithContext for ConstantPool {
-    fn serialize<W: Write>(&self, _sink: &mut W, _code: &Code) -> Result<(), Error> {
-        unimplemented!()
+    fn serialize<W: Write>(&self, sink: &mut W, code: &Code) -> Result<()> {
+        serializable::write_usize_as_u16(sink, self.0.len())?;
+        self.0.iter()
+            .map(|program_object| program_object.serialize(sink, code))
+            .collect()
     }
 
     fn from_bytes<R: Read>(input: &mut R, code: &mut Code) -> Self {

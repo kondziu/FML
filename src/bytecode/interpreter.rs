@@ -31,14 +31,6 @@ pub fn evaluate(program: &Program) -> Result<()> {
     let mut state = State::from(program)?;
     let mut output = Output::new();
 
-    let entry_index = program.entry.get()?;
-    let entry_method = program.constant_pool.get(&entry_index)?;
-    let entry_address = entry_method.get_method_start_address()?;
-    let entry_locals = entry_method.get_method_locals()?;                                     // TODO probably better way to do this method thing.
-
-    state.frame_stack.push(Frame::with_capacity(None, entry_locals.to_usize(), Pointer::Null));
-    state.instruction_pointer.set(Some(*entry_address));
-
     evaluate_with(program, &mut state, &mut output)
 }
 
@@ -60,6 +52,7 @@ pub fn step_with<W>(program: &Program, state: &mut State, output: &mut W) -> Res
 }
 
 pub fn eval_opcode<W>(program: &Program, state: &mut State, output: &mut W, opcode: &OpCode) -> Result<()> where W: Write {
+    println!(">> {}", opcode);
     match opcode {
         OpCode::Literal { index } => eval_literal(program, state, index),
         OpCode::GetLocal { index } => eval_get_local(program, state, index),

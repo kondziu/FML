@@ -450,22 +450,6 @@ fn feeny_fibonacci_program () -> Program {
     program.pretty_print(&mut source);
     println!("{}", String::from_utf8(source).unwrap());
 
-    // loop {
-    //     match state.instruction_pointer.get() {
-    //         Some(address) => println!("{:?} => {:?}", address, program.get_opcode(address)),
-    //         _ => println!("None => ..."),
-    //     }
-    //     println!("stack before: {:?}", state.operands);
-    //     println!("frame before: {:?}", state.frames.last());
-    //     step_with(&program, &mut state, &mut output);
-    //     if let None = state.instruction_pointer() {
-    //         break;
-    //     }
-    //     println!("stack after:  {:?}", state.operands);
-    //     println!("frame after:  {:?}", state.frames.last());
-    //     println!();
-    // }
-
     evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, feeny_fibonacci_expected_output());

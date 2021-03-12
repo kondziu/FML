@@ -105,9 +105,13 @@ impl FrameStack {
             frames: Vec::new()}
     }
     pub fn pop(&mut self) -> Result<Frame> {
-        self.frames.pop().with_context(|| format!("Attempting to pop frame from empty stack."))
+        print!("pop from frame stack {}.", self.frames.len());
+        let frame = self.frames.pop().with_context(|| format!("Attempting to pop frame from empty stack."));
+        println!("{:?}", frame);
+        frame
     }
     pub fn push(&mut self, frame: Frame) {
+        println!("push into frame stack {}. {:?}", self.frames.len(), frame);
         self.frames.push(frame)
     }
     pub fn get_locals(&self) -> Result<&Frame> {
@@ -231,9 +235,10 @@ impl State {
             .with_context(|| format!("Cannot find entry method."))?;
         let entry_method = program.constant_pool.get(&entry_index)
             .with_context(|| format!("Cannot find entry method."))?;
+        let entry_address = entry_method.get_method_start_address()?;
+        let entry_locals = entry_method.get_method_locals()?;
 
-        let instruction_pointer =
-            InstructionPointer::from(entry_method.get_method_start_address()?);
+        let instruction_pointer = InstructionPointer::from(*entry_address);
 
         let global_objects = program.globals.iter()
             .map(|index| {
@@ -270,7 +275,8 @@ impl State {
 
         let global_frame = GlobalFrame::from(globals, Pointer::Null)?;
         let global_functions = GlobalFunctions::from(functions)?;
-        let frame_stack = FrameStack::from((global_frame, global_functions));
+        let mut frame_stack = FrameStack::from((global_frame, global_functions));
+        frame_stack.push(Frame::with_capacity(None, entry_locals.to_usize(), Pointer::Null));
 
         let operand_stack = OperandStack::new();
         let heap: Heap = Heap::new();

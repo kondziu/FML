@@ -1,0 +1,30 @@
+// Expected output:
+// > left(true, false)    = true
+// > right(true, false)   = false
+// > neither(true, false) = null
+// > scope before: x=1, y=2, z=3
+// > scope inside: x=6, y=7, z=3
+// > scope after:  x=1, y=2, z=5
+
+function left(x, y) -> x;
+function right(x, y) -> y;
+function neither(x, y) -> null;
+
+print("left(true, false)    = ~\n", left(true, false));
+print("right(true, false)   = ~\n", right(true, false));
+print("neither(true, false) = ~\n", neither(true, false));
+
+let x = 1;
+let y = 2;
+let z = 3;
+
+function my_scope(x, y) ->
+begin
+   print("scope inside: x=~, y=~, z=~\n", x, y, z);
+   y <- 4;
+   z <- 5;
+end;
+
+print("scope before: x=~, y=~, z=~\n", x, y, z);
+my_scope(6, 7);
+print("scope after:  x=~, y=~, z=~\n", x, y, z);

@@ -1,0 +1,3 @@
+// Expected output:
+
+while false do print("nothing");

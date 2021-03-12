@@ -5,7 +5,7 @@ function fibonacci(value) ->
     else                                 fibonacci(value - 1) + fibonacci(value - 2);
 
 let i = 0;
-while i < 25 do
+while i < 15 do
 begin
   print("~ => ~\n", i, fibonacci(i));
   i <- i + 1;

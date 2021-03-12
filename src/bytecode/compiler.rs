@@ -518,7 +518,7 @@ impl Compiled for AST {
 
                 let arguments = Arity::from_usize(arguments.len());
                 program.code.emit(OpCode::Print { format, arguments });
-                program.code.emit_unless(OpCode::Drop, !keep_result);
+                program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             // AST::Operator { operator, parameters, body } => {
@@ -555,7 +555,7 @@ impl Compiled for AST {
             // }
 
             AST::Function { name: Identifier(name), parameters, body } => {
-                let end_label = program.labels.generate_name("λ:{}")?;
+                let end_label = program.labels.generate_name(format!("λ:{}", name))?;
                 let end_label_index =
                     program.constant_pool.register(ProgramObject::from_str(&end_label));
 
@@ -731,7 +731,7 @@ fn compile_function_definition(name: &str,
                                program: &mut Program,
                                environment: &mut Bookkeeping) -> Result<ConstantPoolIndex> {
 
-    let end_label = program.labels.generate_name("λ:{}")?;
+    let end_label = program.labels.generate_name(format!("λ:{}", name))?;
     let end_label_index =
         program.constant_pool.register(ProgramObject::from_str(&end_label));
 

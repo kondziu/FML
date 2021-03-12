@@ -109,7 +109,7 @@ impl Labels {
         Ok(name)
     }
     pub fn generate_name<S>(&mut self, prefix: S) -> Result<String> where S: Into<String> {
-        let name = self.generate_name_within_group(prefix, self.groups + 1)?;
+        let name = self.generate_name_within_group(prefix, self.groups)?;
         self.groups = self.groups + 1;
         Ok(name)
     }

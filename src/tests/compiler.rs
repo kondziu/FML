@@ -8,10 +8,10 @@ use crate::bytecode::compiler::*;
 #[test] fn number () {
     let ast = AST::Integer(1);
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
@@ -19,15 +19,15 @@ use crate::bytecode::compiler::*;
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) }
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec!(
         /* 0 */ ProgramObject::Integer(1)
-    );
+    ));
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -36,11 +36,11 @@ use crate::bytecode::compiler::*;
 #[test] fn some_more_numbers () {
     let asts = vec!(AST::Integer(1), AST::Integer(42), AST::Integer(0), AST::Integer(42));
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
     for ast in asts {
-        ast.compile(&mut program, &mut bookkeeping);
+        ast.compile(&mut program, &mut bookkeeping).unwrap();
     }
 
     let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
@@ -52,17 +52,17 @@ use crate::bytecode::compiler::*;
         /* 3 */ OpCode::Literal { index: ConstantPoolIndex::new(1) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Integer(1),
         /* 1 */ ProgramObject::Integer(42),
         /* 2 */ ProgramObject::Integer(0),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -71,10 +71,10 @@ use crate::bytecode::compiler::*;
 #[test] fn boolean () {
     let ast = AST::Boolean(true);
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
@@ -82,15 +82,15 @@ use crate::bytecode::compiler::*;
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) }
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Boolean(true)
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -99,10 +99,10 @@ use crate::bytecode::compiler::*;
 #[test] fn unit () {
     let ast = AST::Null;
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
@@ -110,15 +110,15 @@ use crate::bytecode::compiler::*;
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) }
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Null
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -128,10 +128,10 @@ use crate::bytecode::compiler::*;
     let ast = AST::Variable { name: Identifier::from("x"),
         value: Box::new(AST::Integer(1)) };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
 
@@ -140,15 +140,15 @@ use crate::bytecode::compiler::*;
         OpCode::SetLocal { index: LocalFrameIndex::new(0) }
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Integer(1)
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -158,10 +158,10 @@ use crate::bytecode::compiler::*;
     let ast = AST::Variable { name: Identifier::from("x"),
         value: Box::new(AST::Integer(1)) };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::without_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_globals(vec!("x".to_string()));
 
@@ -170,16 +170,16 @@ use crate::bytecode::compiler::*;
         OpCode::SetGlobal { name: ConstantPoolIndex::new(1) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_i32(1),
         /* 1 */ ProgramObject::from_str("x"),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -188,10 +188,10 @@ use crate::bytecode::compiler::*;
 #[test] fn local_access_x () {
     let ast = AST::AccessVariable { name: Identifier::from("x") };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string(), "y".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!("x".to_string(), "y".to_string()));
 
@@ -199,13 +199,13 @@ use crate::bytecode::compiler::*;
         OpCode::GetLocal { index: LocalFrameIndex::new(0) }
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!();
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -214,11 +214,11 @@ use crate::bytecode::compiler::*;
 #[test] fn local_access_y () {
     let ast = AST::AccessVariable { name: Identifier::from("y") };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping =
         Bookkeeping::from_locals(vec!("x".to_string(), "y".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping =
         Bookkeeping::from_locals(vec!("x".to_string(), "y".to_string()));
@@ -227,13 +227,13 @@ use crate::bytecode::compiler::*;
         OpCode::GetLocal { index: LocalFrameIndex::new(1) }
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!();
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -242,11 +242,11 @@ use crate::bytecode::compiler::*;
 #[test] fn global_access () {
     let ast = AST::AccessVariable { name: Identifier::from("x") };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping =
         Bookkeeping::from_globals(vec!("x".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping =
         Bookkeeping::from_globals(vec!("x".to_string()));
@@ -255,15 +255,15 @@ use crate::bytecode::compiler::*;
         OpCode::GetGlobal { name: ConstantPoolIndex::new(0) }
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         ProgramObject::from_str("x")
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -272,11 +272,11 @@ use crate::bytecode::compiler::*;
 #[test] fn global_access_from_elsewhere () {
     let ast = AST::AccessVariable { name: Identifier::from("z") };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping =
         Bookkeeping::from(vec!("x".to_string()), vec!("z".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping =
         Bookkeeping::from(vec!("x".to_string()), vec!("z".to_string()));
@@ -285,15 +285,15 @@ use crate::bytecode::compiler::*;
         OpCode::GetGlobal { name: ConstantPoolIndex::new(0) }
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_str("z"),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -302,10 +302,10 @@ use crate::bytecode::compiler::*;
 #[test] fn loop_de_loop () {
     let ast = AST::Loop { condition: Box::new(AST::Boolean(false)), body: Box::new(AST::Null) };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::with_frame();
 
@@ -320,18 +320,18 @@ use crate::bytecode::compiler::*;
         /* 7 */ OpCode::Literal { index: ConstantPoolIndex::new(2) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::String("loop:body:0".to_string()),
         /* 1 */ ProgramObject::String("loop:condition:0".to_string()),
         /* 2 */ ProgramObject::Null,
         /* 3 */ ProgramObject::Boolean(false),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -344,10 +344,10 @@ use crate::bytecode::compiler::*;
         alternative: Box::new(AST::Integer(-1))
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
@@ -361,19 +361,19 @@ use crate::bytecode::compiler::*;
         /* 6 */ OpCode::Label { name: ConstantPoolIndex::new(1) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::String("if:consequent:0".to_string()),
         /* 1 */ ProgramObject::String("if:end:0".to_string()),
         /* 2 */ ProgramObject::Boolean(true),
         /* 3 */ ProgramObject::Integer(-1),
         /* 4 */ ProgramObject::Integer(1),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -385,10 +385,10 @@ use crate::bytecode::compiler::*;
         size: Box::new(AST::Integer(10)),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::with_frame();
 
@@ -398,16 +398,16 @@ use crate::bytecode::compiler::*;
         /* 2 */ OpCode::Array,
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Integer(10),
         /* 1 */ ProgramObject::Null,
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -422,10 +422,10 @@ use crate::bytecode::compiler::*;
         }),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals_at(vec!(
         "::size".to_string(),
@@ -467,7 +467,7 @@ use crate::bytecode::compiler::*;
         OpCode::GetLocal { index: LocalFrameIndex::new(1) },                                   // arr
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_i32(10),
         /* 1 */ ProgramObject::Null,
         /* 2 */ ProgramObject::Integer(0),
@@ -478,13 +478,13 @@ use crate::bytecode::compiler::*;
         /* 7 */ ProgramObject::from_str("+"),
         /* 8 */ ProgramObject::from_i32(1),
         /* 9 */ ProgramObject::from_str("<"),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     // println!("Constants:");
     // for (i, constant) in program.constants().iter().enumerate() {
@@ -501,10 +501,10 @@ use crate::bytecode::compiler::*;
         index: Box::new(AST::Integer(1)),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
 
@@ -514,16 +514,16 @@ use crate::bytecode::compiler::*;
         /* 2 */ OpCode::CallMethod { name: ConstantPoolIndex::new(1), arguments: Arity::new(2) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Integer(1),
         /* 1 */ ProgramObject::String("get".to_string()),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -536,10 +536,10 @@ use crate::bytecode::compiler::*;
         value: Box::new(AST::Integer(42)),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
 
@@ -550,17 +550,17 @@ use crate::bytecode::compiler::*;
         /* 3 */ OpCode::CallMethod { name: ConstantPoolIndex::new(2), arguments: Arity::new(3) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Integer(1),
         /* 1 */ ProgramObject::Integer(42),
         /* 2 */ ProgramObject::String("set".to_string()),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -575,10 +575,10 @@ use crate::bytecode::compiler::*;
         ),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::with_frame();
 
@@ -588,17 +588,17 @@ use crate::bytecode::compiler::*;
         /* 2 */ OpCode::Print   { format: ConstantPoolIndex::new(0), arguments: Arity::new(2) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::String("~ + ~".to_string()),
         /* 1 */ ProgramObject::Integer(2),
         /* 2 */ ProgramObject::Integer(5),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -614,10 +614,10 @@ use crate::bytecode::compiler::*;
         ),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::with_frame();
 
@@ -628,18 +628,18 @@ use crate::bytecode::compiler::*;
         /* 3 */ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(3) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::String("f".to_string()),
         /* 1 */ ProgramObject::Null,
         /* 2 */ ProgramObject::Integer(0),
         /* 3 */ ProgramObject::Boolean(true),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -651,10 +651,10 @@ use crate::bytecode::compiler::*;
         arguments: vec!(Box::new(AST::Integer(42))),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::with_frame();
 
@@ -663,16 +663,16 @@ use crate::bytecode::compiler::*;
         /* 1 */ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::String("f".to_string()),
         /* 1 */ ProgramObject::Integer(42),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -684,10 +684,10 @@ use crate::bytecode::compiler::*;
         arguments: vec!()
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::with_frame();
 
@@ -695,15 +695,15 @@ use crate::bytecode::compiler::*;
         /* 0 */ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(0) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::String("f".to_string()),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -718,10 +718,10 @@ use crate::bytecode::compiler::*;
         body: Box::new(AST::AccessVariable { name: Identifier::from("left") })
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::with_frame();
 
@@ -732,7 +732,7 @@ use crate::bytecode::compiler::*;
         /* 3 */ OpCode::Label { name: ConstantPoolIndex::new(0) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::String("λ:project_right:0".to_string()),
         /* 1 */ ProgramObject::String("project_right".to_string()),
         /* 2 */ ProgramObject::Method {
@@ -741,13 +741,13 @@ use crate::bytecode::compiler::*;
             locals: Size::new(0),
             code: AddressRange::from(1, 3),
         },
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!(ConstantPoolIndex::new(2));
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![ConstantPoolIndex::new(2)]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -802,10 +802,10 @@ use crate::bytecode::compiler::*;
         )
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::with_frame();
 
@@ -854,7 +854,7 @@ use crate::bytecode::compiler::*;
         /* 31 */ OpCode::Object { class: ConstantPoolIndex:: new(27) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 00 */ ProgramObject::from_bool(true),
         /* 01 */ ProgramObject::from_str("λ:implies:0"),
         /* 02 */ ProgramObject::from_str("implies"),
@@ -927,13 +927,13 @@ use crate::bytecode::compiler::*;
         },
 
         /* 27 */ ProgramObject::class_from_vec(vec!(3, 6, 9, 12, 15, 17, 20, 23, 26)),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -948,10 +948,10 @@ use crate::bytecode::compiler::*;
         Box::new(AST::Boolean(true)),
         Box::new(AST::Integer(42))));
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let mut expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
     expected_bookkeeping.enter_scope();
@@ -971,19 +971,19 @@ use crate::bytecode::compiler::*;
         /* 10 */ OpCode::Literal { index: ConstantPoolIndex::new(2) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Null,
         /* 1 */ ProgramObject::from_i32(1),
         /* 2 */ ProgramObject::from_i32(42),
         /* 3 */ ProgramObject::from_i32(0),
         /* 4 */ ProgramObject::from_bool(true),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -992,10 +992,10 @@ use crate::bytecode::compiler::*;
 #[test] fn block_one () {
     let ast = AST::Block(vec!(Box::new(AST::Null)));
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let mut expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
     expected_bookkeeping.enter_scope();
@@ -1005,15 +1005,15 @@ use crate::bytecode::compiler::*;
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::Null,
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -1022,10 +1022,10 @@ use crate::bytecode::compiler::*;
 #[test] fn block_zero () {
     let ast = AST::Block(vec!());
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let mut expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
     expected_bookkeeping.enter_scope();
@@ -1033,13 +1033,13 @@ use crate::bytecode::compiler::*;
 
     let expected_code = Code::from(vec!());
 
-    let expected_constants: Vec<ProgramObject> = vec!();
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -1051,10 +1051,10 @@ use crate::bytecode::compiler::*;
         field: Identifier::from("x"),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
@@ -1063,15 +1063,15 @@ use crate::bytecode::compiler::*;
         /* 1 */ OpCode::GetField { name: ConstantPoolIndex::new(0) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_str("x"),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -1084,10 +1084,10 @@ use crate::bytecode::compiler::*;
         value: Box::new(AST::Integer(42)),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
@@ -1097,16 +1097,16 @@ use crate::bytecode::compiler::*;
         /* 2 */ OpCode::SetField { name: ConstantPoolIndex::new(1) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_i32(42),
         /* 1 */ ProgramObject::from_str("x"),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -1121,10 +1121,10 @@ use crate::bytecode::compiler::*;
         object: Box::new(AST::AccessVariable { name: Identifier::from("obj") })
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
@@ -1138,18 +1138,18 @@ use crate::bytecode::compiler::*;
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(4) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_str("f"),
         /* 1 */ ProgramObject::from_i32(1),
         /* 2 */ ProgramObject::from_i32(2),
         /* 3 */ ProgramObject::from_i32(3),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -1162,10 +1162,10 @@ use crate::bytecode::compiler::*;
         object: Box::new(AST::AccessVariable { name: Identifier::from("obj") })
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
@@ -1175,16 +1175,16 @@ use crate::bytecode::compiler::*;
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(2) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_str("f"),
         /* 1 */ ProgramObject::from_i32(42),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -1197,10 +1197,10 @@ use crate::bytecode::compiler::*;
         object: Box::new(AST::AccessVariable { name: Identifier::from("obj") })
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
 
@@ -1209,15 +1209,15 @@ use crate::bytecode::compiler::*;
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_str("f"),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -1230,10 +1230,10 @@ use crate::bytecode::compiler::*;
         object: Box::new(AST::Integer(7)),
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!());
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!());
 
@@ -1243,17 +1243,17 @@ use crate::bytecode::compiler::*;
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(2) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_str("-"),
         /* 1 */ ProgramObject::from_i32(7),
         /* 2 */ ProgramObject::from_i32(1),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);
@@ -1266,10 +1266,10 @@ use crate::bytecode::compiler::*;
         arguments: vec![Box::new(AST::Integer(7))],
     };
 
-    let mut program: Program = Program::empty();
+    let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!());
 
-    ast.compile(&mut program, &mut bookkeeping);
+    ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping = Bookkeeping::from_locals(vec!());
 
@@ -1279,17 +1279,17 @@ use crate::bytecode::compiler::*;
         OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(2) },
     ));
 
-    let expected_constants: Vec<ProgramObject> = vec!(
+    let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_str("-"),
         /* 1 */ ProgramObject::from_i32(1),
         /* 2 */ ProgramObject::from_i32(7),
-    );
+    ]);
 
-    let expected_globals: Vec<ConstantPoolIndex> = vec!();
-    let expected_entry = ConstantPoolIndex::new(0);
+    let expected_globals = Globals::from(vec![]);
+    let expected_entry = Entry::new();
 
     let expected_program =
-        Program::new(expected_code, expected_constants, expected_globals, expected_entry);
+        Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
     assert_eq!(bookkeeping, expected_bookkeeping);

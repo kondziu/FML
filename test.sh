@@ -8,6 +8,7 @@ do
   filename="$(dirname "$test")/$(basename "$test" .fml)"
   outfile="$filename.out"
   difffile="$filename.diff"
+  expectedfile="$filename.expected"
 
   message=$(echo -n "Executing test [$i/$n]: \"$test\"... ")
   echo -n "$message"
@@ -21,6 +22,8 @@ do
   ./fml.sh run "$test" 1> "$outfile" 2> "$outfile"
 
   diff <(grep -e '// >' < "$test" | sed 's/\/\/ > \?//') "$outfile" > "$difffile"
+  #grep -e '// >' < "$test" | sed 's/\/\/ > \?//' > "$expectedfile"
+  #diff "$expectedfile" "$outfile" > "$difffile"
   if test "$?" -eq 0
   then
     echo -e "\e[32mpassed\e[0m"

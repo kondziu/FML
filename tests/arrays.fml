@@ -1,0 +1,105 @@
+function simple_sequence(first, last) ->
+begin
+  let i = 0;
+  let n = last - first + 1;
+  let arr = array(n, null);
+  while (i < n) do
+  begin
+      arr[i] <- i + first;
+      i <- i + 1;
+  end;
+  arr
+end;
+
+print("simple sequence 3:10 = ~\n", simple_sequence(3, 10));
+print("simple sequence 4:4  = ~\n", simple_sequence(4, 4));
+print("simple sequence -1:1 = ~\n", simple_sequence(-1, 1));
+
+// > simple sequence 3:10 = [3, 4, 5, 6, 7, 8, 9, 10]
+// > simple sequence 4:4  = [4]
+// > simple sequence -1:1 = [-1, 0, 1]
+
+function too_clever_by_half_sequence(first, last) ->
+begin
+  let i = 0;
+  let n = last - first + 1;
+  array(n,
+  begin
+     let e = i + first;
+     i <- i + 1;
+     e
+  end)
+end;
+
+print("too clever by half sequence 3:10 = ~\n", too_clever_by_half_sequence(3, 10));
+print("too clever by half sequence 4:4  = ~\n", too_clever_by_half_sequence(4, 4));
+print("too clever by half sequence -1:1 = ~\n", too_clever_by_half_sequence(-1, 1));
+
+// > too clever by half sequence 3:10 = [3, 4, 5, 6, 7, 8, 9, 10]
+// > too clever by half sequence 4:4  = [4]
+// > too clever by half sequence -1:1 = [-1, 0, 1]
+
+function populate_sieve(arr, arr_len, interval) ->
+begin
+      let i = interval - 1;
+      while (i < arr_len) do
+      begin
+          if null == arr[i]
+          then arr[i] <- interval
+          else arr[i] <- arr[i] * interval;
+          i <- i + interval;
+      end;
+end;
+
+function find_values_equal_to_index(arr, arr_len) ->
+begin
+      let i = 0;
+      let buffer = array(arr_len, null);
+      let buffer_pointer = 0;
+
+      while (i < arr_len) do
+      begin
+          if i + 1 == arr[i] then
+          begin
+            buffer[buffer_pointer] <- arr[i];
+            buffer_pointer <- buffer_pointer + 1;
+          end;
+          i <- i + 1;
+      end;
+
+      i <- 0;
+      array(buffer_pointer,
+      begin
+        let value = buffer[i];
+        i <- i + 1;
+        value
+      end)
+end;
+
+begin
+    let len = 13;
+    let arr = array(len, null);
+    let i = 1;
+    while (i < len + 1) do
+    begin
+        populate_sieve(arr, len, i);
+        print("after interval ~ -> ~\n", i, arr);
+        i <- i + 1;
+    end;
+    print("primes from 1:~ = ~\n", len, find_values_equal_to_index(arr, len));
+end
+
+// > after interval 1 -> [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+// > after interval 2 -> [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1]
+// > after interval 3 -> [1, 2, 3, 2, 1, 6, 1, 2, 3, 2, 1, 6, 1]
+// > after interval 4 -> [1, 2, 3, 8, 1, 6, 1, 8, 3, 2, 1, 24, 1]
+// > after interval 5 -> [1, 2, 3, 8, 5, 6, 1, 8, 3, 10, 1, 24, 1]
+// > after interval 6 -> [1, 2, 3, 8, 5, 36, 1, 8, 3, 10, 1, 144, 1]
+// > after interval 7 -> [1, 2, 3, 8, 5, 36, 7, 8, 3, 10, 1, 144, 1]
+// > after interval 8 -> [1, 2, 3, 8, 5, 36, 7, 64, 3, 10, 1, 144, 1]
+// > after interval 9 -> [1, 2, 3, 8, 5, 36, 7, 64, 27, 10, 1, 144, 1]
+// > after interval 10 -> [1, 2, 3, 8, 5, 36, 7, 64, 27, 100, 1, 144, 1]
+// > after interval 11 -> [1, 2, 3, 8, 5, 36, 7, 64, 27, 100, 11, 144, 1]
+// > after interval 12 -> [1, 2, 3, 8, 5, 36, 7, 64, 27, 100, 11, 1728, 1]
+// > after interval 13 -> [1, 2, 3, 8, 5, 36, 7, 64, 27, 100, 11, 1728, 13]
+// > primes from 1:13 = [1, 2, 3, 5, 7, 11, 13]

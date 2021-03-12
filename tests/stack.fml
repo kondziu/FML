@@ -1,0 +1,112 @@
+function stack(initial_size) ->
+begin
+  let initial_size = begin
+    if initial_size > 0 then initial_size else 1;
+  end;
+  object
+  begin
+    /* invariant: size is non-zero */
+    /* invariant: pointer always points to next empty element */
+    /* invariant: size is always larger than pointer */
+
+    let size = initial_size;
+    let pointer = 0;
+    let values = array(initial_size, null);
+
+    function peek() -> begin
+      this.stack[this.pointer];
+    end;
+
+    function push(value) ->
+    begin
+      if this.pointer == this.size then
+        this.__expand();
+      this.values[this.pointer] <- value;
+      this.pointer <- this.pointer + 1;
+      value
+    end;
+
+    function pop() -> begin
+      if this.pointer == 0 then
+        print("Error: attempting to pop from an empty stack.\n") // returns null
+      else
+      begin
+        this.pointer <- this.pointer - 1;
+        let value = this.values[this.pointer];
+        this.values[this.pointer] <- null;
+        value;
+      end
+    end;
+
+    function print_values() ->
+    begin
+      let index = 0;
+      print("[");
+      while index < this.size do
+      begin
+        if index != 0 then print(", ");
+        if index == this.pointer - 1 then print("*");
+        print("~", this.values[index]);
+        index <- index + 1;
+      end;
+      print("]\n");
+    end;
+
+    function __expand() ->
+    begin
+      let old_values = this.values;
+      let old_size = this.size;
+
+      this.size <- 2 * this.size;
+      this.values <- array(this.size, null);
+
+      let index = 0;
+      while index < old_size do
+      begin
+        this.values[index] <- old_values[index];
+        index <- index + 1;
+      end;
+    end;
+  end;
+end;
+
+let s = stack(4);
+let len = 7;
+
+begin
+  let i = 0;
+  while i < len do
+  begin
+    print("push ~ => ", s.push(i));
+    s.print_values();
+    i <- i + 1;
+  end;
+end;
+
+// > push 0 => [*0, null, null, null]
+// > push 1 => [0, *1, null, null]
+// > push 2 => [0, 1, *2, null]
+// > push 3 => [0, 1, 2, *3]
+// > push 4 => [0, 1, 2, 3, *4, null, null, null]
+// > push 5 => [0, 1, 2, 3, 4, *5, null, null]
+// > push 6 => [0, 1, 2, 3, 4, 5, *6, null]
+
+begin
+  let i = 0;
+  while i < len + 1 do
+  begin
+    print("pop ~ => ", s.pop());
+    s.print_values();
+    i <- i + 1;
+  end;
+end;
+
+// > pop 6 => [0, 1, 2, 3, 4, *5, null, null]
+// > pop 5 => [0, 1, 2, 3, *4, null, null, null]
+// > pop 4 => [0, 1, 2, *3, null, null, null, null]
+// > pop 3 => [0, 1, *2, null, null, null, null, null]
+// > pop 2 => [0, *1, null, null, null, null, null, null]
+// > pop 1 => [*0, null, null, null, null, null, null, null]
+// > pop 0 => [null, null, null, null, null, null, null, null]
+// > Error: attempting to pop from an empty stack.
+// > pop null => [null, null, null, null, null, null, null, null]

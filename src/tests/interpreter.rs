@@ -771,9 +771,9 @@ macro_rules! indexmap {
     state.frame_stack.functions =
         GlobalFunctions::from(vec![("fun".to_string(), ConstantPoolIndex::from(1usize))]).unwrap();
 
-    state.operand_stack.push(Pointer::from(3i32));
-    state.operand_stack.push(Pointer::from(2i32));
     state.operand_stack.push(Pointer::from(1i32));
+    state.operand_stack.push(Pointer::from(2i32));
+    state.operand_stack.push(Pointer::from(3i32));
 
     state.instruction_pointer.set(Some(Address::from_usize(1)));
 
@@ -1184,9 +1184,9 @@ macro_rules! indexmap {
 
     state.instruction_pointer.set(Some(Address::from_usize(1)));
     state.operand_stack.push(Pointer::from(state.heap.allocate(receiver.clone())));
-    state.operand_stack.push(Pointer::from(3i32));
-    state.operand_stack.push(Pointer::from(2i32));
     state.operand_stack.push(Pointer::from(1i32));
+    state.operand_stack.push(Pointer::from(2i32));
+    state.operand_stack.push(Pointer::from(3i32));
 
     step_with(&program, &mut state, &mut output).unwrap();
     //

@@ -88,9 +88,7 @@ impl Frame {
         if index >= self.locals.len() {
             bail!("Local frame index {} out of range (0..{})", index, self.locals.len());
         }
-        //println!("set {} {} <- {}", index, self.locals[index], pointer);
         self.locals[index] = pointer;
-        //println!("= set {} {}", index, self.locals[index]);
         Ok(())
     }
 }
@@ -105,13 +103,9 @@ impl FrameStack {
             frames: Vec::new()}
     }
     pub fn pop(&mut self) -> Result<Frame> {
-        print!("pop from frame stack {}.", self.frames.len());
-        let frame = self.frames.pop().with_context(|| format!("Attempting to pop frame from empty stack."));
-        println!("{:?}", frame);
-        frame
+        self.frames.pop().with_context(|| format!("Attempting to pop frame from empty stack."))
     }
     pub fn push(&mut self, frame: Frame) {
-        println!("push into frame stack {}. {:?}", self.frames.len(), frame);
         self.frames.push(frame)
     }
     pub fn get_locals(&self) -> Result<&Frame> {

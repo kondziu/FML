@@ -163,7 +163,7 @@ use crate::bytecode::compiler::*;
 
     ast.compile(&mut program, &mut bookkeeping).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_globals(vec!("x".to_string()));
+    let expected_bookkeeping = Bookkeeping::without_frame();
 
     let expected_code = Code::from(vec!(
         OpCode::Literal { index: ConstantPoolIndex::new(0) },    // value
@@ -173,9 +173,10 @@ use crate::bytecode::compiler::*;
     let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 0 */ ProgramObject::from_i32(1),
         /* 1 */ ProgramObject::from_str("x"),
+        /* 2 */ ProgramObject::Slot { name: ConstantPoolIndex::from_usize(1) },
     ]);
 
-    let expected_globals = Globals::from(vec![]);
+    let expected_globals = Globals::from(vec![ConstantPoolIndex::from_usize(2)]);
     let expected_entry = Entry::new();
 
     let expected_program =
@@ -243,13 +244,11 @@ use crate::bytecode::compiler::*;
     let ast = AST::AccessVariable { name: Identifier::from("x") };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping =
-        Bookkeeping::from_globals(vec!("x".to_string()));
+    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
 
     ast.compile(&mut program, &mut bookkeeping).unwrap();
 
-    let expected_bookkeeping =
-        Bookkeeping::from_globals(vec!("x".to_string()));
+    let expected_bookkeeping = Bookkeeping::with_frame();
 
     let expected_code = Code::from(vec!(
         OpCode::GetGlobal { name: ConstantPoolIndex::new(0) }
@@ -274,12 +273,12 @@ use crate::bytecode::compiler::*;
 
     let mut program: Program = Program::new();
     let mut bookkeeping: Bookkeeping =
-        Bookkeeping::from(vec!("x".to_string()), vec!("z".to_string()));
+        Bookkeeping::from(vec!("x".to_string()));
 
     ast.compile(&mut program, &mut bookkeeping).unwrap();
 
     let expected_bookkeeping =
-        Bookkeeping::from(vec!("x".to_string()), vec!("z".to_string()));
+        Bookkeeping::from(vec!("x".to_string()));
 
     let expected_code = Code::from(vec!(
         OpCode::GetGlobal { name: ConstantPoolIndex::new(0) }

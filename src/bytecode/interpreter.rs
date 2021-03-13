@@ -30,17 +30,16 @@ impl<T> OpCodeEvaluationResult<T> for Result<T> {
 pub fn evaluate(program: &Program) -> Result<()> {
     let mut state = State::from(program)?;
     let mut output = Output::new();
-
     evaluate_with(program, &mut state, &mut output)
 }
 
 pub fn evaluate_with<W>(program: &Program, state: &mut State, output: &mut W) -> Result<()> where W: Write {
-
+    eprintln!("Program:");
+    eprintln!("{}", program);
     while let Some(address) = state.instruction_pointer.get() {
         let opcode = program.code.get(address)?;
         eval_opcode(program, state, output, opcode)?;
     }
-
     Ok(())
 }
 
@@ -52,7 +51,6 @@ pub fn step_with<W>(program: &Program, state: &mut State, output: &mut W) -> Res
 }
 
 pub fn eval_opcode<W>(program: &Program, state: &mut State, output: &mut W, opcode: &OpCode) -> Result<()> where W: Write {
-    println!(">> {}", opcode);
     match opcode {
         OpCode::Literal { index } => eval_literal(program, state, index),
         OpCode::GetLocal { index } => eval_get_local(program, state, index),
@@ -225,8 +223,6 @@ pub fn eval_call_method(program: &Program, state: &mut State, index: &ConstantPo
     let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize() - 1)?;
     let receiver_pointer = state.operand_stack.pop()?;
 
-    println!("{:?} {:?}", receiver_pointer, argument_pointers);
-
     dispatch_method(program, state, receiver_pointer, method_name, argument_pointers)
 }
 
@@ -281,6 +277,8 @@ fn dispatch_null_method(method_name: &str, argument_pointers: Vec<Pointer>) -> R
 fn dispatch_integer_method(receiver: &i32, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
     bail_if!(argument_pointers.len() != 1,
              "Invalid number of arguments for method `{}` in object `{}`", method_name, receiver);
+
+    println!("integer method: {} {} {:?}", receiver, method_name, argument_pointers);
 
     let argument_pointer = argument_pointers.last().unwrap();
 
@@ -514,7 +512,6 @@ pub fn eval_return(_program: &Program, state: &mut State) -> Result<()> {
 pub fn eval_drop(program: &Program, state: &mut State) -> Result<()> {
     state.operand_stack.pop()?;
     state.instruction_pointer.bump(program);
-    println!("instruction_pointer: {:?}", state.instruction_pointer);
     Ok(())
 }
 

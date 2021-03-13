@@ -44,6 +44,19 @@ impl Program {
     }
 }
 
+impl std::fmt::Display for Program {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Constant Pool:")?;
+        write!(f, "{}", self.constant_pool)?;
+        writeln!(f, "Entry: {}", self.entry)?;
+        writeln!(f, "Globals:")?;
+        write!(f, "{}", self.globals)?;
+        writeln!(f, "Code:")?;
+        write!(f, "{}", self.code)?;
+        Ok(())
+    }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub struct Globals(Vec<ConstantPoolIndex>);
 impl Globals {
@@ -62,6 +75,15 @@ impl Globals {
 impl From<Vec<ConstantPoolIndex>> for Globals {
     fn from(vector: Vec<ConstantPoolIndex>) -> Self {
         Globals(vector)
+    }
+}
+
+impl std::fmt::Display for Globals {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for (i, global) in self.0.iter().enumerate() {
+            writeln!(f, "{}: {}", i, global)?;
+        }
+        Ok(())
     }
 }
 
@@ -84,6 +106,12 @@ impl From<ConstantPoolIndex> for Entry {
 }
 impl From<u16> for Entry {
     fn from(index: u16) -> Self { Entry(Some(ConstantPoolIndex::from(index))) }
+}
+
+impl std::fmt::Display for Entry {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.as_ref().map_or(Ok(()), |index| write!(f, "{}", index))
+    }
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -192,6 +220,15 @@ impl ConstantPool {
     #[allow(dead_code)]
     pub fn size(&self) -> usize {
         self.0.len()
+    }
+}
+
+impl std::fmt::Display for ConstantPool {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for (i, program_object) in self.0.iter().enumerate() {
+            writeln!(f, "{}: {}", i, program_object)?;
+        }
+        Ok(())
     }
 }
 

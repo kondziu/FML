@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ops::Deref;
 
 use crate::parser::*;
@@ -125,7 +125,6 @@ impl LocalFrame {
 #[derive(PartialEq,Debug,Clone)]
 pub struct Bookkeeping { // TODO rename
     frames: Vec<LocalFrame>,
-    globals: HashSet<String>,
     top: LocalFrame,
 }
 
@@ -139,7 +138,6 @@ impl Bookkeeping {
     pub fn with_frame() -> Bookkeeping {
         Bookkeeping {
             frames: vec!(LocalFrame::new()),
-            globals: HashSet::new(),
             top: LocalFrame::new(),
         }
     }
@@ -148,16 +146,14 @@ impl Bookkeeping {
     pub fn without_frame() -> Bookkeeping {
         Bookkeeping {
             frames: vec!(),
-            globals: HashSet::new(),
             top: LocalFrame::new(),
         }
     }
 
     #[allow(dead_code)]
-    pub fn from(locals: Vec<String>, globals: Vec<String>) -> Bookkeeping {
+    pub fn from(locals: Vec<String>) -> Bookkeeping {
         Bookkeeping {
             frames: vec!(LocalFrame::from_locals(locals)),
-            globals: globals.into_iter().collect(),
             top: LocalFrame::new(),
         }
     }
@@ -166,7 +162,6 @@ impl Bookkeeping {
     pub fn from_locals(locals: Vec<String>) -> Bookkeeping {
         Bookkeeping {
             frames: vec!(LocalFrame::from_locals(locals)),
-            globals: HashSet::new(),
             top: LocalFrame::new(),
         }
     }
@@ -175,16 +170,6 @@ impl Bookkeeping {
     pub fn from_locals_at(locals: Vec<String>, level: usize) -> Bookkeeping {
         Bookkeeping {
             frames: vec!(LocalFrame::from_locals_at(locals, level)),
-            globals: HashSet::new(),
-            top: LocalFrame::new(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn from_globals(globals: Vec<String>) -> Bookkeeping {
-        Bookkeeping {
-            frames: vec!(),
-            globals: globals.into_iter().collect(),
             top: LocalFrame::new(),
         }
     }
@@ -218,9 +203,9 @@ impl Bookkeeping {
         !(self.frames.is_empty() && self.top.in_outermost_scope())
     }
 
-    fn register_global(&mut self, id: &str) {
-        self.globals.insert(id.to_string());
-    }
+    // fn register_global(&mut self, id: &str) {
+    //     self.globals.insert(id.to_string());
+    // }
 
     fn has_local(&self, id: &str) -> bool {
         match self.frames.last() {
@@ -319,17 +304,18 @@ impl Compiled for AST {
 
             AST::Variable { name: Identifier(name), value } => {
                 if environment.has_frame() {
-                    value.deref().compile_into(program, environment, true)?; // FIXME scoping!!!
+                    value.deref().compile_into(program, environment, true)?;
                     let index = environment.register_new_local(name)
                         .expect(&format!("Cannot register new variable {}", &name))
                         .clone(); // FIXME error if not new
                     program.code.emit(OpCode::SetLocal { index });
-
                 } else {
-                    environment.register_global(name);                  // TODO necessary?
                     value.deref().compile_into(program, environment, true)?;
-                    let index = program.constant_pool.register(ProgramObject::from_str(name));
-                    program.code.emit(OpCode::SetGlobal { name: index });
+                    let name_index = program.constant_pool.register(ProgramObject::from_str(name));
+                    let slot_index = program.constant_pool.register(ProgramObject::Slot { name: name_index });
+                    program.globals.register(slot_index)
+                        .expect(&format!("Cannot register new global {}", name));
+                    program.code.emit(OpCode::SetGlobal { name: name_index });
                 }
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
@@ -340,7 +326,8 @@ impl Compiled for AST {
                     program.code.emit(OpCode::GetLocal { index });      // FIXME scoping!!!
                 } else {
                     let index = program.constant_pool.register(ProgramObject::from_str(name));
-                    environment.register_global(name);                  // TODO necessary?
+                    //environment.register_global(name);                  // TODO necessary?
+                    //bail_if!(program.globals.is_registered())
                     program.code.emit(OpCode::GetGlobal { name: index });
                 }
             }
@@ -352,7 +339,7 @@ impl Compiled for AST {
                     program.code.emit(OpCode::SetLocal { index });
                 } else {
                     let index = program.constant_pool.register(ProgramObject::from_str(name));
-                    environment.register_global(name);                  // TODO necessary?
+                    //environment.register_global(name);                  // TODO necessary?
                     value.deref().compile_into(program, environment, true)?;
                     program.code.emit(OpCode::SetGlobal { name: index });
                 }

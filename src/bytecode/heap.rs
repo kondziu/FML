@@ -186,11 +186,21 @@ impl ObjectInstance {
 
 impl std::fmt::Display for ObjectInstance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "object(..={}, {})", self.parent, self.fields.iter()
-            .map(|(name, field)| format!("{}={}", name, field))
-            .collect::<Vec<String>>()
-            .join(", "))
+        let parent = match self.parent {
+            Pointer::Null => None,
+            parent => Some(parent.to_string()),
+        };
 
+        let fields = self.fields.iter()
+            .map(|(name, value)| {
+                format!("{}={}", name, value)
+            })
+            .collect::<Vec<String>>();
+
+        match parent {
+            Some(parent) => write!(f, "object(..={}, {})", parent, fields.join(", ")),
+            None => write!(f, "object({})", fields.join(", ")),
+        }
     }
 }
 

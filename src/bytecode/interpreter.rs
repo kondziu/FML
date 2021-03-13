@@ -385,7 +385,7 @@ fn dispatch_object_method(program: &Program, state: &mut State,
         Some(method) =>
             eval_call_object_method(program, state, method, method_name, receiver_pointer, argument_pointers),
         None if object_instance.parent.is_null() =>
-            bail!("Call method error: no method `{}` in object `{}`"),
+            bail!("Call method error: no method `{}` in object `{}`", method_name, object_instance),
         None =>
             dispatch_method(program, state, parent_pointer, method_name, argument_pointers)
     }

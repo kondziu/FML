@@ -8,6 +8,368 @@ use crate::bytecode::debug::*;
 use crate::bytecode::state::*;
 
 /*
+ * defn main () :
+ *     var x = object :
+ *        method m (a, b, c) :
+ *            printf("~", a)
+ *            printf("~", b)
+ *            printf("~", c)
+ *        
+ *     x.m(1, 2, 3)
+ *            
+ * main()    
+ */
+fn feeny_method_argument_order_source() -> &'static str {
+    r#"Constants :
+    #0: Null
+    #1: String("~")
+    #2: String("m")
+    #3: Method(#2, nargs:4, nlocals:0) :
+          get local 1
+          printf #1 1
+          drop
+          get local 2
+          printf #1 1
+          drop
+          get local 3
+          printf #1 1
+          return
+    #4: Class(#3)
+    #5: Int(1)
+    #6: Int(2)
+    #7: Int(3)
+    #8: String("main")
+    #9: Method(#8, nargs:0, nlocals:1) :
+          lit #0
+          object #4
+          set local 0
+          drop
+          get local 0
+          lit #5
+          lit #6
+          lit #7
+          call slot #2 4
+          return
+    #10: String("entry38")
+    #11: Method(#10, nargs:0, nlocals:0) :
+          call #8 0
+          drop
+          lit #0
+          return
+Globals :
+    #9
+Entry : #11"#}
+
+fn feeny_method_argument_order_program() -> Program {
+    let code = Code::from(vec!(
+        /*  0 */ OpCode::GetLocal { index: LocalFrameIndex::from_usize(1) },
+        /*  1 */ OpCode::Print { format: ConstantPoolIndex::from_usize(1), arguments: Arity::from_usize(1) },
+        /*  2 */ OpCode::Drop,
+        /*  3 */ OpCode::GetLocal { index: LocalFrameIndex::from_usize(2) },
+        /*  4 */ OpCode::Print { format: ConstantPoolIndex::from_usize(1), arguments: Arity::from_usize(1) },
+        /*  5 */ OpCode::Drop,
+        /*  6 */ OpCode::GetLocal { index: LocalFrameIndex::from_usize(3) },
+        /*  7 */ OpCode::Print { format: ConstantPoolIndex::from_usize(1), arguments: Arity::from_usize(1) },
+        /*  8 */ OpCode::Return,
+        /*  9 */ OpCode::Literal { index: ConstantPoolIndex::from_usize(0) },
+        /* 10 */ OpCode::Object { class: ConstantPoolIndex::from_usize(4) },
+        /* 11 */ OpCode::SetLocal { index: LocalFrameIndex::from_usize(0) },
+        /* 12 */ OpCode::Drop,
+        /* 13 */ OpCode::GetLocal { index: LocalFrameIndex::from_usize(0) },
+        /* 14 */ OpCode::Literal { index: ConstantPoolIndex::from_usize(5) },
+        /* 15 */ OpCode::Literal { index: ConstantPoolIndex::from_usize(6) },
+        /* 16 */ OpCode::Literal { index: ConstantPoolIndex::from_usize(7) },
+        /* 17 */ OpCode::CallMethod { name: ConstantPoolIndex::from_usize(2), arguments: Arity::from_usize(4) },
+        /* 18 */ OpCode::Return,
+        /* 19 */ OpCode::CallFunction { name: ConstantPoolIndex::new(8), arguments: Arity::new(0) },
+        /* 20 */ OpCode::Drop,
+        /* 21 */ OpCode::Literal { index: ConstantPoolIndex::from_usize(0) },
+        /* 22 */ OpCode::Return,
+    ));
+
+    let constant_pool = ConstantPool::from(vec![
+        /*  0 */ ProgramObject::Null,
+        /*  1 */ ProgramObject::from_str("~"),
+        /*  2 */ ProgramObject::from_str("m"),
+        /*  3 */ ProgramObject::Method {
+            name: ConstantPoolIndex::from_usize(2),
+            parameters: Arity::from_usize(4),
+            locals: Size::from_usize(0),
+            code: AddressRange:: from(0, 9),
+        },
+        /*  4 */ ProgramObject::Class(vec![ConstantPoolIndex::from_usize(3)]),
+        /*  5 */ ProgramObject::from_i32(1),
+        /*  6 */ ProgramObject::from_i32(2),
+        /*  7 */ ProgramObject::from_i32(3),
+        /*  8 */ ProgramObject::from_str("main"),
+        /*  9 */ ProgramObject::Method {
+            name: ConstantPoolIndex::from_usize(8),
+            parameters: Arity::from_usize(0),
+            locals: Size::from_usize(1),
+            code: AddressRange:: from(9, 10),
+        },
+        /* 10 */ ProgramObject::from_str("entry38"),
+        /* 11 */ ProgramObject::Method {
+            name: ConstantPoolIndex::from_usize(10),
+            parameters: Arity::from_usize(0),
+            locals: Size::from_usize(0),
+            code: AddressRange:: from(19, 4),
+        },
+    ]);
+
+    let globals = Globals::from(vec![ConstantPoolIndex::new(9)]);
+
+    Program::from(code, constant_pool, globals, Entry::from(11)).unwrap()
+}
+
+fn feeny_method_argument_order_bytes() -> Vec<u8> {
+    vec!(
+        0x0C, 0x00, 0x01, 0x02,  0x01, 0x00, 0x00, 0x00,
+        0x7E, 0x02, 0x01, 0x00,  0x00, 0x00, 0x6D, 0x03,
+        0x02, 0x00, 0x04, 0x00,  0x00, 0x09, 0x00, 0x00,
+        0x00, 0x0A, 0x01, 0x00,  0x02, 0x01, 0x00, 0x01,
+        0x10, 0x0A, 0x02, 0x00,  0x02, 0x01, 0x00, 0x01,
+        0x10, 0x0A, 0x03, 0x00,  0x02, 0x01, 0x00, 0x01,
+        0x0F, 0x05, 0x01, 0x00,  0x03, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x00,  0x02, 0x00, 0x00, 0x00,
+        0x00, 0x03, 0x00, 0x00,  0x00, 0x02, 0x04, 0x00,
+        0x00, 0x00, 0x6D, 0x61,  0x69, 0x6E, 0x03, 0x08,
+        0x00, 0x00, 0x01, 0x00,  0x0A, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x04,  0x04, 0x00, 0x09, 0x00,
+        0x00, 0x10, 0x0A, 0x00,  0x00, 0x01, 0x05, 0x00,
+        0x01, 0x06, 0x00, 0x01,  0x07, 0x00, 0x07, 0x02,
+        0x00, 0x04, 0x0F, 0x02,  0x07, 0x00, 0x00, 0x00,
+        0x65, 0x6E, 0x74, 0x72,  0x79, 0x33, 0x38, 0x03,
+        0x0A, 0x00, 0x00, 0x00,  0x00, 0x04, 0x00, 0x00,
+        0x00, 0x08, 0x08, 0x00,  0x00, 0x10, 0x01, 0x00,
+        0x00, 0x0F, 0x01, 0x00,  0x09, 0x00, 0x0B, 0x00,
+    )
+}
+
+#[test] fn feeny_method_argument_order_deserialize() {
+    let object = Program::from_bytes(&mut Cursor::new(feeny_method_argument_order_bytes()));
+    assert_eq!(feeny_method_argument_order_program(), object);
+}
+
+#[test] fn feeny_method_argument_order_serialize() {
+    let mut output: Vec<u8> = Vec::new();
+    feeny_method_argument_order_program().serialize(&mut output).unwrap();
+    assert_eq!(feeny_method_argument_order_bytes(), output);
+}
+
+#[test] fn feeny_method_argument_order_print() {
+    let mut bytes: Vec<u8> = Vec::new();
+    feeny_method_argument_order_program().pretty_print(&mut bytes);
+    assert_eq!(&String::from_utf8(bytes).unwrap(), feeny_method_argument_order_source());
+}
+
+#[test] fn feeny_method_argument_order_eval() {
+    let program = feeny_method_argument_order_program();
+    let mut state = State::from(&program).unwrap();
+    let mut output = String::new();
+
+    evaluate_with(&program, &mut state, &mut output).unwrap();
+
+    assert_eq!(output, "123");
+}
+
+/*
+ * defn main () :
+ *     var x = object :
+ *        var a = 1
+ *        var b = 2
+ *        var c = 3
+ *        method m (a, b, c) :
+ *            printf("~", this.a)
+ *            printf("~", this.b)
+ *            printf("~", this.c)
+ *
+ *     x.m(1, 2, 3)
+ *
+ * main()
+ */
+fn feeny_object_member_order_source() -> &'static str {
+    r#"Constants :
+    #0: Null
+    #1: Int(1)
+    #2: Int(2)
+    #3: Int(3)
+    #4: String("a")
+    #5: Slot(#4)
+    #6: String("b")
+    #7: Slot(#6)
+    #8: String("c")
+    #9: Slot(#8)
+    #10: String("~")
+    #11: String("m")
+    #12: Method(#11, nargs:1, nlocals:0) :
+          get local 0
+          get slot #4
+          printf #10 1
+          drop
+          get local 0
+          get slot #6
+          printf #10 1
+          drop
+          get local 0
+          get slot #8
+          printf #10 1
+          return
+    #13: Class(#5, #7, #9, #12)
+    #14: String("main")
+    #15: Method(#14, nargs:0, nlocals:1) :
+          lit #0
+          lit #1
+          lit #2
+          lit #3
+          object #13
+          set local 0
+          drop
+          get local 0
+          call slot #11 1
+          return
+    #16: String("entry38")
+    #17: Method(#16, nargs:0, nlocals:0) :
+          call #14 0
+          drop
+          lit #0
+          return
+Globals :
+    #15
+Entry : #17"#}
+
+fn feeny_object_member_order_program() -> Program {
+    let code = Code::from(vec!(
+        OpCode::GetLocal { index: LocalFrameIndex::from_usize(0) },
+        OpCode::GetField { name: ConstantPoolIndex::from_usize(4) },
+        OpCode::Print { format: ConstantPoolIndex::from_usize(10), arguments: Arity::from_usize(1) },
+        OpCode::Drop,
+        OpCode::GetLocal { index: LocalFrameIndex::from_usize(0) },
+        OpCode::GetField { name: ConstantPoolIndex::from_usize(6) },
+        OpCode::Print { format: ConstantPoolIndex::from_usize(10), arguments: Arity::from_usize(1) },
+        OpCode::Drop,
+        OpCode::GetLocal { index: LocalFrameIndex::from_usize(0) },
+        OpCode::GetField { name: ConstantPoolIndex::from_usize(8) },
+        OpCode::Print { format: ConstantPoolIndex::from_usize(10), arguments: Arity::from_usize(1) },
+        OpCode::Return,
+        OpCode::Literal { index: ConstantPoolIndex::from_usize(0) },
+        OpCode::Literal { index: ConstantPoolIndex::from_usize(1) },
+        OpCode::Literal { index: ConstantPoolIndex::from_usize(2) },
+        OpCode::Literal { index: ConstantPoolIndex::from_usize(3) },
+        OpCode::Object { class: ConstantPoolIndex::from_usize(13) },
+        OpCode::SetLocal { index: LocalFrameIndex::from_usize(0) },
+        OpCode::Drop,
+        OpCode::GetLocal { index: LocalFrameIndex::from_usize(0) },
+        OpCode::CallMethod { name: ConstantPoolIndex::from_usize(11), arguments: Arity::from_usize(1) },
+        OpCode::Return,
+        OpCode::CallFunction { name: ConstantPoolIndex::from_usize(14), arguments: Arity::from_usize(0) },
+        OpCode::Drop,
+        OpCode::Literal { index: ConstantPoolIndex::from_usize(0) },
+        OpCode::Return
+    ));
+
+    let constant_pool = ConstantPool::from(vec![
+        ProgramObject::Null,
+        ProgramObject::from_i32(1),
+        ProgramObject::from_i32(2),
+        ProgramObject::from_i32(3),
+        ProgramObject::from_str("a"),
+        ProgramObject::Slot { name: ConstantPoolIndex::from_usize(4) },
+        ProgramObject::from_str("b"),
+        ProgramObject::Slot { name: ConstantPoolIndex::from_usize(6) },
+        ProgramObject::from_str("c"),
+        ProgramObject::Slot { name: ConstantPoolIndex::from_usize(8) },
+        ProgramObject::from_str("~"),
+        ProgramObject::from_str("m"),
+        ProgramObject::Method {
+            name: ConstantPoolIndex::from_usize(11),
+            parameters: Arity::from_usize(1),
+            locals: Size::from_usize(0),
+            code: AddressRange:: from(0, 12),
+        },
+        ProgramObject::Class(vec![ConstantPoolIndex::from_usize(5),
+                                  ConstantPoolIndex::from_usize(7),
+                                  ConstantPoolIndex::from_usize(9),
+                                  ConstantPoolIndex::from_usize(12)]),
+        ProgramObject::from_str("main"),
+        ProgramObject::Method {
+            name: ConstantPoolIndex::from_usize(14),
+            parameters: Arity::from_usize(0),
+            locals: Size::from_usize(1),
+            code: AddressRange:: from(12, 10),
+        },
+        ProgramObject::from_str("entry38"),
+        ProgramObject::Method {
+            name: ConstantPoolIndex::from_usize(16),
+            parameters: Arity::from_usize(0),
+            locals: Size::from_usize(0),
+            code: AddressRange:: from(22, 4),
+        },
+    ]);
+
+    let globals = Globals::from(vec![ConstantPoolIndex::new(15)]);
+
+    Program::from(code, constant_pool, globals, Entry::from(17)).unwrap()
+}
+
+fn feeny_object_member_order_bytes() -> Vec<u8> {
+    vec!(
+        0x12, 0x00, 0x01, 0x00,  0x01, 0x00, 0x00, 0x00,
+        0x00, 0x02, 0x00, 0x00,  0x00, 0x00, 0x03, 0x00,
+        0x00, 0x00, 0x02, 0x01,  0x00, 0x00, 0x00, 0x61,
+        0x04, 0x04, 0x00, 0x02,  0x01, 0x00, 0x00, 0x00,
+        0x62, 0x04, 0x06, 0x00,  0x02, 0x01, 0x00, 0x00,
+        0x00, 0x63, 0x04, 0x08,  0x00, 0x02, 0x01, 0x00,
+        0x00, 0x00, 0x7E, 0x02,  0x01, 0x00, 0x00, 0x00,
+        0x6D, 0x03, 0x0B, 0x00,  0x01, 0x00, 0x00, 0x0C,
+        0x00, 0x00, 0x00, 0x0A,  0x00, 0x00, 0x05, 0x04,
+        0x00, 0x02, 0x0A, 0x00,  0x01, 0x10, 0x0A, 0x00,
+        0x00, 0x05, 0x06, 0x00,  0x02, 0x0A, 0x00, 0x01,
+        0x10, 0x0A, 0x00, 0x00,  0x05, 0x08, 0x00, 0x02,
+        0x0A, 0x00, 0x01, 0x0F,  0x05, 0x04, 0x00, 0x05,
+        0x00, 0x07, 0x00, 0x09,  0x00, 0x0C, 0x00, 0x02,
+        0x04, 0x00, 0x00, 0x00,  0x6D, 0x61, 0x69, 0x6E,
+        0x03, 0x0E, 0x00, 0x00,  0x01, 0x00, 0x0A, 0x00,
+        0x00, 0x00, 0x01, 0x00,  0x00, 0x01, 0x01, 0x00,
+        0x01, 0x02, 0x00, 0x01,  0x03, 0x00, 0x04, 0x0D,
+        0x00, 0x09, 0x00, 0x00,  0x10, 0x0A, 0x00, 0x00,
+        0x07, 0x0B, 0x00, 0x01,  0x0F, 0x02, 0x07, 0x00,
+        0x00, 0x00, 0x65, 0x6E,  0x74, 0x72, 0x79, 0x33,
+        0x38, 0x03, 0x10, 0x00,  0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x08,  0x0E, 0x00, 0x00, 0x10,
+        0x01, 0x00, 0x00, 0x0F,  0x01, 0x00, 0x0F, 0x00,
+        0x11, 0x00,
+    )
+}
+
+#[test] fn feeny_object_member_order_deserialize() {
+    let object = Program::from_bytes(&mut Cursor::new(feeny_object_member_order_bytes()));
+    assert_eq!(feeny_object_member_order_program(), object);
+}
+
+#[test] fn feeny_object_member_order_serialize() {
+    let mut output: Vec<u8> = Vec::new();
+    feeny_object_member_order_program().serialize(&mut output).unwrap();
+    assert_eq!(feeny_object_member_order_bytes(), output);
+}
+
+#[test] fn feeny_object_member_order_print() {
+    let mut bytes: Vec<u8> = Vec::new();
+    feeny_object_member_order_program().pretty_print(&mut bytes);
+    assert_eq!(&String::from_utf8(bytes).unwrap(), feeny_object_member_order_source());
+}
+
+#[test] fn feeny_object_member_order_eval() {
+    let program = feeny_object_member_order_program();
+    let mut state = State::from(&program).unwrap();
+    let mut output = String::new();
+
+    evaluate_with(&program, &mut state, &mut output).unwrap();
+
+    assert_eq!(output, "123");
+}
+
+/*
  *   defn main () :
  *       printf("~~~",1,2,3)
  *

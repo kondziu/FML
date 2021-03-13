@@ -1,30 +1,11 @@
 use std::io::Cursor;
 
 use crate::bytecode::bytecode::*;
-use crate::bytecode::types::*;
 use crate::bytecode::program::*;
-use crate::bytecode::objects::*;
 use crate::bytecode::interpreter::*;
 use crate::bytecode::serializable::*;
 use crate::bytecode::debug::*;
-
-fn evaluate_with(program: &Program, state: &mut State, output: &mut String) {
-    loop {
-        match state.instruction_pointer() {
-            Some(address) => println!("{:?} => {:?}", address, program.get_opcode(address)),
-            _ => println!("None => ..."),
-        }
-        println!("stack before: {:?}", state.operands);
-        println!("frame before: {:?}", state.frames.last());
-        interpret(state, output, &program);
-        if let None = state.instruction_pointer() {
-            break;
-        }
-        println!("stack after:  {:?}", state.operands);
-        println!("frame after:  {:?}", state.frames.last());
-        println!();
-    }
-}
+use crate::bytecode::state::*;
 
 /*
  * defn main () :
@@ -106,13 +87,13 @@ fn feeny_method_argument_order_program() -> Program {
         /* 22 */ OpCode::Return,
     ));
 
-    let constant_pool = vec![
+    let constant_pool = ConstantPool::from(vec![
         /*  0 */ ProgramObject::Null,
         /*  1 */ ProgramObject::from_str("~"),
         /*  2 */ ProgramObject::from_str("m"),
         /*  3 */ ProgramObject::Method {
             name: ConstantPoolIndex::from_usize(2),
-            arguments: Arity::from_usize(4),
+            parameters: Arity::from_usize(4),
             locals: Size::from_usize(0),
             code: AddressRange:: from(0, 9),
         },
@@ -123,22 +104,22 @@ fn feeny_method_argument_order_program() -> Program {
         /*  8 */ ProgramObject::from_str("main"),
         /*  9 */ ProgramObject::Method {
             name: ConstantPoolIndex::from_usize(8),
-            arguments: Arity::from_usize(0),
+            parameters: Arity::from_usize(0),
             locals: Size::from_usize(1),
             code: AddressRange:: from(9, 10),
         },
         /* 10 */ ProgramObject::from_str("entry38"),
         /* 11 */ ProgramObject::Method {
             name: ConstantPoolIndex::from_usize(10),
-            arguments: Arity::from_usize(0),
+            parameters: Arity::from_usize(0),
             locals: Size::from_usize(0),
             code: AddressRange:: from(19, 4),
         },
-    ];
+    ]);
 
-    let globals = vec![ConstantPoolIndex::new(9)];
+    let globals = Globals::from(vec![ConstantPoolIndex::new(9)]);
 
-    Program::new(code, constant_pool, globals, ConstantPoolIndex::from_usize(11))
+    Program::from(code, constant_pool, globals, Entry::from(11)).unwrap()
 }
 
 fn feeny_method_argument_order_bytes() -> Vec<u8> {
@@ -184,10 +165,10 @@ fn feeny_method_argument_order_bytes() -> Vec<u8> {
 
 #[test] fn feeny_method_argument_order_eval() {
     let program = feeny_method_argument_order_program();
-    let mut state = State::from(&program);
+    let mut state = State::from(&program).unwrap();
     let mut output = String::new();
 
-    evaluate_with(&program, &mut state, &mut output);
+    evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, "123");
 }
@@ -287,7 +268,7 @@ fn feeny_object_member_order_program() -> Program {
         OpCode::Return
     ));
 
-    let constant_pool = vec![
+    let constant_pool = ConstantPool::from(vec![
         ProgramObject::Null,
         ProgramObject::from_i32(1),
         ProgramObject::from_i32(2),
@@ -302,7 +283,7 @@ fn feeny_object_member_order_program() -> Program {
         ProgramObject::from_str("m"),
         ProgramObject::Method {
             name: ConstantPoolIndex::from_usize(11),
-            arguments: Arity::from_usize(1),
+            parameters: Arity::from_usize(1),
             locals: Size::from_usize(0),
             code: AddressRange:: from(0, 12),
         },
@@ -313,22 +294,22 @@ fn feeny_object_member_order_program() -> Program {
         ProgramObject::from_str("main"),
         ProgramObject::Method {
             name: ConstantPoolIndex::from_usize(14),
-            arguments: Arity::from_usize(0),
+            parameters: Arity::from_usize(0),
             locals: Size::from_usize(1),
             code: AddressRange:: from(12, 10),
         },
         ProgramObject::from_str("entry38"),
         ProgramObject::Method {
             name: ConstantPoolIndex::from_usize(16),
-            arguments: Arity::from_usize(0),
+            parameters: Arity::from_usize(0),
             locals: Size::from_usize(0),
             code: AddressRange:: from(22, 4),
         },
-    ];
+    ]);
 
-    let globals = vec![ConstantPoolIndex::new(15)];
+    let globals = Globals::from(vec![ConstantPoolIndex::new(15)]);
 
-    Program::new(code, constant_pool, globals, ConstantPoolIndex::from_usize(17))
+    Program::from(code, constant_pool, globals, Entry::from(17)).unwrap()
 }
 
 fn feeny_object_member_order_bytes() -> Vec<u8> {
@@ -380,10 +361,10 @@ fn feeny_object_member_order_bytes() -> Vec<u8> {
 
 #[test] fn feeny_object_member_order_eval() {
     let program = feeny_object_member_order_program();
-    let mut state = State::from(&program);
+    let mut state = State::from(&program).unwrap();
     let mut output = String::new();
 
-    evaluate_with(&program, &mut state, &mut output);
+    evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, "123");
 }
@@ -431,7 +412,7 @@ fn feeny_print_argument_order_program() -> Program {
         /* 8 */ OpCode::Return,
     ));
 
-    let constant_pool = vec![
+    let constant_pool = ConstantPool::from(vec![
         /* 0 */ ProgramObject::from_i32(1),
         /* 1 */ ProgramObject::from_i32(2),
         /* 2 */ ProgramObject::from_i32(3),
@@ -439,7 +420,7 @@ fn feeny_print_argument_order_program() -> Program {
         /* 4 */ ProgramObject::from_str("main"),
         /* 5 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(4),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(0, 5),
         },
@@ -447,15 +428,15 @@ fn feeny_print_argument_order_program() -> Program {
         /* 7 */ ProgramObject::from_str("entry35"),
         /* 8 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(7),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(5, 4),
         },
-    ];
+    ]);
 
-    let globals = vec![ConstantPoolIndex::new(5)];
+    let globals = Globals::from(vec![ConstantPoolIndex::new(5)]);
 
-    Program::new(code, constant_pool, globals, ConstantPoolIndex::from_usize(8))
+    Program::from(code, constant_pool, globals, Entry::from(8)).unwrap()
 }
 
 fn feeny_print_argument_order_bytes() -> Vec<u8> {
@@ -490,10 +471,10 @@ fn feeny_print_argument_order_bytes() -> Vec<u8> {
 
 #[test] fn feeny_print_argument_order_eval() {
     let program = feeny_print_argument_order_program();
-    let mut state = State::from(&program);
+    let mut state = State::from(&program).unwrap();
     let mut output = String::new();
 
-    evaluate_with(&program, &mut state, &mut output);
+    evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, "123");
 }
@@ -567,12 +548,12 @@ fn feeny_function_argument_order_program() -> Program {
         /* 17 */ OpCode::Return,
     ));
 
-    let constant_pool = vec![
+    let constant_pool = ConstantPool::from(vec![
         /*  0 */ ProgramObject::from_str("~"),
         /*  1 */ ProgramObject::from_str("f"),
         /*  2 */ ProgramObject::Method {
                     name: ConstantPoolIndex::new(1),
-                    arguments: Arity::new(3),
+                    parameters: Arity::new(3),
                     locals: Size::new(0),
                     code: AddressRange::from(0, 9),
                 },
@@ -582,7 +563,7 @@ fn feeny_function_argument_order_program() -> Program {
         /*  6 */ ProgramObject::from_str("main"),
         /*  7 */ ProgramObject::Method {
                     name: ConstantPoolIndex::new(6),
-                    arguments: Arity::new(0),
+                    parameters: Arity::new(0),
                     locals: Size::new(0),
                     code: AddressRange::from(9, 5),
                 },
@@ -590,15 +571,15 @@ fn feeny_function_argument_order_program() -> Program {
         /*  9 */ ProgramObject::from_str("entry36"),
         /* 10 */ ProgramObject::Method {
                     name: ConstantPoolIndex::new(9),
-                    arguments: Arity::new(0),
+                    parameters: Arity::new(0),
                     locals: Size::new(0),
                     code: AddressRange::from(14, 4),
                 },
-    ];
+    ]);
 
-    let globals = vec![ConstantPoolIndex::new(2), ConstantPoolIndex::new(7)];
+    let globals = Globals::from(vec![ConstantPoolIndex::new(2), ConstantPoolIndex::new(7)]);
 
-    Program::new(code, constant_pool, globals, ConstantPoolIndex::from_usize(10))
+    Program::from(code, constant_pool, globals, Entry::from(10)).unwrap()
 }
 
 fn feeny_function_argument_order_bytes() -> Vec<u8> {
@@ -637,10 +618,10 @@ fn feeny_function_argument_order_bytes() -> Vec<u8> {
 
 #[test] fn feeny_function_argument_order_eval() {
     let program = feeny_function_argument_order_program();
-    let mut state = State::from(&program);
+    let mut state = State::from(&program).unwrap();
     let mut output = String::new();
 
-    evaluate_with(&program, &mut state, &mut output);
+    evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, "123");
 }
@@ -673,12 +654,12 @@ fn feeny_hello_world_program() -> Program {
         /* 5 */ OpCode::Return,
     ));
 
-    let constants = vec!(
+    let constant_pool = ConstantPool::from(vec![
         /* #0 */ ProgramObject::String("Hello World\n".to_string()),
         /* #1 */ ProgramObject::String("main".to_string()),
         /* #2 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(1),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(0, 2),
         },
@@ -686,16 +667,15 @@ fn feeny_hello_world_program() -> Program {
         /* #4 */ ProgramObject::String("entry35".to_string()),
         /* #5 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(4),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(2, 4),
         },
-    );
+    ]);
 
-    let globals = vec!(ConstantPoolIndex::new(2));
-    let entry = ConstantPoolIndex::new(5);
+    let globals = Globals::from(vec![ConstantPoolIndex::new(2)]);
 
-    Program::new(code, constants, globals, entry)
+    Program::from(code, constant_pool, globals, Entry::from(5)).unwrap()
 }
 
 fn feeny_hello_world_bytes() -> Vec<u8> {
@@ -728,15 +708,10 @@ fn feeny_hello_world_bytes() -> Vec<u8> {
 
 #[test] fn feeny_hello_world_eval() {
     let program = feeny_hello_world_program();
-    let mut state = State::from(&program);
+    let mut state = State::from(&program).unwrap();
     let mut output = String::new();
 
-    loop {
-        interpret(&mut state, &mut output, &program);
-        if let None = state.instruction_pointer() {
-            break;
-        }
-    }
+    evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, "Hello World\n");
 }
@@ -1014,7 +989,7 @@ fn feeny_fibonacci_program () -> Program {
         /* 74 */ OpCode::Return
     ));
 
-    let constants = vec!(
+    let constants = ConstantPool::from(vec![
         /* #0  0x00 */ ProgramObject::String("conseq39".to_string()),
         /* #1  0x01 */ ProgramObject::String("end40".to_string()),
         /* #2  0x02 */ ProgramObject::Integer(0),
@@ -1032,7 +1007,7 @@ fn feeny_fibonacci_program () -> Program {
         /* #14 0x0E */ ProgramObject::String("fib".to_string()),
         /* #15 0x0F */ ProgramObject::Method {                             // fib
             name: ConstantPoolIndex::new(14),
-            arguments: Arity::new(1),
+            parameters: Arity::new(1),
             locals: Size::new(3),
             code: AddressRange::from(0, 49),
         },
@@ -1044,27 +1019,27 @@ fn feeny_fibonacci_program () -> Program {
         /* #21 0x14 */ ProgramObject::String("main".to_string()),
         /* #22 0x15 */ ProgramObject::Method {                             // main
             name: ConstantPoolIndex::new(21),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(1),
             code: AddressRange::from(49, 22),
         },
         /* #23 0x15 */ ProgramObject::String("entry47".to_string()),
         /* #24 0x16 */ ProgramObject::Method {                             // entry47
             name: ConstantPoolIndex::new(23),
-            arguments: Arity::new(0),
+            parameters: Arity::new(0),
             locals: Size::new(0),
             code: AddressRange::from(71,4),
         }
-    );
+    ]);
 
-    let globals = vec!(
+    let globals = Globals::from(vec![
         ConstantPoolIndex::new(15),
         ConstantPoolIndex::new(22)
-    );
+    ]);
 
-    let entry = ConstantPoolIndex::new(24);
+    let entry = Entry::from(24);
 
-    Program::new (code, constants, globals, entry)
+    Program::from(code, constants, globals, entry).unwrap()
 }
 
 #[test] fn feeny_fibonacci_deserialize() {
@@ -1086,7 +1061,7 @@ fn feeny_fibonacci_program () -> Program {
 
 #[test] fn feeny_fibonacci_eval() {
     let program = feeny_fibonacci_program();
-    let mut state = State::from(&program);
+    let mut state = State::from(&program).unwrap();
     let mut output = String::new();
 
 
@@ -1094,21 +1069,7 @@ fn feeny_fibonacci_program () -> Program {
     program.pretty_print(&mut source);
     println!("{}", String::from_utf8(source).unwrap());
 
-    loop {
-        match state.instruction_pointer() {
-            Some(address) => println!("{:?} => {:?}", address, program.get_opcode(address)),
-            _ => println!("None => ..."),
-        }
-        println!("stack before: {:?}", state.operands);
-        println!("frame before: {:?}", state.frames.last());
-        interpret(&mut state, &mut output, &program);
-        if let None = state.instruction_pointer() {
-            break;
-        }
-        println!("stack after:  {:?}", state.operands);
-        println!("frame after:  {:?}", state.frames.last());
-        println!();
-    }
+    evaluate_with(&program, &mut state, &mut output).unwrap();
 
     assert_eq!(output, feeny_fibonacci_expected_output());
 }

@@ -148,11 +148,13 @@ impl UglyPrintWithContext for ProgramObject {
             },
 
             ProgramObject::Class(slots) => {
-                write_string!(sink, first!(indent, prefix_first_line), "Class");
+                write_string!(sink, first!(indent, prefix_first_line), "Class(");
+                let mut first = true;
                 for slot in slots {
-                    write_string!(sink, 0, "\n");
-                    slot.pretty_print_indent(sink, further!(indent))
+                    if !first { write_string!(sink, 0, ", "); } else { first = false; }
+                    slot.pretty_print(sink)
                 }
+                write_string!(sink, 0, ")");
             },
 
             ProgramObject::Method {name, arguments, locals, code: range} => {

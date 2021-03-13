@@ -1,0 +1,282 @@
+print("~\n", 5  + 7);
+// > 12
+print("~\n", 5  - 7);
+// > -2
+print("~\n", 5  * 7);
+// > 35
+print("~\n", 5  / 7);
+// > 0
+print("~\n", 5  % 7);
+// > 5
+print("~\n", 5 <= 7);
+// > true
+print("~\n", 5 >= 7);
+// > false
+print("~\n", 5  < 7);
+// > true
+print("~\n", 5  > 7);
+// > false
+print("~\n", 5 == 7);
+// > false
+print("~\n", 5 != 7);
+// > true
+
+print("~\n", true & false);
+// > false
+print("~\n", true | false);
+// > true
+print("~\n", true == false);
+// > false
+print("~\n", true != false);
+// > true
+
+print("~\n", null);
+// > null
+
+print("ahoj przygodo!\n");
+// > ahoj przygodo!
+
+print("~ and ~ and ~ and ~\n", 1, 2, 3, 4);
+// > 1 and 2 and 3 and 4
+
+let xa = let xb = 2;
+print("~ ~\n", xa, xb);
+// > 2 2
+
+let xaa = (let xbb = 2);
+print("~ ~\n", xaa, xbb);
+// > 2 2
+
+let answer = null;
+print("~\n", answer);
+// > null
+
+answer <- 42;
+print("~\n", answer);
+// > 42
+
+begin
+  let x = 1;
+  let y = 2;
+  print("~ ~\n", x, y)
+end;
+// > 1 2
+
+let s = begin 1; 2; 3 end;
+print("~\n", s);
+// > 3
+
+let x = 1;
+let y = 1;
+begin
+  let y = 1;
+  let z = 1;
+  x <- 2;
+  y <- 2;
+  z <- 2;
+end;
+print("~\n", x);
+// > 2
+print("~\n", y);
+// > 1
+//print("~\n", z);
+// :: no such global: z
+
+if true
+then print("true\n")
+else print("false\n");
+// > true
+
+if true
+then begin
+  print("true\n");
+  print("true\n");
+end
+else begin
+  print("false\n");
+  print("false\n");
+end;
+// > true
+// > true
+
+let p = true;
+let q = false;
+let r = if p & q then 1 else 0;
+print("p & q = ~\n", r);
+// > p & q = 0
+
+print("~\n", if true  then true);
+// > true
+print("~\n", if false then true);
+// > null
+
+if let x_ = true then let y_ = true else let z_ = true;
+print("~\n", x_);
+// > true
+print("~\n", y_);
+// > true
+//print("~\n", z);
+// :: no such global: z
+
+let i = 0;
+while i < 10
+do begin
+  print("~\n", i);
+  i <- i + 1;
+end;
+// > 0
+// > 1
+// > 2
+// > 3
+// > 4
+// > 5
+// > 6
+// > 7
+// > 8
+// > 9
+
+function f(x,y) -> 2 * x + y;
+let e = f(2, 1);
+print("~\n", e);      // 2 * 2 + 1 = 5
+// > 5
+
+print("~\n", array(7, null));
+// > [null, null, null, null, null, null, null]
+
+array(let size = 7, null);
+print("size: ~\n", size);
+// > size: 7
+
+let j = 1;
+let a = array(10, begin let x = j; j <- j + 1; x; end);
+print("~\n", a);
+// > [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+print("~..~\n", a[0], a[9]);
+// > 1..10
+
+a[5] <- -1;
+print("~\n", a);
+// > [1, 2, 3, 4, 5, -1, 7, 8, 9, 10]
+
+let b = array(3, null);
+let c = b;
+c[1] <- -42;
+print("~\n", b);
+// > [null, -42, null]
+print("~\n", c);
+// > [null, -42, null]
+
+function fa (arr) ->
+begin
+  arr[1] <- -42
+end;
+
+let d = array(3, null);
+fa(d);
+print("~\n", d);
+// > [null, -42, null]
+
+print("~\n", object begin end);
+// > object()
+
+print("~\n", object extends null begin end);
+// > object()
+
+print("~\n", object extends 1 begin end);
+// > object(..=1)
+
+let point = object
+begin
+  let x = 0;
+  let y = 1;
+  let z = 2;
+  function print() ->
+  begin
+      print("x=~, y=~, z=~\n", this.x, this.y, this.z);
+  end
+end;
+print("~\n", point);
+// > object(x=0, y=1, z=2)
+print("x=~, y=~, z=~\n", point.x, point.y, point.z);
+// > x=0, y=1, z=2
+point.print();
+// > x=0, y=1, z=2
+
+function new(x) ->
+  object
+  begin
+    let inner = x;
+    function + (operand) -> new(this.inner + operand.inner)
+  end;
+
+let left = new(1);
+let right = new(2);
+let result = left + right;
+print("~\n", result);
+// > object(inner=3)
+
+print("~\n", left.+(right));
+// > object(inner=3)
+
+// false |     2*2  +  2/2   ==  8 - 3   & true
+// false |       4  +    1   ==      5   & true
+// false |               5   ==      5   & true
+// false |                        true   & true
+// false |                                 true
+//                                         true
+print("~\n", false |     2*2  +  2/2   ==  8 - 3   & true);
+// > true
+print("~\n", false | ((((2*2) + (2/2)) == (8 - 3)) & true));
+// > true
+
+let arr = array(1, null);
+arr[0] <- true;             // assignment operator aka set
+print("~\n", arr[0]);       // access operator aka get
+// > true
+
+arr.set(0, false);
+arr.get(0);
+print("~\n", arr[0]);
+// > false
+
+let pseudo_one = object extends 1 begin end;
+let pseudo_two = object extends 2 begin end;
+print("~\n", 1 + 2);
+// > 3
+
+function immutable_array(len, value) ->
+    object extends array(len, value)
+    begin
+      function set(index, value) ->
+        print("Cannot set value: immutable array\n");
+    end;
+
+let iarr = immutable_array(10, 42);
+iarr[0] <- 6;
+// > Cannot set value: immutable array
+print("~\n", iarr);
+// > object(..=[42, 42, 42, 42, 42, 42, 42, 42, 42, 42])
+
+function math_array(len, value) ->
+    object extends array(len, value)
+    begin
+      let length = len;
+      function + (value) ->
+      begin
+        let i = 0;
+        let result = array(this.length, null);
+        while i < this.length do
+        begin
+          result[i] <- this[i] + value;
+          i <- i + 1;
+        end;
+        result
+      end
+    end;
+
+let arr1 = math_array(10, 5);
+let arr2 = arr1 + 1;
+arr2[0] <- 7;
+print("~\n", arr2);
+// > [7, 6, 6, 6, 6, 6, 6, 6, 6, 6]

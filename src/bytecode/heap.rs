@@ -178,7 +178,10 @@ impl ObjectInstance {
             .collect::<Result<Vec<String>>>()?;
 
         match parent {
-            Some(parent) => Ok(format!("object(..={}, {})", parent, fields.join(", "))),
+            Some(parent) if fields.len() > 0 =>
+                Ok(format!("object(..={}, {})", parent, fields.join(", "))),
+            Some(parent)  =>
+                Ok(format!("object(..={})", parent)),
             None => Ok(format!("object({})", fields.join(", "))),
         }
     }

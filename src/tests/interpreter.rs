@@ -384,6 +384,36 @@ macro_rules! indexmap {
     assert_eq!(state.heap, expected_heap, "test memory");
 }
 
+#[test] fn print_tilda() {
+    let code = Code::from(vec!(
+        OpCode::Print { format: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
+        OpCode::Return,
+    ));
+
+    let constants = ConstantPool::from(vec!["~\\~!\n"]);
+    let globals = Globals::new();
+    let entry = Entry::from(0);
+    let program = Program::from(code, constants, globals, entry).unwrap();
+
+    let mut state = State::minimal();
+    let mut output: String = String::new();
+
+    state.operand_stack.push(Pointer::from(42i32));
+
+    step_with(&program, &mut state, &mut output).unwrap();
+
+    let expected_operand_stack = OperandStack::from(vec![Pointer::Null]);
+    let expected_frame_stack = FrameStack::from(Frame::new());
+    let expected_instruction_pointer = InstructionPointer::from(1u32);
+    let expected_heap = Heap::new();
+
+    assert_eq!(&output, "42~!\n", "test output");
+    assert_eq!(state.operand_stack, expected_operand_stack, "test operands");
+    assert_eq!(state.instruction_pointer, expected_instruction_pointer, "test instruction pointer");
+    assert_eq!(state.frame_stack, expected_frame_stack, "test frames");
+    assert_eq!(state.heap, expected_heap, "test memory");
+}
+
 #[test] fn print_one() {
     let code = Code::from(vec!(
         OpCode::Print { format: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
@@ -1493,8 +1523,8 @@ fn call_method_boolean(receiver: bool, argument: bool, operation: &str, result: 
     state.instruction_pointer.set(Some(Address::from_usize(0)));
 
     state.operand_stack.push(Pointer::from(state.heap.allocate(array)));
-    state.operand_stack.push(Pointer::from(42));
     state.operand_stack.push(Pointer::from(1));
+    state.operand_stack.push(Pointer::from(42));
 
     step_with(&program, &mut state, &mut output).unwrap();
 

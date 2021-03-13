@@ -51,10 +51,11 @@ impl OperandStack {
     }
     #[allow(dead_code)]
     pub fn pop_sequence(&mut self, n: usize) -> Result<Vec<Pointer>> {
-        (0..n).map(|_| self.pop()).collect::<Result<Vec<Pointer>>>()
+        let result = (0..n).map(|_| self.pop()).collect::<Result<Vec<Pointer>>>();
+        result.map(|mut sequence| {sequence.reverse(); sequence})
     }
     pub fn pop_reverse_sequence(&mut self, n: usize) -> Result<Vec<Pointer>> {
-        (0..n).map(|_| self.pop()).rev().collect::<Result<Vec<Pointer>>>()
+        (0..n).map(|_| self.pop()).collect::<Result<Vec<Pointer>>>()
     }
 }
 

@@ -10,7 +10,6 @@ use std::iter::repeat;
 use crate::bail_if;
 use crate::veccat;
 
-use super::helpers::Pairable;
 use crate::bytecode::program::*;
 use crate::bytecode::state::*;
 use indexmap::map::IndexMap;
@@ -34,8 +33,8 @@ pub fn evaluate(program: &Program) -> Result<()> {
 }
 
 pub fn evaluate_with<W>(program: &Program, state: &mut State, output: &mut W) -> Result<()> where W: Write {
-    eprintln!("Program:");
-    eprintln!("{}", program);
+    // eprintln!("Program:");
+    // eprintln!("{}", program);
     while let Some(address) = state.instruction_pointer.get() {
         let opcode = program.code.get(address)?;
         eval_opcode(program, state, output, opcode)?;
@@ -220,7 +219,7 @@ pub fn eval_call_method(program: &Program, state: &mut State, index: &ConstantPo
 
     ensure!(arguments.to_usize() > 0,
             "Method arity is zero, which does not account for a receiver object.");
-    let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize() - 1)?;
+    let argument_pointers = state.operand_stack.pop_sequence(arguments.to_usize() - 1)?;
     let receiver_pointer = state.operand_stack.pop()?;
 
     dispatch_method(program, state, receiver_pointer, method_name, argument_pointers)
@@ -277,8 +276,6 @@ fn dispatch_null_method(method_name: &str, argument_pointers: Vec<Pointer>) -> R
 fn dispatch_integer_method(receiver: &i32, method_name: &str, argument_pointers: Vec<Pointer>) -> Result<Pointer> {
     bail_if!(argument_pointers.len() != 1,
              "Invalid number of arguments for method `{}` in object `{}`", method_name, receiver);
-
-    println!("integer method: {} {} {:?}", receiver, method_name, argument_pointers);
 
     let argument_pointer = argument_pointers.last().unwrap();
 
@@ -430,7 +427,7 @@ pub fn eval_call_function(program: &Program, state: &mut State, index: &Constant
              "Function `{}` requires {} arguments, but {} were supplied",
              name, parameters, arguments);
 
-    let argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize())?;
+    let argument_pointers = state.operand_stack.pop_sequence(arguments.to_usize())?;
     let local_pointers = locals.make_vector(Pointer::Null);
 
     state.instruction_pointer.bump(program);
@@ -444,24 +441,25 @@ pub fn eval_call_function(program: &Program, state: &mut State, index: &Constant
 pub fn eval_print<W>(program: &Program, state: &mut State, output: &mut W, index: &ConstantPoolIndex, arguments: &Arity) -> Result<()> where W: Write {
     let program_object = program.constant_pool.get(index)?;
     let format = program_object.as_str()?;
-    let mut argument_pointers = (0..arguments.to_usize()).map(|_| state.operand_stack.pop()).collect::<Result<Vec<Pointer>>>()?;
+    let mut argument_pointers = state.operand_stack.pop_reverse_sequence(arguments.to_usize())?;
 
-    for (previous, character) in format.chars().pairs() {
-        match (previous, character) {
-            ('\\', '~' ) => output.write_char('~')?,
-            ('\\', '\\') => output.write_char('\\')?,
-            ('\\', '"' ) => output.write_char('"')?,
-            ('\\', 'n' ) => output.write_char('\n')?,
-            ('\\', 't' ) => output.write_char('\t')?,
-            ('\\', 'r' ) => output.write_char('\r')?,
-            ('\\', ch  )  => bail!("Unknown control sequence \\{}", ch),
-            (_,    '\\') => {},
-            (_,    '~' ) => {
+    let mut escaped = false;
+    for character in format.chars(){
+        match (escaped, character) {
+            (true,  '~' ) => { output.write_char('~')?;  escaped = false; },
+            (true,  '\\') => { output.write_char('\\')?; escaped = false; },
+            (true,  '"' ) => { output.write_char('"')?;  escaped = false; },
+            (true,  'n' ) => { output.write_char('\n')?; escaped = false; },
+            (true,  't' ) => { output.write_char('\t')?; escaped = false; },
+            (true,  'r' ) => { output.write_char('\r')?; escaped = false; },
+            (true,  chr  ) => { bail!("Unknown control sequence \\{}", chr) },
+            (false, '\\') => {                           escaped = true;  },
+            (_,    '~'  ) => {
                 let argument = argument_pointers.pop()
                     .with_context(|| "Not enough arguments for format `{}`")?;
                 output.write_str(argument.evaluate_as_string(&state.heap)?.as_str())?
             },
-            (_,    ch  ) => output.write_char(ch)?,
+            (_,    chr ) => { output.write_char(chr)?                       },
         }
     }
     bail_if!(!argument_pointers.is_empty(),

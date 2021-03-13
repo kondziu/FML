@@ -1,6 +1,6 @@
 [package]
 name = "fml"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Konrad Siek <konrad.siek@gmail.com>"]
 edition = "2018"
 build = "build.rs" # LALRPOP preprocessing

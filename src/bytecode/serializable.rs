@@ -15,7 +15,7 @@ pub trait Serializable {
 }
 
 pub fn read_u8<R: Read>(reader: &mut R) -> u8 {
-    let mut buf = [0ufml8; 1];
+    let mut buf = [0u8; 1];
     reader.read_exact(&mut buf).expect("Problem reading u8 from data stream");
     u8::from_le_bytes(buf)
 }

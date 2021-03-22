@@ -9,11 +9,13 @@ use crate::bytecode::compiler::*;
     let ast = AST::Integer(1);
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) }
@@ -30,20 +32,23 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn some_more_numbers () {
     let asts = vec!(AST::Integer(1), AST::Integer(42), AST::Integer(0), AST::Integer(42));
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
     for ast in asts {
-        ast.compile(&mut program, &mut bookkeeping).unwrap();
+        ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
     }
 
-    let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },
@@ -65,18 +70,21 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn boolean () {
     let ast = AST::Boolean(true);
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) }
@@ -93,18 +101,21 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn unit () {
     let ast = AST::Null;
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) }
@@ -121,7 +132,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn local_definition () {
@@ -129,11 +141,13 @@ use crate::bytecode::compiler::*;
         value: Box::new(AST::Integer(1)) };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["x".to_owned()]);
 
     let expected_code = Code::from(vec!(
         OpCode::Literal { index: ConstantPoolIndex::new(0) },    // value
@@ -151,7 +165,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn global_definition () {
@@ -159,11 +174,13 @@ use crate::bytecode::compiler::*;
         value: Box::new(AST::Integer(1)) };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::without_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::Top;
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::without_frame();
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::Top;
 
     let expected_code = Code::from(vec!(
         OpCode::Literal { index: ConstantPoolIndex::new(0) },    // value
@@ -183,18 +200,21 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn local_access_x () {
     let ast = AST::AccessVariable { name: Identifier::from("x") };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string(), "y".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!("x".to_string(), "y".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
 
     let expected_code = Code::from(vec!(
         OpCode::GetLocal { index: LocalFrameIndex::new(0) }
@@ -209,20 +229,21 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn local_access_y () {
     let ast = AST::AccessVariable { name: Identifier::from("y") };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping =
-        Bookkeeping::from_locals(vec!("x".to_string(), "y".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping =
-        Bookkeeping::from_locals(vec!("x".to_string(), "y".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
 
     let expected_code = Code::from(vec!(
         OpCode::GetLocal { index: LocalFrameIndex::new(1) }
@@ -237,18 +258,21 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn global_access () {
     let ast = AST::AccessVariable { name: Identifier::from("x") };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         OpCode::GetGlobal { name: ConstantPoolIndex::new(0) }
@@ -265,20 +289,21 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn global_access_from_elsewhere () {
     let ast = AST::AccessVariable { name: Identifier::from("z") };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping =
-        Bookkeeping::from(vec!("x".to_string()));
+    let mut global_environment = Environment::from_locals(vec!["x".to_string()]);
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping =
-        Bookkeeping::from(vec!("x".to_string()));
+    let expected_global_environment = Environment::from_locals(vec!["x".to_string()]);
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         OpCode::GetGlobal { name: ConstantPoolIndex::new(0) }
@@ -295,18 +320,21 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn loop_de_loop () {
     let ast = AST::Loop { condition: Box::new(AST::Boolean(false)), body: Box::new(AST::Null) };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Jump { label: ConstantPoolIndex::new(1) },
@@ -333,7 +361,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn conditional () {
@@ -344,11 +373,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(2) },
@@ -375,7 +406,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn array_definition_simple_test() {
@@ -385,11 +417,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },
@@ -409,7 +443,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn array_definition_complex_test() { // FIXME test is wrong
@@ -422,14 +457,18 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals_at(vec!(
-        "::size".to_string(),
-        "::array".to_string(),
-        "::i".to_string()), 0);
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals_at(
+        vec![
+            "::size".to_string(),
+            "::array".to_string(),
+            "::i".to_string()
+        ], 0);
 
     let expected_code = Code::from(vec!(
         OpCode::Literal { index: ConstantPoolIndex::new(0) },                                  // 10
@@ -491,7 +530,8 @@ use crate::bytecode::compiler::*;
     // }
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn array_access_test() {
@@ -501,11 +541,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["x".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["x".to_string()]);
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },
@@ -525,7 +567,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn array_mutation_test() {
@@ -536,11 +579,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["x".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("x".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["x".to_string()]);
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },
@@ -562,7 +607,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn print_test () {
@@ -575,11 +621,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index:  ConstantPoolIndex::new(1) },
@@ -600,7 +648,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn function_application_test_three () {
@@ -614,11 +663,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index:  ConstantPoolIndex::new(1) },
@@ -641,7 +692,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn function_application_test_one () {
@@ -651,11 +703,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index:  ConstantPoolIndex::new(1) },
@@ -674,7 +728,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn function_application_test_zero () {
@@ -684,11 +739,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(0) },
@@ -705,7 +762,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn function_definition_three () {
@@ -718,11 +776,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Jump { label: ConstantPoolIndex::new(0) },
@@ -749,7 +809,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn object_with_methods_and_fields () {
@@ -802,11 +863,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::with_frame();
+    let expected_global_environment = Environment::new();
+let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /*  0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
@@ -935,7 +998,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn block_many () {
@@ -948,13 +1012,20 @@ use crate::bytecode::compiler::*;
         Box::new(AST::Integer(42))));
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let mut expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
-    expected_bookkeeping.enter_scope();
-    expected_bookkeeping.leave_scope();
+    let expected_global_environment = Environment::new();
+    let mut expected_current_frame = Frame::new();
+    match expected_current_frame {
+        Frame::Top => unreachable!(),
+        Frame::Local(ref mut environment) => {
+            environment.enter_scope();
+            environment.leave_scope();
+        }
+    }
 
     let expected_code = Code::from(vec!(
         /*  0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },
@@ -985,20 +1056,28 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn block_one () {
     let ast = AST::Block(vec!(Box::new(AST::Null)));
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let mut expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
-    expected_bookkeeping.enter_scope();
-    expected_bookkeeping.leave_scope();
+    let expected_global_environment = Environment::new();
+    let mut expected_current_frame = Frame::new();
+    match expected_current_frame {
+        Frame::Top => unreachable!(),
+        Frame::Local(ref mut environment) => {
+            environment.enter_scope();
+            environment.leave_scope();
+        }
+    }
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },
@@ -1015,20 +1094,28 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn block_zero () {
     let ast = AST::Block(vec!());
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::with_frame();
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let mut expected_bookkeeping: Bookkeeping = Bookkeeping::with_frame();
-    expected_bookkeeping.enter_scope();
-    expected_bookkeeping.leave_scope();
+    let expected_global_environment = Environment::new();
+    let mut expected_current_frame = Frame::new();
+    match expected_current_frame {
+        Frame::Top => unreachable!(),
+        Frame::Local(ref mut environment) => {
+            environment.enter_scope();
+            environment.leave_scope();
+        }
+    }
 
     let expected_code = Code::from(vec!());
 
@@ -1041,7 +1128,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn field_access_test () {
@@ -1051,11 +1139,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },
@@ -1073,7 +1163,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn field_mutation_test () {
@@ -1084,11 +1175,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },
@@ -1108,7 +1201,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn method_call_test_three () {
@@ -1121,11 +1215,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
     let expected_code = Code::from(vec!(
         OpCode::GetLocal { index: LocalFrameIndex::new(0) },
@@ -1151,7 +1247,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn method_call_test_one () {
@@ -1162,11 +1259,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
     let expected_code = Code::from(vec!(
         OpCode::GetLocal { index: LocalFrameIndex::new(0) },
@@ -1186,7 +1285,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn method_call_test_zero () {
@@ -1197,11 +1297,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!("obj".to_string()));
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
     let expected_code = Code::from(vec!(
         OpCode::GetLocal { index: LocalFrameIndex::new(0) },
@@ -1219,7 +1321,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn operator_call_test () {
@@ -1230,11 +1333,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!());
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec![]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!());
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec![]);
 
     let expected_code = Code::from(vec!(
         OpCode::Literal { index: ConstantPoolIndex::new(1) },
@@ -1255,7 +1360,8 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }
 
 #[test] fn operation_test () {
@@ -1266,11 +1372,13 @@ use crate::bytecode::compiler::*;
     };
 
     let mut program: Program = Program::new();
-    let mut bookkeeping: Bookkeeping = Bookkeeping::from_locals(vec!());
+    let mut global_environment = Environment::new();
+    let mut current_frame = Frame::from_locals(vec![]);
 
-    ast.compile(&mut program, &mut bookkeeping).unwrap();
+    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
 
-    let expected_bookkeeping = Bookkeeping::from_locals(vec!());
+    let expected_global_environment = Environment::new();
+    let expected_current_frame = Frame::from_locals(vec![]);
 
     let expected_code = Code::from(vec!(
         OpCode::Literal { index: ConstantPoolIndex::new(1) },
@@ -1291,5 +1399,6 @@ use crate::bytecode::compiler::*;
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
     assert_eq!(program, expected_program);
-    assert_eq!(bookkeeping, expected_bookkeeping);
+    assert_eq!(global_environment, expected_global_environment);
+    assert_eq!(current_frame, expected_current_frame);
 }

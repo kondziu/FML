@@ -123,15 +123,6 @@ impl Environment {
     fn count_locals(&self) -> usize {
         self.locals.len()
     }
-    //
-    // fn generate_new_local(&mut self, name: &str) -> LocalFrameIndex {
-    //     let index = LocalFrameIndex::from_usize(self.locals.len());
-    //     let label = format!("?{}_{}", name, self.locals.len());
-    //     let key = (self.current_scope(), label);
-    //     let result = self.locals.insert(key, index);
-    //     assert!(result.is_none());
-    //     index
-    // }
 
     pub fn enter_scope(&mut self) {
         self.scope_sequence += 1;
@@ -143,155 +134,6 @@ impl Environment {
             .expect("Cannot leave scope: the scope stack is empty");
     }
 }
-
-// #[derive(PartialEq,Debug,Clone)]
-// pub struct Bookkeeping { // TODO remove
-//     frames: Vec<Environment>,
-//     top: Environment,
-// }
-
-// enum VariableIndex {
-//     Global(ConstantPoolIndex),
-//     Local(LocalFrameIndex),
-// }
-
-// impl Bookkeeping {
-//     #[allow(dead_code)]
-//     pub fn with_frame() -> Bookkeeping {
-//         Bookkeeping {
-//             frames: vec!(Environment::new()),
-//             top: Environment::new(),
-//         }
-//     }
-//
-//     #[allow(dead_code)]
-//     pub fn without_frame() -> Bookkeeping {
-//         Bookkeeping {
-//             frames: vec!(),
-//             top: Environment::new(),
-//         }
-//     }
-//
-//     #[allow(dead_code)]
-//     pub fn from(locals: Vec<String>) -> Bookkeeping {
-//         Bookkeeping {
-//             frames: vec!(Environment::from_locals(locals)),
-//             top: Environment::new(),
-//         }
-//     }
-//
-//     #[allow(dead_code)]
-//     pub fn from_locals(locals: Vec<String>) -> Bookkeeping {
-//         Bookkeeping {
-//             frames: vec!(Environment::from_locals(locals)),
-//             top: Environment::new(),
-//         }
-//     }
-//
-//     #[allow(dead_code)]
-//     pub fn from_locals_at(locals: Vec<String>, level: usize) -> Bookkeeping {
-//         Bookkeeping {
-//             frames: vec!(Environment::from_locals_at(locals, level)),
-//             top: Environment::new(),
-//         }
-//     }
-//
-//     fn add_frame(&mut self) {
-//         self.frames.push(Environment::new())
-//     }
-//
-//     fn remove_frame(&mut self)  {
-//         self.frames.pop()
-//             .expect("Bookkeeping: cannot pop frame from an empty stack");       //FIXME
-//     }
-//
-//     pub fn enter_scope(&mut self) {
-//         if self.frames.is_empty() {
-//             self.top.enter_scope()
-//         } else {
-//             self.frames.last_mut().unwrap().enter_scope()
-//         }
-//     }
-//
-//     pub fn leave_scope(&mut self) {
-//         if self.frames.is_empty() {
-//             self.top.leave_scope()
-//         } else {
-//             self.frames.last_mut().unwrap().leave_scope()
-//         }
-//     }
-//
-//     fn has_frame(&self) -> bool {
-//         !(self.frames.is_empty() && self.top.in_outermost_scope())
-//     }
-//
-//     // fn register_global(&mut self, id: &str) {
-//     //     self.globals.insert(id.to_string());
-//     // }
-//
-//     fn has_local(&self, id: &str) -> bool {
-//         match self.frames.last() {
-//             None => {
-//                 if self.top.in_outermost_scope() {
-//                     false
-//                 } else {
-//                     self.top.has_local(id)
-//                 }
-//             }
-//             Some(frame) => {
-//                 frame.has_local(id)
-//             },
-//         }
-//     }
-//
-//     fn register_new_local(&mut self, id: &str) -> Result<LocalFrameIndex, String> {
-//         if self.frames.is_empty() {
-//             self.top.register_new_local(id)
-//         } else {
-//             self.frames.last_mut().unwrap().register_new_local(id)
-//         }
-//     }
-//
-//     fn register_local(&mut self, id: &str) -> LocalFrameIndex {
-//         if self.frames.is_empty() {
-//             self.top.register_local(id)
-//         } else {
-//             self.frames.last_mut().unwrap().register_local(id)
-//         }
-//     }
-//
-//     fn count_locals(&self) -> usize {
-//         if self.frames.is_empty() {
-//             self.top.count_locals()
-//         } else {
-//             self.frames.last().unwrap().count_locals()
-//         }
-//     }
-//
-//     #[allow(dead_code)]
-//     fn generate_new_local(&mut self, name: &str) -> LocalFrameIndex {
-//         if self.frames.is_empty() {
-//             self.top.generate_new_local(name)
-//         } else {
-//             self.frames.last_mut().unwrap().generate_new_local(name)
-//         }
-//     }
-// }
-
-// macro_rules! unpack {
-//     ((_) from $vector:expr) => {{
-//         let vector = $vector;
-//         vector[0]
-//     }};
-//     ((_,_) from $vector:expr) => {{
-//         let vector = $vector;
-//         (vector[0], vector[1])
-//     }};
-//     ((_,_,_) from $vector:expr) => {{
-//         let vector = $vector;
-//         (vector[0], vector[1], vector[2])
-//     }};
-// }
 
 pub trait Compiled {
     fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, keep_result: bool) -> Result<()>;
@@ -339,7 +181,6 @@ impl Compiled for AST {
                             .clone();
                         program.code.emit(OpCode::SetLocal { index });
                     },
-                    //(self.frames.is_empty() && self.top.in_outermost_scope())
                     _ => {
                         let name_index = program.constant_pool.register(ProgramObject::from_str(name));
                         let slot_index =
@@ -383,7 +224,6 @@ impl Compiled for AST {
                     },
                     _ => {
                         let index = program.constant_pool.register(ProgramObject::from_str(name));
-                        //environment.register_global(name);                  // TODO necessary?
                         value.deref().compile_into(program, global_environment, current_frame, true)?;
                         program.code.emit(OpCode::SetGlobal { name: index });
                     },
@@ -553,39 +393,6 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            // AST::Operator { operator, parameters, body } => {
-            //     let name = operator.as_str();
-            //     let end_label_index = unpack!((_) from program.generate_new_label_names(vec![&format!("λ:{}", name)]));
-            //
-            //     program.code.emit(OpCode::Jump { label: end_label_index });
-            //     let start_address = program.get_upcoming_address();
-            //
-            //     environment.add_frame();
-            //     for parameter in parameters.into_iter() {
-            //         environment.register_local(parameter.as_str());
-            //     }
-            //
-            //     (**body).compile_into(program, global_environment, current_frame, true)?;
-            //
-            //     let locals_in_frame = environment.count_locals();
-            //     environment.remove_frame();
-            //
-            //     program.code.emit(OpCode::Return);
-            //     program.code.emit(OpCode::Label { name: end_label_index });
-            //     let end_address = program.get_current_address();
-            //
-            //     let name = ProgramObject::String(name.to_string());
-            //     let name_index = program.constant_pool.register(name);
-            //
-            //     let method = ProgramObject::Method {
-            //         name: name_index,
-            //         locals: Size::from_usize(locals_in_frame - parameters.len()),
-            //         arguments: Arity::from_usize(parameters.len()),
-            //         code: AddressRange::from_addresses(start_address, end_address),
-            //     };
-            //     program.constant_pool.register(method);
-            // }
-
             AST::Function { name: Identifier(name), parameters, body } => {
                 let end_label = program.labels.generate_name(format!("λ:{}", name))?;
                 let end_label_index =
@@ -606,7 +413,6 @@ impl Compiled for AST {
                     Frame::Local(child_environment) => child_environment.count_locals(),
                     Frame::Top => unreachable!(),
                 };
-                //child_environment.remove_frame();
 
                 program.code.emit(OpCode::Return);
 
@@ -647,11 +453,6 @@ impl Compiled for AST {
                                                     program, global_environment, current_frame)
 
                     }
-                    // AST::Operator { operator, parameters, body } => {
-                    //     compile_function_definition(operator.as_str(), true, parameters, body.deref(),
-                    //                                 program, environment)
-                    //
-                    // }
                     AST::Variable { name: Identifier(name), value } => {
                         (*value).compile_into(program, global_environment, current_frame, true)?;
                         let index = program.constant_pool.register(ProgramObject::from_str(name));
@@ -712,34 +513,9 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            // AST::CallOperator { object, operator, arguments } => {
-            //     let index = program.constant_pool.register(ProgramObject::from_str(operator.as_str()));
-            //     object.deref().compile_into(program, global_environment, current_frame, true)?;
-            //     for argument in arguments.iter() {
-            //         argument.compile_into(program, global_environment, current_frame, true)?;
-            //     }
-            //     let arity = Arity::from_usize(arguments.len() + 1);
-            //     program.code.emit(OpCode::CallMethod { name: index, arguments: arity });
-            //     program.code.emit_(OpCode::Drop, !keep_result);
-            // }
-
-            // AST::Operation { operator, left, right } => {
-            //     let index = program.constant_pool.register(ProgramObject::from_str(operator.as_str()));
-            //     left.deref().compile_into(program, global_environment, current_frame, true)?;
-            //     right.deref().compile_into(program, global_environment, current_frame, true)?;
-            //     let arity = Arity::from_usize(2);
-            //     program.code.emit(OpCode::CallMethod { name: index, arguments: arity });
-            // }
-
             AST::Top (children) => {
-                // let (function_name_index, end_label_index )
-                //     = unpack!((_,_) from program.generate_new_label_names(vec!["^", "$"]));
-
                 let function_name_index=
-                    //unpack!((_) from program.generate_new_label_names(vec!["::main::"]));
                     program.constant_pool.register(ProgramObject::from_string("λ:".to_owned()));
-
-                // program.code.emit(OpCode::Jump { label: end_label_index });
 
                 let start_address = program.code.upcoming_address();
 
@@ -749,8 +525,6 @@ impl Compiled for AST {
                     child.deref().compile_into(program, global_environment, current_frame, last)?;                        // TODO uggo
                     // TODO could be cute to pop exit status off of stack
                 }
-
-                // program.code.emit(OpCode::Label { name: end_label_index });
 
                 let end_address = program.code.current_address();
 

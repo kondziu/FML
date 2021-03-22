@@ -12,6 +12,8 @@ use std::fs::File;
 use std::io::{Read, BufReader, BufRead, Write, BufWriter};
 
 use clap::Clap;
+use clap::crate_version;
+use clap::crate_authors;
 use anyhow::*;
 
 use crate::parser::AST;
@@ -22,7 +24,7 @@ use crate::bytecode::serializable::Serializable;
 use crate::bytecode::interpreter::evaluate;
 
 #[derive(Clap, Debug)]
-#[clap(version = "1.0", author = "Konrad Siek <konrad.siek@gmail.com>")]
+#[clap(version = crate_version!(), author = crate_authors!())]
 enum Action {
     Parse(ParserAction),
     Compile(CompilerAction),

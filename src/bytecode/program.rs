@@ -558,6 +558,8 @@ impl Code {
         let start = range.start().value_usize();
         let end = start + range.length();
 
+        println!("start: {}, end: {}", start, end);
+
         bail_if!(end > self.0.len(),
                  "Address range exceeds code size: {} + {} >= {}.",
                  start, range.length, self.0.len());

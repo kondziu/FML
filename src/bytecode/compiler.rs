@@ -683,6 +683,7 @@ impl Compiled for AST {
                     program.constant_pool.register(ProgramObject::from_string("λ:".to_owned()));
 
                 // program.code.emit(OpCode::Jump { label: end_label_index });
+
                 let start_address = program.code.upcoming_address();
 
                 let children_count = children.len();
@@ -693,7 +694,11 @@ impl Compiled for AST {
                 }
 
                 // program.code.emit(OpCode::Label { name: end_label_index });
+
                 let end_address = program.code.current_address();
+
+                // println!("start addr: {}", start_address);
+                // println!("end addr: {}", start_address);
 
                 let method = ProgramObject::Method {
                     name: function_name_index,

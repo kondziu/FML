@@ -115,10 +115,10 @@ impl Environment {
         return false;
     }
 
-    // fn in_outermost_scope(&self) -> bool {
-    //     assert!(!self.scopes.is_empty());
-    //     self.scopes.len() == 1
-    // }
+    fn in_outermost_scope(&self) -> bool {
+        assert!(!self.scopes.is_empty());
+        self.scopes.len() == 1
+    }
 
     fn count_locals(&self) -> usize {
         self.locals.len()
@@ -330,10 +330,17 @@ impl Compiled for AST {
                     Frame::Local(environment) => {
                         let index = environment.register_new_local(name)
                             .expect(&format!("Cannot register new variable {}", &name))
-                            .clone(); // FIXME error if not new
+                            .clone();
                         program.code.emit(OpCode::SetLocal { index });
                     },
-                    Frame::Top => {
+                    Frame::Top if !global_environment.in_outermost_scope() => {
+                        let index = global_environment.register_new_local(name)
+                            .expect(&format!("Cannot register new variable {}", &name))
+                            .clone();
+                        program.code.emit(OpCode::SetLocal { index });
+                    },
+                    //(self.frames.is_empty() && self.top.in_outermost_scope())
+                    _ => {
                         let name_index = program.constant_pool.register(ProgramObject::from_str(name));
                         let slot_index =
                             program.constant_pool.register(ProgramObject::Slot { name: name_index });
@@ -351,6 +358,10 @@ impl Compiled for AST {
                         let index = environment.register_local(name).clone();
                         program.code.emit(OpCode::GetLocal { index });
                     },
+                    Frame::Top if !global_environment.in_outermost_scope() && global_environment.has_local(name) => {
+                        let index = global_environment.register_local(name).clone();
+                        program.code.emit(OpCode::GetLocal { index });
+                    },
                     _ => {
                         let index = program.constant_pool.register(ProgramObject::from_str(name));
                         program.code.emit(OpCode::GetGlobal { name: index });
@@ -362,6 +373,11 @@ impl Compiled for AST {
                 match current_frame {
                     Frame::Local(environment) if environment.has_local(name) => {
                         let index = environment.register_local(name).clone(); // FIXME error if does not exists
+                        value.deref().compile_into(program, global_environment, current_frame, true)?;    // FIXME scoping!!!
+                        program.code.emit(OpCode::SetLocal { index });
+                    },
+                    Frame::Top if !global_environment.in_outermost_scope() && global_environment.has_local(name) => {
+                        let index = global_environment.register_local(name).clone(); // FIXME error if does not exists
                         value.deref().compile_into(program, global_environment, current_frame, true)?;    // FIXME scoping!!!
                         program.code.emit(OpCode::SetLocal { index });
                     },

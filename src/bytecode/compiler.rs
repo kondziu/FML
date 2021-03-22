@@ -19,15 +19,15 @@ pub fn compile(ast: &AST) -> Result<Program> {
 type Scope = usize;
 
 #[derive(PartialEq,Debug,Clone)]
-struct LocalFrame {
+struct Environment {
     locals: HashMap<(Scope, String), LocalFrameIndex>,
     scopes: Vec<Scope>,
     scope_sequence: Scope,
 }
 
-impl LocalFrame {
+impl Environment {
     fn new() -> Self {
-        LocalFrame { locals: HashMap::new(), scopes: vec!(0), scope_sequence: 0 }
+        Environment { locals: HashMap::new(), scopes: vec!(0), scope_sequence: 0 }
     }
 
 
@@ -38,7 +38,7 @@ impl LocalFrame {
             local_map.insert((0, local), LocalFrameIndex::from_usize(i));
         }
 
-        LocalFrame { locals: local_map, scopes: vec!(0), scope_sequence: 0 }
+        Environment { locals: local_map, scopes: vec!(0), scope_sequence: 0 }
     }
 
 
@@ -49,7 +49,7 @@ impl LocalFrame {
             local_map.insert((level, local), LocalFrameIndex::from_usize(i));
         }
 
-        LocalFrame { locals: local_map, scopes: vec!(0), scope_sequence: level + 1 }
+        Environment { locals: local_map, scopes: vec!(0), scope_sequence: level + 1 }
     }
 
     fn current_scope(&self) -> Scope {
@@ -123,9 +123,9 @@ impl LocalFrame {
 }
 
 #[derive(PartialEq,Debug,Clone)]
-pub struct Bookkeeping { // TODO rename
-    frames: Vec<LocalFrame>,
-    top: LocalFrame,
+pub struct Bookkeeping { // TODO remove
+    frames: Vec<Environment>,
+    top: Environment,
 }
 
 // enum VariableIndex {
@@ -137,8 +137,8 @@ impl Bookkeeping {
     #[allow(dead_code)]
     pub fn with_frame() -> Bookkeeping {
         Bookkeeping {
-            frames: vec!(LocalFrame::new()),
-            top: LocalFrame::new(),
+            frames: vec!(Environment::new()),
+            top: Environment::new(),
         }
     }
 
@@ -146,36 +146,36 @@ impl Bookkeeping {
     pub fn without_frame() -> Bookkeeping {
         Bookkeeping {
             frames: vec!(),
-            top: LocalFrame::new(),
+            top: Environment::new(),
         }
     }
 
     #[allow(dead_code)]
     pub fn from(locals: Vec<String>) -> Bookkeeping {
         Bookkeeping {
-            frames: vec!(LocalFrame::from_locals(locals)),
-            top: LocalFrame::new(),
+            frames: vec!(Environment::from_locals(locals)),
+            top: Environment::new(),
         }
     }
 
     #[allow(dead_code)]
     pub fn from_locals(locals: Vec<String>) -> Bookkeeping {
         Bookkeeping {
-            frames: vec!(LocalFrame::from_locals(locals)),
-            top: LocalFrame::new(),
+            frames: vec!(Environment::from_locals(locals)),
+            top: Environment::new(),
         }
     }
 
     #[allow(dead_code)]
     pub fn from_locals_at(locals: Vec<String>, level: usize) -> Bookkeeping {
         Bookkeeping {
-            frames: vec!(LocalFrame::from_locals_at(locals, level)),
-            top: LocalFrame::new(),
+            frames: vec!(Environment::from_locals_at(locals, level)),
+            top: Environment::new(),
         }
     }
 
     fn add_frame(&mut self) {
-        self.frames.push(LocalFrame::new())
+        self.frames.push(Environment::new())
     }
 
     fn remove_frame(&mut self)  {

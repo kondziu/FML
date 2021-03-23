@@ -23,16 +23,6 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn new() -> Self {
-        Program {
-            labels: Labels::new(),
-            constant_pool: ConstantPool::new(),
-            code: Code::new(),
-            globals: Globals::new(),
-            entry: Entry::new(),
-        }
-    }
-
     #[allow(dead_code)]
     pub fn from(code: Code, constant_pool: ConstantPool, globals: Globals, entry: Entry) -> Result<Self> {
         let label_names = code.labels();
@@ -115,72 +105,22 @@ impl std::fmt::Display for Entry {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct Labels { names: HashMap<String, Address>, groups: usize } // FIXME clean up
+pub struct Labels { names: HashMap<String, Address> } // FIXME clean up
 impl Labels {
-    pub fn new() -> Self { Labels { names: HashMap::new(), groups: 0 } }
-    pub fn get(&self, label: &str) -> Result<&Address> {
-        self.names.get(label).with_context(|| format!("Label `{}` was not previously register.", label))
-    }
-    pub fn set(&mut self, label: String, index: Address) -> Result<()> {
-        let previous = self.names.insert(label.clone(), index);
-        match previous {
-            Some(old_index) =>
-                Err(anyhow!("Attempting to register `{}` at address `{}`, \
-                             but it was already registered at address `{}`",
-                             label, index, old_index)),
-            None => Ok(()),
-        }
-    }
-    pub(crate) fn generate_name_within_group<S>(&self, prefix: S, group: usize) -> Result<String> where S: Into<String> {
-        let name = format!("{}:{}", prefix.into(), group);
-        bail_if!(self.names.contains_key(&name), "Label `{}` already exists.", name);
-        Ok(name)
-    }
-    pub fn generate_name<S>(&mut self, prefix: S) -> Result<String> where S: Into<String> {
-        let name = self.generate_name_within_group(prefix, self.groups)?;
-        self.groups = self.groups + 1;
-        Ok(name)
-    }
     #[allow(dead_code)]
-    pub fn generate<S>(&mut self, prefix: S) -> Result<ProgramObject> where S: Into<String> {
-        self.generate_name(prefix)
-            .map(|name| ProgramObject::String(name))
+    pub fn new() -> Self { Labels { names: HashMap::new() } }
+    pub fn get(&self, label: &str) -> Result<&Address> {
+        self.names.get(label)
+            .with_context(|| format!("Label `{}` was not previously register.", label))
     }
-    pub fn create_group(&mut self) -> LabelGroup<'_> {
-        let group = self.groups;
-        self.groups = self.groups + 1;
-        LabelGroup { labels: self, group }
-    }
-
     pub fn from<'a, I>(labels: I) -> Result<Self>
         where I: IntoIterator<Item=(&'a ProgramObject, Address)> {
-
         let names = labels.into_iter()
             .map(|(program_object, address)| {
                 program_object.as_str().map(|name| (name.to_owned(), address))
             })
             .collect::<Result<HashMap<String, Address>>>()?;
-
-        let groups = names.iter().flat_map(|(label, _)| {
-            label.split(":").last().map(|s| {
-                s.parse::<usize>().map_or(None, |n| Some(n))
-            }).flatten()
-        }).max().map_or(0, |n| n + 1);
-
-        Ok(Labels { names, groups })
-    }
-}
-
-pub struct LabelGroup<'a> { labels: &'a Labels, group: usize }
-
-impl LabelGroup<'_> {
-    pub fn generate_name<S>(&self, prefix: S) -> Result<String> where S: Into<String> {
-        self.labels.generate_name_within_group(prefix, self.group)
-    }
-    #[allow(dead_code)]
-    pub fn generate<S>(&self, prefix: S) -> Result<ProgramObject> where S: Into<String> {
-        self.labels.generate_name_within_group(prefix, self.group)
-            .map(|name| ProgramObject::String(name))
+        Ok(Labels { names })
     }
 }
 
@@ -533,16 +473,13 @@ impl ProgramObject {
 pub struct Code(Vec<OpCode>);
 impl Code {
     pub fn new() -> Self { Code(Vec::new()) }
-    pub fn current_address(&self) -> Address {
-        Address::from_usize(self.0.len() - 1)
-    }
     pub fn upcoming_address(&self) -> Address {
         Address::from_usize(self.0.len())
     }
     pub fn extend(&mut self, code: Code) -> (Address, usize) {
         let first = self.upcoming_address();
         let length = code.length();
-        println!("code {} {:?}", length, code.0);
+        //println!("code {} {:?}", length, code.0);
         self.0.extend(code.0.into_iter());
         (first, length)
     }
@@ -883,7 +820,7 @@ impl AddressRange {
     pub fn from (start: usize, length: usize) -> Self {
         AddressRange { start: Address::from_usize(start), length }
     }
-
+    #[allow(dead_code)]
     pub fn from_addresses (start: Address, end: Address) -> Self {
         AddressRange { start, length: end.value_usize() - start.value_usize() + 1 }
     }
@@ -931,6 +868,7 @@ impl Address {
     pub fn value_usize(&self) -> usize {
         self.0 as usize
     }
+    #[allow(dead_code)]
     pub fn offset(&self, n: usize) -> Self {
         Address::from_usize(self.value_usize() + n)
     }

@@ -766,24 +766,21 @@ use crate::bytecode::compiler::*;
     let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
-        /* 0 */ OpCode::Jump { label: ConstantPoolIndex::new(0) },
-        /* 1 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },
-        /* 2 */ OpCode::Return,
-        /* 3 */ OpCode::Label { name: ConstantPoolIndex::new(0) },
+        /* 0 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },
+        /* 1 */ OpCode::Return,
     ));
 
     let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
-        /* 0 */ ProgramObject::String("λ:project_right:0".to_string()),
-        /* 1 */ ProgramObject::String("project_right".to_string()),
-        /* 2 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(1),
+        /* 0 */ ProgramObject::String("project_right".to_string()),
+        /* 1 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(0),
             parameters: Arity::new(3),
             locals: Size::new(0),
-            code: AddressRange::from(1, 3),
+            code: AddressRange::from(0, 2),
         },
     ]);
 
-    let expected_globals = Globals::from(vec![ConstantPoolIndex::new(2)]);
+    let expected_globals = Globals::from(vec![ConstantPoolIndex::new(1)]);
     let expected_entry = Entry::new();
 
     let expected_program =
@@ -854,123 +851,108 @@ use crate::bytecode::compiler::*;
     let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
+        /* implies (method) */
         /*  0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
-        /*  1 */ OpCode::Jump { label: ConstantPoolIndex::new(1) },      // function_guard_0 - implies
+        /*  1 */ OpCode::Return,
+
+        /* identity (method) */
         /*  2 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
-
         /*  3 */ OpCode::Return,
-        /*  4 */ OpCode::Label { name: ConstantPoolIndex::new(1) },      // function_guard_0
 
-        /*  5 */ OpCode::Literal { index: ConstantPoolIndex::new(4) },   // 1 - slot id
+        /* or (method) */
+        /*  4 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
+        /*  5 */ OpCode::Return,
 
-        /*  6 */ OpCode::Jump { label: ConstantPoolIndex::new(7) },      // function_guard_1 - identity
-        /*  7 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
-        /*  8 */ OpCode::Return,
-        /*  9 */ OpCode::Label { name: ConstantPoolIndex::new(7) },      // function_guard_1
+        /* and (method) */
+        /*  6 */ OpCode::GetLocal { index: LocalFrameIndex::new(1) },    // x
+        /*  7 */ OpCode::Return,
 
-        /* 10 */ OpCode::Jump { label: ConstantPoolIndex::new(10) },     // function_guard_2 - or
-        /* 11 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
-        /* 12 */ OpCode::Return,
-        /* 13 */ OpCode::Label { name: ConstantPoolIndex::new(10) },     // function_guard_2
+        /* + (method) */
+        /*  8 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
+        /*  9 */ OpCode::Return,
 
-        /* 14 */ OpCode::Jump { label: ConstantPoolIndex::new(13) },     // function_guard_3 - or
-        /* 15 */ OpCode::GetLocal { index: LocalFrameIndex::new(1) },    // x
-        /* 16 */ OpCode::Return,
-        /* 17 */ OpCode::Label { name: ConstantPoolIndex::new(13) },     // function_guard_3
+        /* * (method) */
+        /* 10 */ OpCode::GetLocal { index: LocalFrameIndex::new(1) },    // x
+        /* 11 */ OpCode::Return,
 
-        /* 18 */ OpCode::Literal { index: ConstantPoolIndex::new(4) },   // 1 - hash
+        /* + (me) */
+        /* 12 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },    // this
+        /* 13 */ OpCode::Return,
 
-        /* 18 */ OpCode::Jump { label: ConstantPoolIndex::new(18) },     // function_guard_4 - +
-        /* 20 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
-        /* 21 */ OpCode::Return,
-        /* 22 */ OpCode::Label { name: ConstantPoolIndex::new(18) },     // function_guard_4
+        /* object parent, fields: id, hash */
+        /* 14 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
+        /* 15 */ OpCode::Literal { index: ConstantPoolIndex::new(3) },   // 1
+        /* 16 */ OpCode::Literal { index: ConstantPoolIndex::new(3) },   // 1
 
-        /* 23 */ OpCode::Jump { label: ConstantPoolIndex::new(21) },     // function_guard_5 - *
-        /* 24 */ OpCode::GetLocal { index: LocalFrameIndex::new(1) },    // x
-        /* 25 */ OpCode::Return,
-        /* 26 */ OpCode::Label { name: ConstantPoolIndex::new(21) },     // function_guard_5
-
-        /* 27 */ OpCode::Jump { label: ConstantPoolIndex::new(24) },     // function_guard_6 - me
-        /* 28 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },    // this
-        /* 29 */ OpCode::Return,
-        /* 30 */ OpCode::Label { name: ConstantPoolIndex::new(24) },     // function_guard_6
-
-        /* 31 */ OpCode::Object { class: ConstantPoolIndex:: new(27) },
+        /* 17 */ OpCode::Object { class: ConstantPoolIndex:: new(20) },
     ));
 
     let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
         /* 00 */ ProgramObject::from_bool(true),
-        /* 01 */ ProgramObject::from_str("λ:implies:0"),
-        /* 02 */ ProgramObject::from_str("implies"),
-        /* 03 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(2),    // implies
+        /* 01 */ ProgramObject::from_str("implies"),
+        /* 02 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(1),    // "implies"
             parameters: Arity::new(1+1),
+            locals: Size::new(0),
+            code: AddressRange::from(0, 2),     // opcodes: 0, 1
+        },
+
+        /* 03 */ ProgramObject::from_i32(1),
+        /* 04 */ ProgramObject::from_str("id"),
+        /* 05 */ ProgramObject::slot_from_u16(4), // "id"
+
+        /* 06 */ ProgramObject::from_str("identity"),
+        /* 07 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(6),    // identity
+            parameters: Arity::new(0+1),
             locals: Size::new(0),
             code: AddressRange::from(2, 2),     // addresses: 2, 3
         },
 
-        /* 04 */ ProgramObject::from_i32(1),
-        /* 05 */ ProgramObject::from_str("id"),
-        /* 06 */ ProgramObject::slot_from_u16(5),
-
-        /* 07 */ ProgramObject::from_str("λ:identity:1"),
-        /* 08 */ ProgramObject::from_str("identity"),
+        /* 08 */ ProgramObject::from_str("or"),
         /* 09 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(8),    // identity
-            parameters: Arity::new(0+1),
-            locals: Size::new(0),
-            code: AddressRange::from(7, 2),     // addresses: 6, 7
-        },
-
-        /* 10 */ ProgramObject::from_str("λ:or:2"),
-        /* 11 */ ProgramObject::from_str("or"),
-        /* 12 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(11),    // or
+            name: ConstantPoolIndex::new(8),    // or
             parameters: Arity::new(1+1),
             locals: Size::new(0),
-            code: AddressRange::from(11, 2),     // addresses: 10, 11
+            code: AddressRange::from(4, 2),     // addresses: 5, 6
         },
 
-        /* 13 */ ProgramObject::from_str("λ:and:3"),
-        /* 14 */ ProgramObject::from_str("and"),
+        /* 10 */ ProgramObject::from_str("and"),
+        /* 11 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(10),    // and
+            parameters: Arity::new(1+1),
+            locals: Size::new(0),
+            code: AddressRange::from(6, 2),     // addresses: 7, 8
+        },
+
+        /* 12 */ ProgramObject::from_str("hash"),
+        /* 13 */ ProgramObject::slot_from_u16(12),
+
+        /* 14 */ ProgramObject::from_str("+"),
         /* 15 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(14),    // and
+            name: ConstantPoolIndex::new(14),          // +
             parameters: Arity::new(1+1),
             locals: Size::new(0),
-            code: AddressRange::from(15, 2),     // addresses: 14, 15
+            code: AddressRange::from(8, 2),           // addresses: 7, 8
         },
 
-        /* 16 */ ProgramObject::from_str("hash"),
-        /* 17 */ ProgramObject::slot_from_u16(16),
-
-        /* 18 */ ProgramObject::from_str("λ:+:4"),
-        /* 19 */ ProgramObject::from_str("+"),
-        /* 20 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(19),          // +
+        /* 16 */ ProgramObject::from_str("*"),
+        /* 17 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(16),          // *
             parameters: Arity::new(1+1),
             locals: Size::new(0),
-            code: AddressRange::from(20, 2),
+            code: AddressRange::from(10, 2),           // addresses: 9, 10
         },
 
-        /* 21 */ ProgramObject::from_str("λ:*:5"),
-        /* 22 */ ProgramObject::from_str("*"),
-        /* 23 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(22),          // *
-            parameters: Arity::new(1+1),
-            locals: Size::new(0),
-            code: AddressRange::from(24, 2),
-        },
-
-        /* 24 */ ProgramObject::from_str("λ:me:6"),
-        /* 25 */ ProgramObject::from_str("me"),
-        /* 26 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(25),          // *
+        /* 18 */ ProgramObject::from_str("me"),
+        /* 19 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(18),          // *
             parameters: Arity::new(1),
             locals: Size::new(0),
-            code: AddressRange::from(28, 2),
+            code: AddressRange::from(12, 2),
         },
 
-        /* 27 */ ProgramObject::class_from_vec(vec!(3, 6, 9, 12, 15, 17, 20, 23, 26)),
+        /* 20 */ ProgramObject::class_from_vec(vec!(2, 5, 7, 9, 11, 13, 15, 17, 19)),
     ]);
 
     let expected_globals = Globals::from(vec![]);

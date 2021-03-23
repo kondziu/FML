@@ -476,13 +476,13 @@ impl Compiled for AST {
             }
 
             AST::Function { name: Identifier(name), parameters, body } => {
-                let end_label = program.labels.generate_name(format!("λ:{}", name))?;
-                let end_label_index =
-                    program.constant_pool.register(ProgramObject::from_str(&end_label));
+                // let end_label = program.labels.generate_name(format!("λ:{}", name))?;
+                // let end_label_index =
+                //     program.constant_pool.register(ProgramObject::from_str(&end_label));
 
 
                 let mut function_buffer = Code::new();
-                function_buffer.emit(OpCode::Jump { label: end_label_index });
+                // function_buffer.emit(OpCode::Jump { label: end_label_index });
 
 
                 let mut child_environment = Environment::new();
@@ -500,7 +500,7 @@ impl Compiled for AST {
 
                 function_buffer.emit(OpCode::Return);
 
-                function_buffer.emit(OpCode::Label { name: end_label_index });
+                // function_buffer.emit(OpCode::Label { name: end_label_index });
                 //program.labels.set(end_label, program.code.current_address())?;
 
                 let (start_address, function_length) = program.completed_code.extend(function_buffer);
@@ -514,7 +514,7 @@ impl Compiled for AST {
                     name: name_index,
                     locals: Size::from_usize(locals_in_frame - parameters.len()),
                     parameters: Arity::from_usize(parameters.len()),
-                    code: AddressRange::new(start_address.offset(1), function_length - 2 /*one for offset*/),
+                    code: AddressRange::new(start_address, function_length),
                 };
 
                 let constant = program.constant_pool.register(method);
@@ -614,14 +614,14 @@ impl Compiled for AST {
 
                 let (start_address, function_length) = program.completed_code.extend(top_buffer);
 
-                println!("top start addr: {}", start_address);
-                println!("top end addr: {}", start_address);
+                // println!("top start addr: {}", start_address);
+                // println!("top end addr: {}", start_address);
 
                 let method = ProgramObject::Method {
                     name: function_name_index,
                     locals: Size::from_usize(global_environment.count_locals()),
                     parameters: Arity::from_usize(0),
-                    code: AddressRange::new(start_address.offset(1), function_length - 2 /*one for offset*/),
+                    code: AddressRange::new(start_address, function_length),
                 };
 
                 let function_index = program.constant_pool.register(method);
@@ -641,12 +641,12 @@ fn compile_function_definition(name: &str,
                                global_environment: &mut Environment,
                                _current_frame: &mut Frame) -> Result<ConstantPoolIndex> {
 
-    let end_label = program.labels.generate_name(format!("λ:{}", name))?;
-    let end_label_index =
-        program.constant_pool.register(ProgramObject::from_str(&end_label));
+    // let end_label = program.labels.generate_name(format!("λ:{}", name))?;
+    // let end_label_index =
+    //     program.constant_pool.register(ProgramObject::from_str(&end_label));
 
     let mut function_buffer = Code::new();
-    function_buffer.emit(OpCode::Jump { label: end_label_index });
+    // function_buffer.emit(OpCode::Jump { label: end_label_index });
 
     let expected_arguments = parameters.len() + if receiver { 1 } else { 0 };
 
@@ -668,7 +668,7 @@ fn compile_function_definition(name: &str,
     //child_environment.remove_frame();
 
     function_buffer.emit(OpCode::Return);
-    function_buffer.emit(OpCode::Label { name: end_label_index });
+    // function_buffer.emit(OpCode::Label { name: end_label_index });
 
     let (start_address, length) = program.completed_code.extend(function_buffer);
 
@@ -681,7 +681,7 @@ fn compile_function_definition(name: &str,
         name: name_index,
         locals: Size::from_usize(locals_in_frame - expected_arguments),
         parameters: Arity::from_usize(expected_arguments),
-        code: AddressRange::new(start_address.offset(1), length - 2 /*one for offset*/),
+        code: AddressRange::new(start_address, length),
     };
 
     Ok(program.constant_pool.register(method))

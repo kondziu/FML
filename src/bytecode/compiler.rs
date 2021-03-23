@@ -15,13 +15,10 @@ pub fn compile(ast: AST) -> Result<Program> {
     let mut current_frame = Frame::Top;
     let mut methods: Vec<ConstantPoolIndex> = Vec::new();
 
-    for compilation_unit in ast.split_into_compilation_units() {
-        compilation_unit.compile_into(&mut program,
-                                      &mut global_environment,
-                                      &mut current_frame,
-                                      &mut methods,
-                                      true)?;
-    }
+    let extended_ast = ast.split_into_compilation_units();
+
+    extended_ast.compile_into(&mut program, &mut global_environment, &mut current_frame,
+                              &mut methods, true)?;
 
     Ok(program)
 }
@@ -150,31 +147,31 @@ pub trait Compiled {
     // }
 }
 
-impl Compiled for AST {
+impl Compiled for ExtAST {
     fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, methods: &mut Vec<ConstantPoolIndex>, keep_result: bool) -> Result<()> {
         match self {
-            AST::Integer(value) => {
+            ExtAST::Integer(value) => {
                 let constant = ProgramObject::Integer(*value);
                 let index = program.constant_pool.register(constant);
                 program.code.emit(OpCode::Literal { index });
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Boolean(value) => {
+            ExtAST::Boolean(value) => {
                 let constant = ProgramObject::Boolean(*value);
                 let index = program.constant_pool.register(constant);
                 program.code.emit(OpCode::Literal { index });
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Null => {
+            ExtAST::Null => {
                 let constant = ProgramObject::Null;
                 let index = program.constant_pool.register(constant);
                 program.code.emit(OpCode::Literal { index });
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Variable { name: Identifier(name), value } => {
+            ExtAST::Variable { name: Identifier(name), value } => {
                 value.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 match current_frame {
                     Frame::Local(environment) => {
@@ -201,7 +198,7 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::AccessVariable { name: Identifier(name) } => {
+            ExtAST::AccessVariable { name: Identifier(name) } => {
                 match current_frame {
                     Frame::Local(environment) if environment.has_local(name) => {
                         let index = environment.register_local(name).clone();
@@ -218,7 +215,7 @@ impl Compiled for AST {
                 }
             }
 
-            AST::AssignVariable { name: Identifier(name), value } => {
+            ExtAST::AssignVariable { name: Identifier(name), value } => {
                 match current_frame {
                     Frame::Local(environment) if environment.has_local(name) => {
                         let index = environment.register_local(name).clone(); // FIXME error if does not exists
@@ -239,7 +236,7 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Conditional { condition, consequent, alternative } => {
+            ExtAST::Conditional { condition, consequent, alternative } => {
                 let label_generator = program.labels.create_group();
                 let consequent_label = label_generator.generate_name("if:consequent")?;
                 let end_label = label_generator.generate_name("if:end")?;
@@ -260,7 +257,7 @@ impl Compiled for AST {
                 program.labels.set(end_label, program.code.current_address())?;
             }
 
-            AST::Loop { condition, body } => {
+            ExtAST::Loop { condition, body } => {
                 let label_generator = program.labels.create_group();
                 let body_label = label_generator.generate_name("loop:body")?;
                 let condition_label = label_generator.generate_name("loop:condition")?;
@@ -286,10 +283,10 @@ impl Compiled for AST {
                 }
             }
 
-            AST::Array { size, value } => {
+            ExtAST::Array { size, value } => {
                 match value.deref() {
-                    AST::Boolean(_) | AST::Integer(_) | AST::Null |
-                    AST::AccessVariable { name:_ } | AST::AccessField { object:_, field:_ } => {
+                    ExtAST::Boolean(_) | ExtAST::Integer(_) | ExtAST::Null |
+                    ExtAST::AccessVariable { name:_ } | ExtAST::AccessField { object:_, field:_ } => {
                         size.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                         value.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                         program.code.emit(OpCode::Array);
@@ -302,50 +299,50 @@ impl Compiled for AST {
 
                         // let ::size = eval SIZE;
                         let size_definition =
-                            AST::variable(size_id.clone(), *size.clone());
+                            ExtAST::variable(size_id.clone(), *size.clone());
 
                         // let ::array = array(::size, null);
-                        let array_definition = AST::variable(
+                        let array_definition = ExtAST::variable(
                             array_id.clone(),
-                            AST::array(
-                                AST::access_variable(size_id.clone()),
-                                AST::null()));
+                            ExtAST::array(
+                                ExtAST::access_variable(size_id.clone()),
+                                ExtAST::null()));
 
                         // let ::i = 0;
-                        let i_definition = AST::variable(
-                            i_id.clone(), AST::integer(0));
+                        let i_definition = ExtAST::variable(
+                            i_id.clone(), ExtAST::integer(0));
 
                         // ::array[::i] <- eval VALUE;
-                        let set_array = AST::assign_array(
-                            AST::access_variable(array_id.clone()),
-                            AST::access_variable(i_id.clone()),
+                        let set_array = ExtAST::assign_array(
+                            ExtAST::access_variable(array_id.clone()),
+                            ExtAST::access_variable(i_id.clone()),
                             *value.clone());
 
                         // ::i <- ::i + 1;
-                        let increment_i = AST::assign_variable(
+                        let increment_i = ExtAST::assign_variable(
                             i_id.clone(),
-                            AST::operation(
+                            ExtAST::operation(
                                 Operator::Addition,
-                                AST::access_variable(i_id.clone()),
-                                AST::Integer(1)));
+                                ExtAST::access_variable(i_id.clone()),
+                                ExtAST::Integer(1)));
 
                         // ::i < ::size
-                        let comparison = AST::operation(
+                        let comparison = ExtAST::operation(
                             Operator::Less,
-                            AST::access_variable(i_id),
-                            AST::access_variable(size_id));
+                            ExtAST::access_variable(i_id),
+                            ExtAST::access_variable(size_id));
 
                         // while ::i < ::size do
                         // begin
                         //   ::array[::i] <- eval VALUE;
                         //   ::i <- ::i + 1;
                         // end;
-                        let loop_de_loop = AST::loop_de_loop(
+                        let loop_de_loop = ExtAST::loop_de_loop(
                             comparison,
-                            AST::block(vec![set_array, increment_i]));
+                            ExtAST::block(vec![set_array, increment_i]));
 
                         // ::array
-                        let array = AST::access_variable(array_id);
+                        let array = ExtAST::access_variable(array_id);
 
                         // let ::size = eval SIZE;
                         // let ::array = array(::size, null);
@@ -365,7 +362,7 @@ impl Compiled for AST {
                 }
             }
 
-            AST::AccessArray { array, index } => {
+            ExtAST::AccessArray { array, index } => {
                 (**array).compile_into(program, global_environment, current_frame, methods, true)?;
                 (**index).compile_into(program, global_environment, current_frame, methods, true)?;
 
@@ -376,7 +373,7 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::AssignArray { array, index, value } => {
+            ExtAST::AssignArray { array, index, value } => {
                 (**array).compile_into(program, global_environment, current_frame, methods, true)?;
                 (**index).compile_into(program, global_environment, current_frame, methods, true)?;
                 (**value).compile_into(program, global_environment, current_frame, methods, true)?;
@@ -388,7 +385,7 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Print { format, arguments } => {
+            ExtAST::Print { format, arguments } => {
                 let format: ConstantPoolIndex =
                     program.constant_pool.register(ProgramObject::String(format.to_string()));
 
@@ -401,7 +398,7 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Function { name: Identifier(name), parameters, body } => {
+            ExtAST::Function { name: Identifier(name), parameters, body } => {
                 let end_label = program.labels.generate_name(format!("λ:{}", name))?;
                 let end_label_index =
                     program.constant_pool.register(ProgramObject::from_str(&end_label));
@@ -444,7 +441,7 @@ impl Compiled for AST {
                 program.globals.register(constant)?;
             }
 
-            AST::CallFunction { name: Identifier(name), arguments } => {
+            ExtAST::CallFunction { name: Identifier(name), arguments } => {
                 let index = program.constant_pool.register(ProgramObject::String(name.to_string()));
                 for argument in arguments.iter() {
                     argument.compile_into(program, global_environment, current_frame, methods, true)?;
@@ -454,30 +451,22 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Object { extends, members } => {
+            ExtAST::Object { extends, members } => {
                 (**extends).compile_into(program, global_environment, current_frame, methods, true)?;
 
                 let slots: Result<Vec<ConstantPoolIndex>> = members.iter().map(|m| m.deref()).map(|m| match m {
-                    AST::Function { name, parameters, body } => {
+                    ExtAST::Function { name, parameters, body } => {
                         // compile_function_definition(name.as_str(), true, parameters, body.deref(),
                         //                             program, global_environment, methods, current_frame)
-                        // Horrible hack
-                        match **body {
-                            AST::Integer(i) => {
-                                let method_index = methods.get(i as usize)
-                                    .expect(&format!("No compiled method at index {} in the methods vector.", i));
-                                // if !method.is_method() {
-                                //     panic!("Method definition does not refer to method object.");
-                                // }
-                                // let method_index = program.constant_pool.find(method)
-                                //     .expect(&format!("Method {:?} should have been already defined in constant pool.", method));
-                                Ok(*method_index)
-                            },
-                            _ => panic!("AST should have been re-written to move function \
-                                         definition out of objects.")
-                        }
-                    }
-                    AST::Variable { name: Identifier(name), value } => {
+                        panic!("Function {} should have been detached from object before compilation.", name)
+                    },
+                    ExtAST::MethodStub { compilation_unit } => {
+                        let method_index = methods.get(*compilation_unit)
+                            .expect(&format!("No compiled method at index {} in the methods \
+                                              vector.", compilation_unit));
+                        Ok(*method_index)
+                    },
+                    ExtAST::Variable { name: Identifier(name), value } => {
                         (*value).compile_into(program, global_environment, current_frame, methods, true)?;
                         let index = program.constant_pool.register(ProgramObject::from_str(name));
                         Ok(program.constant_pool.register(ProgramObject::slot_from_index(index)))
@@ -493,7 +482,7 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Block(children) => {
+            ExtAST::Block(children) => {
                 match current_frame {
                     Frame::Local(environment) => environment.enter_scope(),
                     Frame::Top => global_environment.enter_scope(),
@@ -511,14 +500,14 @@ impl Compiled for AST {
                 }
             }
 
-            AST::AccessField { object, field: Identifier(name) } => {
+            ExtAST::AccessField { object, field: Identifier(name) } => {
                 object.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 let index = program.constant_pool.register(ProgramObject::from_str(name));
                 program.code.emit(OpCode::GetField { name: index });
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::AssignField { object, field: Identifier(name), value } => {
+            ExtAST::AssignField { object, field: Identifier(name), value } => {
                 object.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 value.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 let index = program.constant_pool.register(ProgramObject::from_str(name));
@@ -526,7 +515,7 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::CallMethod { object, name: Identifier(name), arguments } => {
+            ExtAST::CallMethod { object, name: Identifier(name), arguments } => {
                 let index = program.constant_pool.register(ProgramObject::from_str(name));
                 object.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 for argument in arguments.iter() {
@@ -537,7 +526,7 @@ impl Compiled for AST {
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
-            AST::Top (children) => {
+            ExtAST::Top (children) => {
                 let function_name_index=
                     program.constant_pool.register(ProgramObject::from_string("λ:".to_owned()));
 
@@ -565,6 +554,19 @@ impl Compiled for AST {
                 let function_index = program.constant_pool.register(method);
                 program.entry.set(function_index);
             }
+
+            ExtAST::DetachedMethod { name, parameters, body } => {
+                compile_function_definition(name.as_str(), true, parameters, body.deref(),
+                                            program, global_environment, methods, current_frame)?;
+            }
+            ExtAST::MethodStub { .. } => panic!("Free-floating method stubs are not allowed"),
+
+            ExtAST::CompilationUnits(compilation_units) => {
+                for compilation_unit in compilation_units {
+                    compilation_unit.deref()
+                        .compile_into(program, global_environment, current_frame, methods, true)?;
+                }
+            }
         };
 
         Ok(())
@@ -574,7 +576,7 @@ impl Compiled for AST {
 fn compile_function_definition(name: &str,
                                receiver: bool,
                                parameters: &Vec<Identifier>,
-                               body: &AST,
+                               body: &ExtAST,
                                program: &mut Program,
                                global_environment: &mut Environment,
                                methods: &mut Vec<ConstantPoolIndex>,
@@ -641,25 +643,38 @@ impl CompilationUnit for AST {
     }
 }
 
+impl CompilationUnit for ExtAST {
+    fn is_compilation_unit(&self) -> bool {
+        match self {
+            ExtAST::Function { .. } => true,
+            _ => false,
+        }
+    }
+}
+
 pub trait ExtractCompilationUnits {
-    fn split_into_compilation_units(self) -> Vec<AST>;
+    type Result;
+    fn split_into_compilation_units(self) -> Self::Result;
 }
 
 impl ExtractCompilationUnits for AST {
-    fn split_into_compilation_units(self) -> Vec<AST> {
+    type Result = ExtAST;
+    fn split_into_compilation_units(self) -> Self::Result {
         let mut compilation_units = vec![];
         let top = self.extract_compilation_unit_subtree(&mut compilation_units);
         compilation_units.push(top);
-        compilation_units
+        ExtAST::CompilationUnits(compilation_units.into_iter().map(|cu| Box::new(cu)).collect())
     }
 }
 
 trait ExtractCompilationUnitSubtree {
-    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<AST>) -> Self;
+    type Result;
+    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<ExtAST>) -> Self::Result;
 }
 
 impl ExtractCompilationUnitSubtree for Vec<Box<AST>> {
-    fn extract_compilation_unit_subtree(self, accumulator: &mut Vec<AST>) -> Self {
+    type Result = Vec<Box<ExtAST>>;
+    fn extract_compilation_unit_subtree(self, accumulator: &mut Vec<ExtAST>) -> Self::Result {
         let mut expressions = vec![];
         for ast in self {
             let new_ast = ast.extract_compilation_unit_subtree(accumulator);
@@ -674,101 +689,100 @@ impl ExtractCompilationUnitSubtree for Vec<Box<AST>> {
 }
 
 impl ExtractCompilationUnitSubtree for Box<AST> {
-    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<AST>) -> Self {
+    type Result = Box<ExtAST>;
+    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<ExtAST>) -> Self::Result {
         Box::new((*self).extract_compilation_unit_subtree(compilation_units))
     }
 }
 
 impl ExtractCompilationUnitSubtree for AST {
-    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<AST>) -> Self {
+    type Result = ExtAST;
+    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<ExtAST>) -> Self::Result {
         match self { // Warning: order of evaluation is important
-            AST::Integer(_) => self,
-            AST::Boolean(_) => self,
-            AST::Null => self,
-            AST::AccessVariable { .. } => self,
-            AST::Variable { name, value } => AST::Variable {
+            AST::Null => ExtAST::Null,
+            AST::Integer(i) => ExtAST::Integer(i),
+            AST::Boolean(b) => ExtAST::Boolean(b),
+            AST::AccessVariable { name } => ExtAST::AccessVariable { name },
+            AST::Variable { name, value } => ExtAST::Variable {
                 name,
                 value: value.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::Array { size, value } => AST::Array {
+            AST::Array { size, value } => ExtAST::Array {
                 size: size.extract_compilation_unit_subtree(compilation_units),
                 value: value.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::Object { extends, members } => { // Horrible hack
+            AST::Object { extends, members } => { // TODO Clean up this fucking mess
                 let new_extends = extends.extract_compilation_unit_subtree(compilation_units);
-                let new_members: Vec<Box<AST>> = members.into_iter().map(|member| {
-                    let member = member.extract_compilation_unit_subtree(compilation_units);
-                    if member.is_compilation_unit() {
-                        match *member {
-                            AST::Function { name, parameters, body } => {
-                                let mut extended_parameters = VecDeque::from(parameters.clone());
-                                extended_parameters.push_front(Identifier::from("this"));
-                                compilation_units.push(AST::function(name.clone(), extended_parameters.into(), *body));
-                                Box::new(AST::function(name, parameters, AST::integer((compilation_units.len() - 1) as i32)))
-                            }
-                            _ => unreachable!()
+                let new_members: Vec<Box<ExtAST>> = members.into_iter().map(|member| {
+                    let new_member = member.extract_compilation_unit_subtree(compilation_units);
+                    if !new_member.is_compilation_unit() { return new_member }
+                    match *new_member {
+                        ExtAST::Function { name, parameters, body } => {
+                            let detached_method = ExtAST::detached_method(name, parameters, *body);
+                            compilation_units.push(detached_method);
+                            let method_stub = ExtAST::method_stub(compilation_units.len() - 1);
+                            Box::new(method_stub)
                         }
-                    } else {
-                        member
+                        _ => unreachable!()
                     }
                 }).collect();
-                AST::Object {
+                ExtAST::Object {
                     extends: new_extends,
                     members: new_members,
                 }
             },
-            AST::AccessField { object, field } => AST::AccessField {
+            AST::AccessField { object, field } => ExtAST::AccessField {
                 object: object.extract_compilation_unit_subtree(compilation_units),
                 field,
             },
-            AST::AccessArray { index, array } => AST::AccessArray {
+            AST::AccessArray { index, array } => ExtAST::AccessArray {
                 array: array.extract_compilation_unit_subtree(compilation_units),
                 index: index.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::AssignVariable { name, value } => AST::AssignVariable {
+            AST::AssignVariable { name, value } => ExtAST::AssignVariable {
                 name,
                 value: value.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::AssignField { object, field, value } => AST::AssignField {
+            AST::AssignField { object, field, value } => ExtAST::AssignField {
                 object: object.extract_compilation_unit_subtree(compilation_units),
                 field,
                 value: value.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::AssignArray { array, index, value } => AST::AssignArray {
+            AST::AssignArray { array, index, value } => ExtAST::AssignArray {
                 array: array.extract_compilation_unit_subtree(compilation_units),
                 index: index.extract_compilation_unit_subtree(compilation_units),
                 value: value.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::Function { name, parameters, body } => AST::Function {
+            AST::Function { name, parameters, body } => ExtAST::Function {
                 name,
                 parameters,
                 body: body.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::CallFunction { name, arguments } => AST::CallFunction {
+            AST::CallFunction { name, arguments } => ExtAST::CallFunction {
                 name,
                 arguments: arguments.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::CallMethod { object, name, arguments } => AST::CallMethod {
+            AST::CallMethod { object, name, arguments } => ExtAST::CallMethod {
                 object: object.extract_compilation_unit_subtree(compilation_units),
                 name,
                 arguments: arguments.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::Top(expressions) => AST::Top(
+            AST::Top(expressions) => ExtAST::Top(
                 expressions.extract_compilation_unit_subtree(compilation_units)
             ),
-            AST::Block(expressions) => AST::Block(
+            AST::Block(expressions) => ExtAST::Block(
                 expressions.extract_compilation_unit_subtree(compilation_units)
             ),
-            AST::Loop { condition, body } => AST::Loop {
+            AST::Loop { condition, body } => ExtAST::Loop {
                 body: body.extract_compilation_unit_subtree(compilation_units),
                 condition: condition.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::Conditional { condition, alternative, consequent } => AST::Conditional {
+            AST::Conditional { condition, alternative, consequent } => ExtAST::Conditional {
                 condition: condition.extract_compilation_unit_subtree(compilation_units),
                 consequent: consequent.extract_compilation_unit_subtree(compilation_units),
                 alternative: alternative.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::Print { format, arguments } => AST::Print {
+            AST::Print { format, arguments } => ExtAST::Print {
                 format,
                 arguments: arguments.extract_compilation_unit_subtree(compilation_units),
             }

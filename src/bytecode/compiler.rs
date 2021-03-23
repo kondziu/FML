@@ -10,12 +10,13 @@ use crate::bytecode::program::*;
 use anyhow::*;
 
 pub fn compile(ast: &AST) -> Result<Program> {
-    let mut program: Program = Program::new();
+    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::Top;
 
     ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true)?;
-    Ok(program)
+
+    Ok(program.flatten())
 }
 
 type Scope = usize;
@@ -136,14 +137,15 @@ impl Environment {
 }
 
 pub trait Compiled {
-    fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, keep_result: bool) -> Result<()>;
-    fn compile(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame) -> Result<()> {
+    fn compile_into(&self, program: &mut StackedProgram, global_environment: &mut Environment, current_frame: &mut Frame, keep_result: bool) -> Result<()>;
+    fn compile(&self, program: &mut StackedProgram, global_environment: &mut Environment, current_frame: &mut Frame) -> Result<()> {
+        program.code.push_slab();
         self.compile_into(program, global_environment, current_frame, true)
     }
 }
 
 impl Compiled for AST {
-    fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, keep_result: bool) -> Result<()> {
+    fn compile_into(&self, program: &mut StackedProgram, global_environment: &mut Environment, current_frame: &mut Frame, keep_result: bool) -> Result<()> {
         match self {
             AST::Integer(value) => {
                 let constant = ProgramObject::Integer(*value);
@@ -517,6 +519,8 @@ impl Compiled for AST {
                 let function_name_index=
                     program.constant_pool.register(ProgramObject::from_string("λ:".to_owned()));
 
+                program.code.push_slab();
+
                 let start_address = program.code.upcoming_address();
 
                 let children_count = children.len();
@@ -551,7 +555,7 @@ fn compile_function_definition(name: &str,
                                receiver: bool,
                                parameters: &Vec<Identifier>,
                                body: &AST,
-                               program: &mut Program,
+                               program: &mut StackedProgram,
                                global_environment: &mut Environment,
                                _current_frame: &mut Frame) -> Result<ConstantPoolIndex> {
 

@@ -58,6 +58,61 @@ impl std::fmt::Display for Program {
 }
 
 #[derive(Eq, PartialEq, Debug)]
+pub struct StackedProgram {
+    pub constant_pool: ConstantPool,
+    pub labels: Labels,
+    pub code: StackedCode,
+    pub globals: Globals,
+    pub entry: Entry,
+}
+
+impl From<Program> for StackedProgram {
+    fn from(program: Program) -> Self {
+        StackedProgram {
+            labels: program.labels,
+            constant_pool: program.constant_pool,
+            code: StackedCode::from(program.code),
+            globals: program.globals,
+            entry: program.entry,
+        }
+    }
+}
+
+impl StackedProgram {
+    pub fn new() -> Self {
+        StackedProgram {
+            labels: Labels::new(),
+            constant_pool: ConstantPool::new(),
+            code: StackedCode::new(),
+            globals: Globals::new(),
+            entry: Entry::new(),
+        }
+    }
+    pub fn flatten(self) -> Program {
+        Program {
+            labels: self.labels,
+            constant_pool: self.constant_pool,
+            code: self.code.flatten(),
+            globals: self.globals,
+            entry: self.entry,
+        }
+    }
+}
+
+impl std::fmt::Display for StackedProgram {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Constant Pool:")?;
+        write!(f, "{}", self.constant_pool)?;
+        writeln!(f, "Entry: {}", self.entry)?;
+        writeln!(f, "Globals:")?;
+        write!(f, "{}", self.globals)?;
+        writeln!(f, "Code:")?;
+        write!(f, "{}", self.code)?;
+        Ok(())
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
 pub struct Globals(Vec<ConstantPoolIndex>);
 impl Globals {
     pub fn new() -> Self { Globals(Vec::new()) }
@@ -529,6 +584,43 @@ impl ProgramObject {
     }
 }
 
+#[derive(Eq, PartialEq, Debug)]
+pub struct StackedCode(Vec<Code>);
+
+impl From<Code> for StackedCode {
+    fn from(code: Code) -> Self {
+        StackedCode(vec![code])
+    }
+}
+
+impl StackedCode {
+    pub fn new() -> Self { StackedCode(vec![]) }
+    pub fn push_slab(&mut self) {
+        self.0.push(Code::new())
+    }
+    pub fn flatten(self) -> Code {
+        Code(self.0.into_iter().flat_map(|code| code.0).collect())
+    }
+    pub fn current_address(&self) -> Address {
+        self.0.last().unwrap().current_address()
+    }
+    pub fn upcoming_address(&self) -> Address {
+        self.0.last().unwrap().upcoming_address()
+    }
+    pub fn emit(&mut self, opcode: OpCode) {
+        self.0.last_mut().unwrap().emit(opcode) // TODO consider error handling
+    }
+    #[allow(dead_code)]
+    pub fn emit_if(&mut self, opcode: OpCode, condition: bool) {
+        self.0.last_mut().unwrap().emit_if(opcode, condition)
+    }
+    pub fn emit_unless(&mut self, opcode: OpCode, condition: bool) {
+        self.0.last_mut().unwrap().emit_unless(opcode, condition)
+    }
+    pub fn length(&self) -> usize {
+        self.0.last().unwrap().length()
+    }
+}
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct Code(Vec<OpCode>);
@@ -612,6 +704,15 @@ impl std::fmt::Display for Code {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, opcode) in self.0.iter().enumerate() {
             writeln!(f, "{}: {}", i, opcode)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for StackedCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (i, code) in self.0.iter().enumerate() {
+            writeln!(f, "Code slab {}:\n{}", i, code)?;
         }
         Ok(())
     }

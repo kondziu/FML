@@ -58,61 +58,6 @@ impl std::fmt::Display for Program {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct StackedProgram {
-    pub constant_pool: ConstantPool,
-    pub labels: Labels,
-    pub code: StackedCode,
-    pub globals: Globals,
-    pub entry: Entry,
-}
-
-impl From<Program> for StackedProgram {
-    fn from(program: Program) -> Self {
-        StackedProgram {
-            labels: program.labels,
-            constant_pool: program.constant_pool,
-            code: StackedCode::from(program.code),
-            globals: program.globals,
-            entry: program.entry,
-        }
-    }
-}
-
-impl StackedProgram {
-    pub fn new() -> Self {
-        StackedProgram {
-            labels: Labels::new(),
-            constant_pool: ConstantPool::new(),
-            code: StackedCode::new(),
-            globals: Globals::new(),
-            entry: Entry::new(),
-        }
-    }
-    pub fn flatten(self) -> Program {
-        Program {
-            labels: self.labels,
-            constant_pool: self.constant_pool,
-            code: self.code.flatten(),
-            globals: self.globals,
-            entry: self.entry,
-        }
-    }
-}
-
-impl std::fmt::Display for StackedProgram {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Constant Pool:")?;
-        write!(f, "{}", self.constant_pool)?;
-        writeln!(f, "Entry: {}", self.entry)?;
-        writeln!(f, "Globals:")?;
-        write!(f, "{}", self.globals)?;
-        writeln!(f, "Code:")?;
-        write!(f, "{}", self.code)?;
-        Ok(())
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
 pub struct Globals(Vec<ConstantPoolIndex>);
 impl Globals {
     pub fn new() -> Self { Globals(Vec::new()) }
@@ -170,7 +115,7 @@ impl std::fmt::Display for Entry {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct Labels { names: HashMap<String, Address>, groups: usize } // FIXME
+pub struct Labels { names: HashMap<String, Address>, groups: usize } // FIXME clean up
 impl Labels {
     pub fn new() -> Self { Labels { names: HashMap::new(), groups: 0 } }
     pub fn get(&self, label: &str) -> Result<&Address> {
@@ -585,44 +530,6 @@ impl ProgramObject {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct StackedCode(Vec<Code>);
-
-impl From<Code> for StackedCode {
-    fn from(code: Code) -> Self {
-        StackedCode(vec![code])
-    }
-}
-
-impl StackedCode {
-    pub fn new() -> Self { StackedCode(vec![]) }
-    pub fn push_slab(&mut self) {
-        self.0.push(Code::new())
-    }
-    pub fn flatten(self) -> Code {
-        Code(self.0.into_iter().flat_map(|code| code.0).collect())
-    }
-    pub fn current_address(&self) -> Address {
-        self.0.last().unwrap().current_address()
-    }
-    pub fn upcoming_address(&self) -> Address {
-        self.0.last().unwrap().upcoming_address()
-    }
-    pub fn emit(&mut self, opcode: OpCode) {
-        self.0.last_mut().unwrap().emit(opcode) // TODO consider error handling
-    }
-    #[allow(dead_code)]
-    pub fn emit_if(&mut self, opcode: OpCode, condition: bool) {
-        self.0.last_mut().unwrap().emit_if(opcode, condition)
-    }
-    pub fn emit_unless(&mut self, opcode: OpCode, condition: bool) {
-        self.0.last_mut().unwrap().emit_unless(opcode, condition)
-    }
-    pub fn length(&self) -> usize {
-        self.0.last().unwrap().length()
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
 pub struct Code(Vec<OpCode>);
 impl Code {
     pub fn new() -> Self { Code(Vec::new()) }
@@ -631,6 +538,13 @@ impl Code {
     }
     pub fn upcoming_address(&self) -> Address {
         Address::from_usize(self.0.len())
+    }
+    pub fn extend(&mut self, code: Code) -> (Address, usize) {
+        let first = self.upcoming_address();
+        let length = code.length();
+        println!("code {} {:?}", length, code.0);
+        self.0.extend(code.0.into_iter());
+        (first, length)
     }
     pub fn emit(&mut self, opcode: OpCode) {
         self.0.push(opcode)
@@ -704,15 +618,6 @@ impl std::fmt::Display for Code {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, opcode) in self.0.iter().enumerate() {
             writeln!(f, "{}: {}", i, opcode)?;
-        }
-        Ok(())
-    }
-}
-
-impl std::fmt::Display for StackedCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (i, code) in self.0.iter().enumerate() {
-            writeln!(f, "Code slab {}:\n{}", i, code)?;
         }
         Ok(())
     }
@@ -1026,6 +931,9 @@ impl Address {
     pub fn value_usize(&self) -> usize {
         self.0 as usize
     }
+    pub fn offset(&self, n: usize) -> Self {
+        Address::from_usize(self.value_usize() + n)
+    }
 }
 
 impl Serializable for Arity {
@@ -1125,8 +1033,12 @@ impl std::fmt::Display for Size {
 
 impl std::fmt::Display for AddressRange {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}-{}", self.start,
-               Address::from_usize(self.start.value_usize() + self.length - 1))
+        if self.length == 0 {
+            write!(f, "{}-∅", self.start)
+        } else {
+            write!(f, "{}-{}", self.start,
+                   Address::from_usize(self.start.value_usize() + self.length - 1))
+        }
     }
 }
 

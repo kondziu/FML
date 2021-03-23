@@ -8,12 +8,10 @@ use crate::bytecode::compiler::*;
 #[test] fn number () {
     let ast = AST::Integer(1);
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -79,12 +77,10 @@ use crate::bytecode::compiler::*;
 #[test] fn boolean () {
     let ast = AST::Boolean(true);
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -111,12 +107,10 @@ use crate::bytecode::compiler::*;
 #[test] fn unit () {
     let ast = AST::Null;
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -144,12 +138,10 @@ use crate::bytecode::compiler::*;
     let ast = AST::Variable { name: Identifier::from("x"),
         value: Box::new(AST::Integer(1)) };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_owned()]);
@@ -178,12 +170,10 @@ use crate::bytecode::compiler::*;
     let ast = AST::Variable { name: Identifier::from("x"),
         value: Box::new(AST::Integer(1)) };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::Top;
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::Top;
@@ -213,12 +203,10 @@ use crate::bytecode::compiler::*;
 #[test] fn local_access_x () {
     let ast = AST::AccessVariable { name: Identifier::from("x") };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
@@ -243,12 +231,10 @@ use crate::bytecode::compiler::*;
 #[test] fn local_access_y () {
     let ast = AST::AccessVariable { name: Identifier::from("y") };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
@@ -273,15 +259,13 @@ use crate::bytecode::compiler::*;
 #[test] fn global_access () {
     let ast = AST::AccessVariable { name: Identifier::from("x") };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         OpCode::GetGlobal { name: ConstantPoolIndex::new(0) }
@@ -305,12 +289,10 @@ let expected_current_frame = Frame::new();
 #[test] fn global_access_from_elsewhere () {
     let ast = AST::AccessVariable { name: Identifier::from("z") };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::from_locals(vec!["x".to_string()]);
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::from_locals(vec!["x".to_string()]);
     let expected_current_frame = Frame::new();
@@ -337,15 +319,13 @@ let expected_current_frame = Frame::new();
 #[test] fn loop_de_loop () {
     let ast = AST::Loop { condition: Box::new(AST::Boolean(false)), body: Box::new(AST::Null) };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Jump { label: ConstantPoolIndex::new(1) },
@@ -383,12 +363,10 @@ let expected_current_frame = Frame::new();
         alternative: Box::new(AST::Integer(-1))
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -428,15 +406,13 @@ let expected_current_frame = Frame::new();
         size: Box::new(AST::Integer(10)),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },
@@ -469,12 +445,10 @@ let expected_current_frame = Frame::new();
         }),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals_at(
@@ -554,12 +528,10 @@ let expected_current_frame = Frame::new();
         index: Box::new(AST::Integer(1)),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string()]);
@@ -593,12 +565,10 @@ let expected_current_frame = Frame::new();
         value: Box::new(AST::Integer(42)),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string()]);
@@ -636,15 +606,13 @@ let expected_current_frame = Frame::new();
         ),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index:  ConstantPoolIndex::new(1) },
@@ -679,15 +647,13 @@ let expected_current_frame = Frame::new();
         ),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index:  ConstantPoolIndex::new(1) },
@@ -720,15 +686,13 @@ let expected_current_frame = Frame::new();
         arguments: vec!(Box::new(AST::Integer(42))),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Literal { index:  ConstantPoolIndex::new(1) },
@@ -757,15 +721,13 @@ let expected_current_frame = Frame::new();
         arguments: vec!()
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::CallFunction { name: ConstantPoolIndex::new(0), arguments: Arity::new(0) },
@@ -795,15 +757,13 @@ let expected_current_frame = Frame::new();
         body: Box::new(AST::AccessVariable { name: Identifier::from("left") })
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /* 0 */ OpCode::Jump { label: ConstantPoolIndex::new(0) },
@@ -828,6 +788,8 @@ let expected_current_frame = Frame::new();
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
+
+    assert_eq!(format!("{}", program), format!("{}", expected_program));
 
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
@@ -883,15 +845,13 @@ let expected_current_frame = Frame::new();
         )
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
-let expected_current_frame = Frame::new();
+    let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
         /*  0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
@@ -1019,6 +979,8 @@ let expected_current_frame = Frame::new();
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
 
+    assert_eq!(format!("{}", program), format!("{}", expected_program));
+
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
@@ -1033,12 +995,10 @@ let expected_current_frame = Frame::new();
         Box::new(AST::Boolean(true)),
         Box::new(AST::Integer(42))));
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1086,12 +1046,10 @@ let expected_current_frame = Frame::new();
 #[test] fn block_one () {
     let ast = AST::Block(vec!(Box::new(AST::Null)));
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1125,12 +1083,10 @@ let expected_current_frame = Frame::new();
 #[test] fn block_zero () {
     let ast = AST::Block(vec!());
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1163,12 +1119,10 @@ let expected_current_frame = Frame::new();
         field: Identifier::from("x"),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1200,12 +1154,10 @@ let expected_current_frame = Frame::new();
         value: Box::new(AST::Integer(42)),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1241,12 +1193,10 @@ let expected_current_frame = Frame::new();
         object: Box::new(AST::AccessVariable { name: Identifier::from("obj") })
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1286,12 +1236,10 @@ let expected_current_frame = Frame::new();
         object: Box::new(AST::AccessVariable { name: Identifier::from("obj") })
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1325,12 +1273,10 @@ let expected_current_frame = Frame::new();
         object: Box::new(AST::AccessVariable { name: Identifier::from("obj") })
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1362,12 +1308,10 @@ let expected_current_frame = Frame::new();
         object: Box::new(AST::Integer(7)),
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec![]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec![]);
@@ -1402,12 +1346,10 @@ let expected_current_frame = Frame::new();
         arguments: vec![Box::new(AST::Integer(7))],
     };
 
-    let mut program = StackedProgram::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec![]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
-    let program = program.flatten();
+    let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec![]);

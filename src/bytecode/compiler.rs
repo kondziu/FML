@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::ops::Deref;
 
 use crate::parser::*;
@@ -13,11 +13,13 @@ pub fn compile(ast: AST) -> Result<Program> {
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::Top;
+    let mut methods: Vec<ConstantPoolIndex> = Vec::new();
 
     for compilation_unit in ast.split_into_compilation_units() {
         compilation_unit.compile_into(&mut program,
                                       &mut global_environment,
                                       &mut current_frame,
+                                      &mut methods,
                                       true)?;
     }
 
@@ -142,14 +144,14 @@ impl Environment {
 }
 
 pub trait Compiled {
-    fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, keep_result: bool) -> Result<()>;
+    fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, methods: &mut Vec<ConstantPoolIndex>, keep_result: bool) -> Result<()>;
     // fn compile(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame) -> Result<()> {
-    //     self.compile_into(program, global_environment, current_frame, true)
+    //     self.compile_into(program, global_environment, current_frame, methods, true)
     // }
 }
 
 impl Compiled for AST {
-    fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, keep_result: bool) -> Result<()> {
+    fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, methods: &mut Vec<ConstantPoolIndex>, keep_result: bool) -> Result<()> {
         match self {
             AST::Integer(value) => {
                 let constant = ProgramObject::Integer(*value);
@@ -173,7 +175,7 @@ impl Compiled for AST {
             }
 
             AST::Variable { name: Identifier(name), value } => {
-                value.deref().compile_into(program, global_environment, current_frame, true)?;
+                value.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 match current_frame {
                     Frame::Local(environment) => {
                         let index = environment.register_new_local(name)
@@ -220,17 +222,17 @@ impl Compiled for AST {
                 match current_frame {
                     Frame::Local(environment) if environment.has_local(name) => {
                         let index = environment.register_local(name).clone(); // FIXME error if does not exists
-                        value.deref().compile_into(program, global_environment, current_frame, true)?;    // FIXME scoping!!!
+                        value.deref().compile_into(program, global_environment, current_frame, methods, true)?;    // FIXME scoping!!!
                         program.code.emit(OpCode::SetLocal { index });
                     },
                     Frame::Top if !global_environment.in_outermost_scope() && global_environment.has_local(name) => {
                         let index = global_environment.register_local(name).clone(); // FIXME error if does not exists
-                        value.deref().compile_into(program, global_environment, current_frame, true)?;    // FIXME scoping!!!
+                        value.deref().compile_into(program, global_environment, current_frame, methods, true)?;    // FIXME scoping!!!
                         program.code.emit(OpCode::SetLocal { index });
                     },
                     _ => {
                         let index = program.constant_pool.register(ProgramObject::from_str(name));
-                        value.deref().compile_into(program, global_environment, current_frame, true)?;
+                        value.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                         program.code.emit(OpCode::SetGlobal { name: index });
                     },
                 }
@@ -247,13 +249,13 @@ impl Compiled for AST {
                 let end_label_index =
                     program.constant_pool.register(ProgramObject::from_str(&end_label));
 
-                (**condition).compile_into(program, global_environment, current_frame, true)?;
+                (**condition).compile_into(program, global_environment, current_frame, methods, true)?;
                 program.code.emit(OpCode::Branch { label: consequent_label_index } );
-                (**alternative).compile_into(program, global_environment, current_frame, keep_result)?;
+                (**alternative).compile_into(program, global_environment, current_frame, methods, keep_result)?;
                 program.code.emit(OpCode::Jump { label: end_label_index } );
                 program.code.emit(OpCode::Label { name: consequent_label_index });
                 program.labels.set(consequent_label, program.code.current_address())?;
-                (**consequent).compile_into(program, global_environment, current_frame, keep_result)?;
+                (**consequent).compile_into(program, global_environment, current_frame, methods, keep_result)?;
                 program.code.emit(OpCode::Label { name: end_label_index });
                 program.labels.set(end_label, program.code.current_address())?;
             }
@@ -271,10 +273,10 @@ impl Compiled for AST {
                 program.code.emit(OpCode::Jump { label: condition_label_index });
                 program.code.emit(OpCode::Label { name: body_label_index });
                 program.labels.set(body_label, program.code.current_address())?;
-                (**body).compile_into(program, global_environment, current_frame, false)?;
+                (**body).compile_into(program, global_environment, current_frame, methods, false)?;
                 program.code.emit(OpCode::Label { name: condition_label_index });
                 program.labels.set(condition_label, program.code.current_address())?;
-                (**condition).compile_into(program, global_environment, current_frame, true)?;
+                (**condition).compile_into(program, global_environment, current_frame, methods, true)?;
                 program.code.emit(OpCode::Branch { label: body_label_index });
 
                 if keep_result {
@@ -288,8 +290,8 @@ impl Compiled for AST {
                 match value.deref() {
                     AST::Boolean(_) | AST::Integer(_) | AST::Null |
                     AST::AccessVariable { name:_ } | AST::AccessField { object:_, field:_ } => {
-                        size.deref().compile_into(program, global_environment, current_frame, true)?;
-                        value.deref().compile_into(program, global_environment, current_frame, true)?;
+                        size.deref().compile_into(program, global_environment, current_frame, methods, true)?;
+                        value.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                         program.code.emit(OpCode::Array);
                         program.code.emit_unless(OpCode::Drop, keep_result);
                     },
@@ -354,18 +356,18 @@ impl Compiled for AST {
                         //   ::i <- ::i + 1;
                         // end;
                         // ::array
-                        size_definition.compile_into(program, global_environment, current_frame, false)?;
-                        array_definition.compile_into(program, global_environment, current_frame, false)?;
-                        i_definition.compile_into(program, global_environment, current_frame, false)?;
-                        loop_de_loop.compile_into(program, global_environment, current_frame, false)?;
-                        array.compile_into(program, global_environment, current_frame, keep_result)?;
+                        size_definition.compile_into(program, global_environment, current_frame, methods, false)?;
+                        array_definition.compile_into(program, global_environment, current_frame, methods, false)?;
+                        i_definition.compile_into(program, global_environment, current_frame, methods, false)?;
+                        loop_de_loop.compile_into(program, global_environment, current_frame, methods, false)?;
+                        array.compile_into(program, global_environment, current_frame, methods, keep_result)?;
                     }
                 }
             }
 
             AST::AccessArray { array, index } => {
-                (**array).compile_into(program, global_environment, current_frame, true)?;
-                (**index).compile_into(program, global_environment, current_frame, true)?;
+                (**array).compile_into(program, global_environment, current_frame, methods, true)?;
+                (**index).compile_into(program, global_environment, current_frame, methods, true)?;
 
                 let name =
                     program.constant_pool.register(ProgramObject::String("get".to_string()));
@@ -375,9 +377,9 @@ impl Compiled for AST {
             }
 
             AST::AssignArray { array, index, value } => {
-                (**array).compile_into(program, global_environment, current_frame, true)?;
-                (**index).compile_into(program, global_environment, current_frame, true)?;
-                (**value).compile_into(program, global_environment, current_frame, true)?;
+                (**array).compile_into(program, global_environment, current_frame, methods, true)?;
+                (**index).compile_into(program, global_environment, current_frame, methods, true)?;
+                (**value).compile_into(program, global_environment, current_frame, methods, true)?;
 
                 let name =
                     program.constant_pool.register(ProgramObject::String("set".to_string()));
@@ -391,7 +393,7 @@ impl Compiled for AST {
                     program.constant_pool.register(ProgramObject::String(format.to_string()));
 
                 for argument in arguments.iter() {
-                    argument.compile_into(program, global_environment, current_frame, true)?;
+                    argument.compile_into(program, global_environment, current_frame, methods, true)?;
                 }
 
                 let arguments = Arity::from_usize(arguments.len());
@@ -413,7 +415,7 @@ impl Compiled for AST {
                 }
                 let mut child_frame = &mut Frame::Local(child_environment);
 
-                (**body).compile_into(program, global_environment, &mut child_frame, true)?;
+                (**body).compile_into(program, global_environment, &mut child_frame, methods, true)?;
 
                 let locals_in_frame = match child_frame {
                     Frame::Local(child_environment) => child_environment.count_locals(),
@@ -437,13 +439,15 @@ impl Compiled for AST {
                 };
 
                 let constant = program.constant_pool.register(method);
+
+                methods.push(constant);
                 program.globals.register(constant)?;
             }
 
             AST::CallFunction { name: Identifier(name), arguments } => {
                 let index = program.constant_pool.register(ProgramObject::String(name.to_string()));
                 for argument in arguments.iter() {
-                    argument.compile_into(program, global_environment, current_frame, true)?;
+                    argument.compile_into(program, global_environment, current_frame, methods, true)?;
                 }
                 let arity = Arity::from_usize(arguments.len());
                 program.code.emit(OpCode::CallFunction { name: index, arguments: arity });
@@ -451,16 +455,30 @@ impl Compiled for AST {
             }
 
             AST::Object { extends, members } => {
-                (**extends).compile_into(program, global_environment, current_frame, true)?;
+                (**extends).compile_into(program, global_environment, current_frame, methods, true)?;
 
                 let slots: Result<Vec<ConstantPoolIndex>> = members.iter().map(|m| m.deref()).map(|m| match m {
                     AST::Function { name, parameters, body } => {
-                        compile_function_definition(name.as_str(), true, parameters, body.deref(),
-                                                    program, global_environment, current_frame)
-
+                        // compile_function_definition(name.as_str(), true, parameters, body.deref(),
+                        //                             program, global_environment, methods, current_frame)
+                        // Horrible hack
+                        match **body {
+                            AST::Integer(i) => {
+                                let method_index = methods.get(i as usize)
+                                    .expect(&format!("No compiled method at index {} in the methods vector.", i));
+                                // if !method.is_method() {
+                                //     panic!("Method definition does not refer to method object.");
+                                // }
+                                // let method_index = program.constant_pool.find(method)
+                                //     .expect(&format!("Method {:?} should have been already defined in constant pool.", method));
+                                Ok(*method_index)
+                            },
+                            _ => panic!("AST should have been re-written to move function \
+                                         definition out of objects.")
+                        }
                     }
                     AST::Variable { name: Identifier(name), value } => {
-                        (*value).compile_into(program, global_environment, current_frame, true)?;
+                        (*value).compile_into(program, global_environment, current_frame, methods, true)?;
                         let index = program.constant_pool.register(ProgramObject::from_str(name));
                         Ok(program.constant_pool.register(ProgramObject::slot_from_index(index)))
                     },
@@ -484,7 +502,7 @@ impl Compiled for AST {
                 let length = children.len();
                 for (i, child) in children.iter().enumerate() {
                     let last = i + 1 == length;
-                    child.deref().compile_into(program, global_environment, current_frame, last && keep_result)?;
+                    child.deref().compile_into(program, global_environment, current_frame, methods, last && keep_result)?;
                 }
 
                 match current_frame {
@@ -494,15 +512,15 @@ impl Compiled for AST {
             }
 
             AST::AccessField { object, field: Identifier(name) } => {
-                object.deref().compile_into(program, global_environment, current_frame, true)?;
+                object.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 let index = program.constant_pool.register(ProgramObject::from_str(name));
                 program.code.emit(OpCode::GetField { name: index });
                 program.code.emit_unless(OpCode::Drop, keep_result);
             }
 
             AST::AssignField { object, field: Identifier(name), value } => {
-                object.deref().compile_into(program, global_environment, current_frame, true)?;
-                value.deref().compile_into(program, global_environment, current_frame, true)?;
+                object.deref().compile_into(program, global_environment, current_frame, methods, true)?;
+                value.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 let index = program.constant_pool.register(ProgramObject::from_str(name));
                 program.code.emit(OpCode::SetField { name: index });
                 program.code.emit_unless(OpCode::Drop, keep_result);
@@ -510,9 +528,9 @@ impl Compiled for AST {
 
             AST::CallMethod { object, name: Identifier(name), arguments } => {
                 let index = program.constant_pool.register(ProgramObject::from_str(name));
-                object.deref().compile_into(program, global_environment, current_frame, true)?;
+                object.deref().compile_into(program, global_environment, current_frame, methods, true)?;
                 for argument in arguments.iter() {
-                    argument.compile_into(program, global_environment, current_frame, true)?;
+                    argument.compile_into(program, global_environment, current_frame, methods, true)?;
                 }
                 let arity = Arity::from_usize(arguments.len() + 1);
                 program.code.emit(OpCode::CallMethod { name: index, arguments: arity });
@@ -528,7 +546,7 @@ impl Compiled for AST {
                 let children_count = children.len();
                 for (i, child) in children.iter().enumerate() {
                     let last = children_count == i + 1;
-                    child.deref().compile_into(program, global_environment, current_frame, last)?;                        // TODO uggo
+                    child.deref().compile_into(program, global_environment, current_frame, methods, last)?;                        // TODO uggo
                     // TODO could be cute to pop exit status off of stack
                 }
 
@@ -559,6 +577,7 @@ fn compile_function_definition(name: &str,
                                body: &AST,
                                program: &mut Program,
                                global_environment: &mut Environment,
+                               methods: &mut Vec<ConstantPoolIndex>,
                                _current_frame: &mut Frame) -> Result<ConstantPoolIndex> {
 
     let end_label = program.labels.generate_name(format!("λ:{}", name))?;
@@ -580,7 +599,7 @@ fn compile_function_definition(name: &str,
     }
     let mut child_frame = &mut Frame::Local(child_environment);
 
-    body.compile_into(program, global_environment, &mut child_frame, true)?;
+    body.compile_into(program, global_environment, &mut child_frame, methods, true)?;
 
     let locals_in_frame = match child_frame {
         Frame::Local(child_environment) => child_environment.count_locals(),
@@ -604,7 +623,9 @@ fn compile_function_definition(name: &str,
         code: AddressRange::from_addresses(start_address, end_address),
     };
 
-    Ok(program.constant_pool.register(method))
+    let constant_pool_index = program.constant_pool.register(method);
+    methods.push(constant_pool_index.clone());
+    Ok(constant_pool_index)
 }
 
 trait CompilationUnit {
@@ -639,9 +660,15 @@ trait ExtractCompilationUnitSubtree {
 
 impl ExtractCompilationUnitSubtree for Vec<Box<AST>> {
     fn extract_compilation_unit_subtree(self, accumulator: &mut Vec<AST>) -> Self {
-        let (compilation_units, expressions): (Vec<Box<AST>>, Vec<Box<AST>>) =
-            self.into_iter().partition(|expression| expression.is_compilation_unit());
-        accumulator.extend(compilation_units.into_iter().map(|expression| *expression));
+        let mut expressions = vec![];
+        for ast in self {
+            let new_ast = ast.extract_compilation_unit_subtree(accumulator);
+            if new_ast.is_compilation_unit() {
+                accumulator.push(*new_ast);
+            } else {
+                expressions.push(new_ast);
+            }
+        }
         expressions
     }
 }
@@ -667,9 +694,28 @@ impl ExtractCompilationUnitSubtree for AST {
                 size: size.extract_compilation_unit_subtree(compilation_units),
                 value: value.extract_compilation_unit_subtree(compilation_units),
             },
-            AST::Object { extends, members } => AST::Object {
-                extends: extends.extract_compilation_unit_subtree(compilation_units),
-                members: members.extract_compilation_unit_subtree(compilation_units),
+            AST::Object { extends, members } => { // Horrible hack
+                let new_extends = extends.extract_compilation_unit_subtree(compilation_units);
+                let new_members: Vec<Box<AST>> = members.into_iter().map(|member| {
+                    let member = member.extract_compilation_unit_subtree(compilation_units);
+                    if member.is_compilation_unit() {
+                        match *member {
+                            AST::Function { name, parameters, body } => {
+                                let mut extended_parameters = VecDeque::from(parameters.clone());
+                                extended_parameters.push_front(Identifier::from("this"));
+                                compilation_units.push(AST::function(name.clone(), extended_parameters.into(), *body));
+                                Box::new(AST::function(name, parameters, AST::integer((compilation_units.len() - 1) as i32)))
+                            }
+                            _ => unreachable!()
+                        }
+                    } else {
+                        member
+                    }
+                }).collect();
+                AST::Object {
+                    extends: new_extends,
+                    members: new_members,
+                }
             },
             AST::AccessField { object, field } => AST::AccessField {
                 object: object.extract_compilation_unit_subtree(compilation_units),

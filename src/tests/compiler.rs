@@ -11,8 +11,9 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -27,6 +28,7 @@ use crate::bytecode::compiler::*;
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -34,6 +36,7 @@ use crate::bytecode::compiler::*;
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn some_more_numbers () {
@@ -42,9 +45,10 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
     for ast in asts {
-        ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+        ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
     }
 
     let expected_global_environment = Environment::new();
@@ -65,6 +69,7 @@ use crate::bytecode::compiler::*;
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -72,6 +77,7 @@ use crate::bytecode::compiler::*;
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn boolean () {
@@ -80,8 +86,9 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -96,6 +103,7 @@ use crate::bytecode::compiler::*;
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -103,6 +111,7 @@ use crate::bytecode::compiler::*;
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn unit () {
@@ -111,8 +120,9 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -127,6 +137,7 @@ use crate::bytecode::compiler::*;
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -134,6 +145,7 @@ use crate::bytecode::compiler::*;
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn local_definition () {
@@ -143,8 +155,9 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_owned()]);
@@ -160,6 +173,7 @@ use crate::bytecode::compiler::*;
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -167,6 +181,7 @@ use crate::bytecode::compiler::*;
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn global_definition () {
@@ -176,8 +191,9 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::Top;
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::Top;
@@ -195,6 +211,7 @@ use crate::bytecode::compiler::*;
 
     let expected_globals = Globals::from(vec![ConstantPoolIndex::from_usize(2)]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -202,6 +219,7 @@ use crate::bytecode::compiler::*;
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn local_access_x () {
@@ -210,8 +228,9 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
@@ -224,6 +243,7 @@ use crate::bytecode::compiler::*;
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -231,6 +251,7 @@ use crate::bytecode::compiler::*;
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn local_access_y () {
@@ -239,8 +260,9 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
@@ -253,6 +275,7 @@ use crate::bytecode::compiler::*;
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -260,6 +283,7 @@ use crate::bytecode::compiler::*;
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn global_access () {
@@ -268,8 +292,9 @@ use crate::bytecode::compiler::*;
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -284,6 +309,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -291,6 +317,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn global_access_from_elsewhere () {
@@ -299,8 +326,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::from_locals(vec!["x".to_string()]);
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::from_locals(vec!["x".to_string()]);
     let expected_current_frame = Frame::new();
@@ -315,6 +343,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -322,6 +351,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn loop_de_loop () {
@@ -330,8 +360,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -356,6 +387,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -363,6 +395,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn conditional () {
@@ -375,8 +408,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -401,6 +435,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -408,6 +443,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn array_definition_simple_test() {
@@ -419,8 +455,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -438,6 +475,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -445,6 +483,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn array_definition_complex_test() { // FIXME test is wrong
@@ -459,8 +498,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals_at(
@@ -520,6 +560,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -532,6 +573,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn array_access_test() {
@@ -543,8 +585,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string()]);
@@ -562,6 +605,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -569,6 +613,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn array_mutation_test() {
@@ -581,8 +626,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string()]);
@@ -602,6 +648,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -609,6 +656,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn print_test () {
@@ -623,8 +671,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -643,6 +692,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -650,6 +700,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn function_application_test_three () {
@@ -665,8 +716,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -687,6 +739,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -694,6 +747,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn function_application_test_one () {
@@ -705,8 +759,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -723,6 +778,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -730,6 +786,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn function_application_test_zero () {
@@ -741,8 +798,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -757,6 +815,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -764,6 +823,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn function_definition_three () {
@@ -778,8 +838,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -804,6 +865,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![ConstantPoolIndex::new(2)]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![ConstantPoolIndex::from_usize(2)];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -811,6 +873,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn object_with_methods_and_fields () {
@@ -865,8 +928,16 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    for compilation_unit in ast.split_into_compilation_units() {
+        compilation_unit.compile_into(&mut program,
+                                      &mut global_environment,
+                                      &mut current_frame,
+                                      &mut methods,
+                                      true).unwrap();
+    }
+    //ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -993,6 +1064,9 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods: Vec<ConstantPoolIndex> = vec![3, 9, 12, 15, 20, 23, 26].into_iter()
+        .map(|e| ConstantPoolIndex::from_usize(e))
+        .collect();
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1000,6 +1074,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn block_many () {
@@ -1014,8 +1089,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1051,6 +1127,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1058,6 +1135,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn block_one () {
@@ -1066,8 +1144,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1089,6 +1168,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1096,6 +1176,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn block_zero () {
@@ -1104,8 +1185,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1123,6 +1205,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1130,6 +1213,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn field_access_test () {
@@ -1141,8 +1225,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1158,6 +1243,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1165,6 +1251,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn field_mutation_test () {
@@ -1177,8 +1264,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1196,6 +1284,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1203,6 +1292,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn method_call_test_three () {
@@ -1217,8 +1307,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1242,6 +1333,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1249,6 +1341,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn method_call_test_one () {
@@ -1261,8 +1354,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1280,6 +1374,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1287,6 +1382,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn method_call_test_zero () {
@@ -1299,8 +1395,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1316,6 +1413,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1323,6 +1421,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn operator_call_test () {
@@ -1335,8 +1434,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec![]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec![]);
@@ -1355,6 +1455,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1362,6 +1463,7 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 
 #[test] fn operation_test () {
@@ -1374,8 +1476,9 @@ let expected_current_frame = Frame::new();
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec![]);
+    let mut methods = vec![];
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, &mut methods, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec![]);
@@ -1394,6 +1497,7 @@ let expected_current_frame = Frame::new();
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
+    let expected_methods = vec![];
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
@@ -1401,5 +1505,6 @@ let expected_current_frame = Frame::new();
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
+    assert_eq!(methods, expected_methods);
 }
 

@@ -9,12 +9,18 @@ use crate::bytecode::program::*;
 
 use anyhow::*;
 
-pub fn compile(ast: &AST) -> Result<Program> {
+pub fn compile(ast: AST) -> Result<Program> {
     let mut program: Program = Program::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::Top;
 
-    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true)?;
+    for compilation_unit in ast.split_into_compilation_units() {
+        compilation_unit.compile_into(&mut program,
+                                      &mut global_environment,
+                                      &mut current_frame,
+                                      true)?;
+    }
+
     Ok(program)
 }
 
@@ -137,9 +143,9 @@ impl Environment {
 
 pub trait Compiled {
     fn compile_into(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame, keep_result: bool) -> Result<()>;
-    fn compile(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame) -> Result<()> {
-        self.compile_into(program, global_environment, current_frame, true)
-    }
+    // fn compile(&self, program: &mut Program, global_environment: &mut Environment, current_frame: &mut Frame) -> Result<()> {
+    //     self.compile_into(program, global_environment, current_frame, true)
+    // }
 }
 
 impl Compiled for AST {
@@ -599,4 +605,127 @@ fn compile_function_definition(name: &str,
     };
 
     Ok(program.constant_pool.register(method))
+}
+
+trait CompilationUnit {
+    fn is_compilation_unit(&self) -> bool;
+}
+
+impl CompilationUnit for AST {
+    fn is_compilation_unit(&self) -> bool {
+        match self {
+            AST::Function { .. } => true,
+            _ => false,
+        }
+    }
+}
+
+pub trait ExtractCompilationUnits {
+    fn split_into_compilation_units(self) -> Vec<AST>;
+}
+
+impl ExtractCompilationUnits for AST {
+    fn split_into_compilation_units(self) -> Vec<AST> {
+        let mut compilation_units = vec![];
+        let top = self.extract_compilation_unit_subtree(&mut compilation_units);
+        compilation_units.push(top);
+        compilation_units
+    }
+}
+
+trait ExtractCompilationUnitSubtree {
+    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<AST>) -> Self;
+}
+
+impl ExtractCompilationUnitSubtree for Vec<Box<AST>> {
+    fn extract_compilation_unit_subtree(self, accumulator: &mut Vec<AST>) -> Self {
+        let (compilation_units, expressions): (Vec<Box<AST>>, Vec<Box<AST>>) =
+            self.into_iter().partition(|expression| expression.is_compilation_unit());
+        accumulator.extend(compilation_units.into_iter().map(|expression| *expression));
+        expressions
+    }
+}
+
+impl ExtractCompilationUnitSubtree for Box<AST> {
+    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<AST>) -> Self {
+        Box::new((*self).extract_compilation_unit_subtree(compilation_units))
+    }
+}
+
+impl ExtractCompilationUnitSubtree for AST {
+    fn extract_compilation_unit_subtree(self, compilation_units: &mut Vec<AST>) -> Self {
+        match self { // Warning: order of evaluation is important
+            AST::Integer(_) => self,
+            AST::Boolean(_) => self,
+            AST::Null => self,
+            AST::AccessVariable { .. } => self,
+            AST::Variable { name, value } => AST::Variable {
+                name,
+                value: value.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::Array { size, value } => AST::Array {
+                size: size.extract_compilation_unit_subtree(compilation_units),
+                value: value.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::Object { extends, members } => AST::Object {
+                extends: extends.extract_compilation_unit_subtree(compilation_units),
+                members: members.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::AccessField { object, field } => AST::AccessField {
+                object: object.extract_compilation_unit_subtree(compilation_units),
+                field,
+            },
+            AST::AccessArray { index, array } => AST::AccessArray {
+                array: array.extract_compilation_unit_subtree(compilation_units),
+                index: index.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::AssignVariable { name, value } => AST::AssignVariable {
+                name,
+                value: value.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::AssignField { object, field, value } => AST::AssignField {
+                object: object.extract_compilation_unit_subtree(compilation_units),
+                field,
+                value: value.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::AssignArray { array, index, value } => AST::AssignArray {
+                array: array.extract_compilation_unit_subtree(compilation_units),
+                index: index.extract_compilation_unit_subtree(compilation_units),
+                value: value.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::Function { name, parameters, body } => AST::Function {
+                name,
+                parameters,
+                body: body.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::CallFunction { name, arguments } => AST::CallFunction {
+                name,
+                arguments: arguments.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::CallMethod { object, name, arguments } => AST::CallMethod {
+                object: object.extract_compilation_unit_subtree(compilation_units),
+                name,
+                arguments: arguments.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::Top(expressions) => AST::Top(
+                expressions.extract_compilation_unit_subtree(compilation_units)
+            ),
+            AST::Block(expressions) => AST::Block(
+                expressions.extract_compilation_unit_subtree(compilation_units)
+            ),
+            AST::Loop { condition, body } => AST::Loop {
+                body: body.extract_compilation_unit_subtree(compilation_units),
+                condition: condition.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::Conditional { condition, alternative, consequent } => AST::Conditional {
+                condition: condition.extract_compilation_unit_subtree(compilation_units),
+                consequent: consequent.extract_compilation_unit_subtree(compilation_units),
+                alternative: alternative.extract_compilation_unit_subtree(compilation_units),
+            },
+            AST::Print { format, arguments } => AST::Print {
+                format,
+                arguments: arguments.extract_compilation_unit_subtree(compilation_units),
+            }
+        }
+    }
 }

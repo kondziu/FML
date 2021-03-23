@@ -12,7 +12,7 @@ use crate::bytecode::compiler::*;
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -44,7 +44,7 @@ use crate::bytecode::compiler::*;
     let mut current_frame = Frame::new();
 
     for ast in asts {
-        ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+        ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
     }
 
     let expected_global_environment = Environment::new();
@@ -81,7 +81,7 @@ use crate::bytecode::compiler::*;
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -112,7 +112,7 @@ use crate::bytecode::compiler::*;
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -144,7 +144,7 @@ use crate::bytecode::compiler::*;
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_owned()]);
@@ -177,7 +177,7 @@ use crate::bytecode::compiler::*;
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::Top;
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::Top;
@@ -211,7 +211,7 @@ use crate::bytecode::compiler::*;
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
@@ -240,7 +240,7 @@ use crate::bytecode::compiler::*;
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string(), "y".to_string()]);
@@ -269,7 +269,7 @@ use crate::bytecode::compiler::*;
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -300,7 +300,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::from_locals(vec!["x".to_string()]);
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::from_locals(vec!["x".to_string()]);
     let expected_current_frame = Frame::new();
@@ -331,7 +331,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -376,7 +376,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::new();
@@ -420,7 +420,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -460,7 +460,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals_at(
@@ -544,7 +544,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string()]);
@@ -582,7 +582,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["x".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["x".to_string()]);
@@ -624,7 +624,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -666,7 +666,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -706,7 +706,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -742,7 +742,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -779,7 +779,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -866,7 +866,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
 let expected_current_frame = Frame::new();
@@ -1015,7 +1015,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1067,7 +1067,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1105,7 +1105,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let mut expected_current_frame = Frame::new();
@@ -1142,7 +1142,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1178,7 +1178,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1218,7 +1218,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1262,7 +1262,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1300,7 +1300,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec!["obj".to_string()]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec!["obj".to_string()]);
@@ -1336,7 +1336,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec![]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec![]);
@@ -1375,7 +1375,7 @@ let expected_current_frame = Frame::new();
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::from_locals(vec![]);
 
-    ast.compile(&mut program, &mut global_environment, &mut current_frame).unwrap();
+    ast.compile_into(&mut program, &mut global_environment, &mut current_frame, true).unwrap();
 
     let expected_global_environment = Environment::new();
     let expected_current_frame = Frame::from_locals(vec![]);
@@ -1402,3 +1402,4 @@ let expected_current_frame = Frame::new();
     assert_eq!(global_environment, expected_global_environment);
     assert_eq!(current_frame, expected_current_frame);
 }
+

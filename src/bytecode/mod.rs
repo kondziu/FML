@@ -12,6 +12,6 @@ pub mod state;
 
 use anyhow::Result;
 
-pub fn compile(ast: &AST) -> Result<program::Program> {
+pub fn compile(ast: AST) -> Result<program::Program> {
     compiler::compile(ast)
 }

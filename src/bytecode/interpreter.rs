@@ -33,8 +33,8 @@ pub fn evaluate(program: &Program) -> Result<()> {
 }
 
 pub fn evaluate_with<W>(program: &Program, state: &mut State, output: &mut W) -> Result<()> where W: Write {
-    // eprintln!("Program:");
-    // eprintln!("{}", program);
+    eprintln!("Program:");
+    eprintln!("{}", program);
     while let Some(address) = state.instruction_pointer.get() {
         let opcode = program.code.get(address)?;
         eval_opcode(program, state, output, opcode)?;

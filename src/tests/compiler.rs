@@ -969,133 +969,132 @@ let expected_current_frame = Frame::new();
     let expected_current_frame = Frame::new();
 
     let expected_code = Code::from(vec!(
-        /*  0 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
-        /*  1 */ OpCode::Jump { label: ConstantPoolIndex::new(1) },      // function_guard_0 - implies
-        /*  2 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
+        /*  0 */ OpCode::Jump { label: ConstantPoolIndex::new(0) },      // function_guard_0 - implies
+        /*  1 */ OpCode::Literal { index: ConstantPoolIndex::new(1) },   // true
+        /*  2 */ OpCode::Return,
+        /*  3 */ OpCode::Label { name: ConstantPoolIndex::new(0) },      // function_guard_0
 
-        /*  3 */ OpCode::Return,
-        /*  4 */ OpCode::Label { name: ConstantPoolIndex::new(1) },      // function_guard_0
+        /*  4 */ OpCode::Jump { label: ConstantPoolIndex::new(4) },      // function_guard_1 - identity
+        /*  5 */ OpCode::Literal { index: ConstantPoolIndex::new(1) },   // true
+        /*  6 */ OpCode::Return,
+        /*  7 */ OpCode::Label { name: ConstantPoolIndex::new(4) },      // function_guard_1
 
-        /*  5 */ OpCode::Literal { index: ConstantPoolIndex::new(4) },   // 1 - slot id
-
-        /*  6 */ OpCode::Jump { label: ConstantPoolIndex::new(7) },      // function_guard_1 - identity
-        /*  7 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
-        /*  8 */ OpCode::Return,
-        /*  9 */ OpCode::Label { name: ConstantPoolIndex::new(7) },      // function_guard_1
-
-        /* 10 */ OpCode::Jump { label: ConstantPoolIndex::new(10) },     // function_guard_2 - or
-        /* 11 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
+        /* 10 */ OpCode::Jump { label: ConstantPoolIndex::new(7) },     // function_guard_2 - or
+        /* 11 */ OpCode::Literal { index: ConstantPoolIndex::new(1) },   // true
         /* 12 */ OpCode::Return,
-        /* 13 */ OpCode::Label { name: ConstantPoolIndex::new(10) },     // function_guard_2
+        /* 13 */ OpCode::Label { name: ConstantPoolIndex::new(7) },     // function_guard_2
 
-        /* 14 */ OpCode::Jump { label: ConstantPoolIndex::new(13) },     // function_guard_3 - or
+        /* 14 */ OpCode::Jump { label: ConstantPoolIndex::new(10) },     // function_guard_3 - or
         /* 15 */ OpCode::GetLocal { index: LocalFrameIndex::new(1) },    // x
         /* 16 */ OpCode::Return,
-        /* 17 */ OpCode::Label { name: ConstantPoolIndex::new(13) },     // function_guard_3
+        /* 17 */ OpCode::Label { name: ConstantPoolIndex::new(10) },     // function_guard_3
 
-        /* 18 */ OpCode::Literal { index: ConstantPoolIndex::new(4) },   // 1 - hash
-
-        /* 18 */ OpCode::Jump { label: ConstantPoolIndex::new(18) },     // function_guard_4 - +
-        /* 20 */ OpCode::Literal { index: ConstantPoolIndex::new(0) },   // true
+        /* 18 */ OpCode::Jump { label: ConstantPoolIndex::new(13) },     // function_guard_4 - +
+        /* 20 */ OpCode::Literal { index: ConstantPoolIndex::new(1) },   // true
         /* 21 */ OpCode::Return,
-        /* 22 */ OpCode::Label { name: ConstantPoolIndex::new(18) },     // function_guard_4
+        /* 22 */ OpCode::Label { name: ConstantPoolIndex::new(13) },     // function_guard_4
 
-        /* 23 */ OpCode::Jump { label: ConstantPoolIndex::new(21) },     // function_guard_5 - *
+        /* 23 */ OpCode::Jump { label: ConstantPoolIndex::new(16) },     // function_guard_5 - *
         /* 24 */ OpCode::GetLocal { index: LocalFrameIndex::new(1) },    // x
         /* 25 */ OpCode::Return,
-        /* 26 */ OpCode::Label { name: ConstantPoolIndex::new(21) },     // function_guard_5
+        /* 26 */ OpCode::Label { name: ConstantPoolIndex::new(16) },     // function_guard_5
 
-        /* 27 */ OpCode::Jump { label: ConstantPoolIndex::new(24) },     // function_guard_6 - me
+        /* 27 */ OpCode::Jump { label: ConstantPoolIndex::new(19) },     // function_guard_6 - me
         /* 28 */ OpCode::GetLocal { index: LocalFrameIndex::new(0) },    // this
         /* 29 */ OpCode::Return,
-        /* 30 */ OpCode::Label { name: ConstantPoolIndex::new(24) },     // function_guard_6
+        /* 30 */ OpCode::Label { name: ConstantPoolIndex::new(19) },     // function_guard_6
 
+        /* 18 */ OpCode::Literal { index: ConstantPoolIndex::new(1) },   // 1 - hash
+        /*  4 */ OpCode::Literal { index: ConstantPoolIndex::new(22) },   // 1 - slot id
+
+        /*  0 */ OpCode::Literal { index: ConstantPoolIndex::new(22) },   // true
         /* 31 */ OpCode::Object { class: ConstantPoolIndex:: new(27) },
     ));
 
     let expected_constants = <ConstantPool as From<Vec<ProgramObject>>>::from(vec![
-        /* 00 */ ProgramObject::from_bool(true),
-        /* 01 */ ProgramObject::from_str("λ:implies:0"),
+        /* 00 */ ProgramObject::from_str("λ:implies:0"),
+        /* 01 */ ProgramObject::from_bool(true),
         /* 02 */ ProgramObject::from_str("implies"),
         /* 03 */ ProgramObject::Method {
             name: ConstantPoolIndex::new(2),    // implies
             parameters: Arity::new(1+1),
             locals: Size::new(0),
-            code: AddressRange::from(2, 2),     // addresses: 2, 3
+            code: AddressRange::from(1, 2),     // addresses: 2, 3
         },
 
-        /* 04 */ ProgramObject::from_i32(1),
-        /* 05 */ ProgramObject::from_str("id"),
-        /* 06 */ ProgramObject::slot_from_u16(5),
-
-        /* 07 */ ProgramObject::from_str("λ:identity:1"),
-        /* 08 */ ProgramObject::from_str("identity"),
-        /* 09 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(8),    // identity
+        /* 04 */ ProgramObject::from_str("λ:identity:1"),
+        /* 05 */ ProgramObject::from_str("identity"),
+        /* 06 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(5),    // identity
             parameters: Arity::new(0+1),
             locals: Size::new(0),
-            code: AddressRange::from(7, 2),     // addresses: 6, 7
+            code: AddressRange::from(5, 2),     // addresses: 6, 7
         },
 
-        /* 10 */ ProgramObject::from_str("λ:or:2"),
-        /* 11 */ ProgramObject::from_str("or"),
+        /* 07 */ ProgramObject::from_str("λ:or:2"),
+        /* 08 */ ProgramObject::from_str("or"),
+        /* 09 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(8),    // or
+            parameters: Arity::new(1+1),
+            locals: Size::new(0),
+            code: AddressRange::from(9, 2),     // addresses: 10, 11
+        },
+
+        /* 10 */ ProgramObject::from_str("λ:and:3"),
+        /* 11 */ ProgramObject::from_str("and"),
         /* 12 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(11),    // or
+            name: ConstantPoolIndex::new(11),    // and
             parameters: Arity::new(1+1),
             locals: Size::new(0),
-            code: AddressRange::from(11, 2),     // addresses: 10, 11
+            code: AddressRange::from(13, 2),     // addresses: 14, 15
         },
 
-        /* 13 */ ProgramObject::from_str("λ:and:3"),
-        /* 14 */ ProgramObject::from_str("and"),
+        /* 13 */ ProgramObject::from_str("λ:+:4"),
+        /* 14 */ ProgramObject::from_str("+"),
         /* 15 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(14),    // and
+            name: ConstantPoolIndex::new(14),          // +
             parameters: Arity::new(1+1),
             locals: Size::new(0),
-            code: AddressRange::from(15, 2),     // addresses: 14, 15
+            code: AddressRange::from(17, 2),
         },
 
-        /* 16 */ ProgramObject::from_str("hash"),
-        /* 17 */ ProgramObject::slot_from_u16(16),
-
-        /* 18 */ ProgramObject::from_str("λ:+:4"),
-        /* 19 */ ProgramObject::from_str("+"),
-        /* 20 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(19),          // +
+        /* 16 */ ProgramObject::from_str("λ:*:5"),
+        /* 17 */ ProgramObject::from_str("*"),
+        /* 18 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(17),          // *
             parameters: Arity::new(1+1),
             locals: Size::new(0),
-            code: AddressRange::from(20, 2),
+            code: AddressRange::from(21, 2),
         },
 
-        /* 21 */ ProgramObject::from_str("λ:*:5"),
-        /* 22 */ ProgramObject::from_str("*"),
-        /* 23 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(22),          // *
-            parameters: Arity::new(1+1),
-            locals: Size::new(0),
-            code: AddressRange::from(24, 2),
-        },
-
-        /* 24 */ ProgramObject::from_str("λ:me:6"),
-        /* 25 */ ProgramObject::from_str("me"),
-        /* 26 */ ProgramObject::Method {
-            name: ConstantPoolIndex::new(25),          // *
+        /* 19 */ ProgramObject::from_str("λ:me:6"),
+        /* 20 */ ProgramObject::from_str("me"),
+        /* 21 */ ProgramObject::Method {
+            name: ConstantPoolIndex::new(20),          // *
             parameters: Arity::new(1),
             locals: Size::new(0),
-            code: AddressRange::from(28, 2),
+            code: AddressRange::from(25, 2),
         },
 
-        /* 27 */ ProgramObject::class_from_vec(vec!(3, 6, 9, 12, 15, 17, 20, 23, 26)),
+        /* 22 */ ProgramObject::from_i32(1),
+        /* 23 */ ProgramObject::from_str("id"),
+        /* 24 */ ProgramObject::slot_from_u16(23),
+
+        /* 25 */ ProgramObject::from_str("hash"),
+        /* 26 */ ProgramObject::slot_from_u16(25),
+        /* 27 */ ProgramObject::class_from_vec(vec!(3, 24, 6, 9, 12, 26, 15, 18, 21)),
     ]);
 
     let expected_globals = Globals::from(vec![]);
     let expected_entry = Entry::new();
-    let expected_methods: Vec<ConstantPoolIndex> = vec![3, 9, 12, 15, 20, 23, 26].into_iter()
+    let expected_methods: Vec<ConstantPoolIndex> = vec![3, 6, 9, 12, 15, 18, 21].into_iter()
         .map(|e| ConstantPoolIndex::from_usize(e))
         .collect();
 
     let expected_program =
         Program::from(expected_code, expected_constants, expected_globals, expected_entry).unwrap();
+
+    assert_eq!(format!("{}", program), format!("{}", expected_program));
 
     assert_eq!(program, expected_program);
     assert_eq!(global_environment, expected_global_environment);

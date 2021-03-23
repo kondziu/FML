@@ -29,6 +29,7 @@ enum Action {
     Parse(ParserAction),
     Compile(CompilerAction),
     Execute(BytecodeInterpreterAction),
+    Disassemble(BytecodeDisassemblyAction),
     Run(RunAction),
 }
 
@@ -39,6 +40,7 @@ impl Action {
             Self::Compile(action) => action.compile(),
             Self::Execute(action) => action.interpret(),
             Self::Run(action) => action.run(),
+            Self::Disassemble(action) => action.debug(),
         }
     }
 }
@@ -46,6 +48,13 @@ impl Action {
 #[derive(Clap, Debug)]
 #[clap(about = "Run an FML program")]
 struct RunAction {
+    #[clap(name="FILE", parse(from_os_str))]
+    pub input: Option<PathBuf>,
+}
+
+#[derive(Clap, Debug)]
+#[clap(about = "Print FML bytecode in human-readable form")]
+struct BytecodeDisassemblyAction {
     #[clap(name="FILE", parse(from_os_str))]
     pub input: Option<PathBuf>,
 }
@@ -147,6 +156,22 @@ impl BytecodeInterpreterAction {
 
         evaluate(&program)
             .expect("Interpreter error")
+    }
+
+    pub fn selected_input(&self) -> Result<NamedSource> {
+        NamedSource::from(self.input.as_ref())
+    }
+}
+
+impl BytecodeDisassemblyAction {
+    pub fn debug(&self) {
+        let mut source = self.selected_input()
+            .expect("Cannot open an input for the bytecode interpreter.");
+
+        let program = BCSerializer::BYTES.deserialize(&mut source)
+            .expect("Cannot parse bytecode from input.");
+
+        println!("{}", program);
     }
 
     pub fn selected_input(&self) -> Result<NamedSource> {

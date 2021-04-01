@@ -4,6 +4,48 @@ use indexmap::IndexMap;
 use crate::bytecode::state::OperandStack;
 use crate::bytecode::program::ProgramObject;
 
+macro_rules! size {
+    ($n:literal B)  => { $n * 8 };
+    ($n:literal KB) => { $n * 1024 * 8 };
+    ($n:literal MB) => { $n * 1024 * 1024 * 8 };
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub struct LLHeap {
+    pointer: usize,
+    memory: [u8; size!(128 MB)]
+}
+impl LLHeap {
+    pub fn new() -> Self {
+        LLHeap {
+            pointer: 0,
+            memory: [0; size!(128 MB)],
+        }
+    }
+    pub fn write_usize(&mut self, value: usize) {
+        let length = std::mem::size_of::<usize>();
+        let end = self.pointer + length;
+        let target_slice = &mut self.memory[self.pointer..end];
+        let source_slice = unsafe { std::mem::transmute::<usize, [u8; 8]>(value) };
+        target_slice.copy_from_slice(&source_slice);
+        self.pointer = end;
+    }
+    pub fn write_pointer(&mut self, value: &Pointer) {
+        let length = std::mem::size_of::<Pointer>();
+        let end = self.pointer + length;
+        let target_slice = &mut self.memory[self.pointer..end];
+        let source_slice = unsafe { std::mem::transmute::<&Pointer, &[u8; 16]>(value) };
+        target_slice.copy_from_slice(source_slice);
+        self.pointer = end;
+    }
+    pub fn allocate_array(&mut self, elements: usize, value: &Pointer) -> HeapIndex {
+        let index = HeapIndex::from(self.pointer);
+        self.write_usize(elements);
+        (0..elements).for_each(|_| self.write_pointer(value));
+        index
+    }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub struct Heap(Vec<HeapObject>);
 impl Heap {

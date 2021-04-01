@@ -1,0 +1,5 @@
+function left (x, y) -> x;
+function right (x, y) -> y;
+
+print("~\n", left(true, false));
+print("~\n", right(false, true));

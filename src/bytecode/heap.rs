@@ -2,7 +2,7 @@ use anyhow::*;
 use indexmap::IndexMap;
 
 use crate::bytecode::state::OperandStack;
-use crate::bytecode::program::ProgramObject;
+use crate::bytecode::program::{ProgramObject, ConstantPoolIndex};
 
 macro_rules! size {
     ($n:literal B)  => { $n * 8 };
@@ -22,6 +22,10 @@ impl LLHeap {
             memory: [0; size!(128 MB)],
         }
     }
+    pub fn write_byte(&mut self, value: u8) {
+        self.memory[self.pointer] = value;
+        self.pointer += 1;
+    }
     pub fn write_usize(&mut self, value: usize) {
         let length = std::mem::size_of::<usize>();
         let end = self.pointer + length;
@@ -38,10 +42,51 @@ impl LLHeap {
         target_slice.copy_from_slice(source_slice);
         self.pointer = end;
     }
+    pub fn write_constant_pool_index(&mut self, value: &ConstantPoolIndex) {
+        let length = std::mem::size_of::<ConstantPoolIndex>();
+        let end = self.pointer + length;
+        let target_slice = &mut self.memory[self.pointer..end];
+        let source_slice = unsafe { std::mem::transmute::<&ConstantPoolIndex, &[u8; 2]>(value) };
+        target_slice.copy_from_slice(source_slice);
+        self.pointer = end;
+    }
+    // +-------+-------+
+    // |     0 | TAG   |
+    // +-------+-------+-------+-------+-------+
+    // |     1 | SIZE                          |
+    // +-------+-------+-------+-------+-------+-------+
+    // | 5+i*5 | ELEMENT i PTR                         |
+    // +-------+-------+-------+-------+-------+-------+
+    // :       :                                       :
     pub fn allocate_array(&mut self, elements: usize, value: &Pointer) -> HeapIndex {
         let index = HeapIndex::from(self.pointer);
+        self.write_byte(0x00);
         self.write_usize(elements);
         (0..elements).for_each(|_| self.write_pointer(value));
+        index
+    }
+    // +--------+--------+
+    // |      0 | TAG    |
+    // +--------+--------+--------+
+    // |      1 | CLASS CPI       |
+    // +--------+--------+--------+--------+--------+--------+
+    // |      3 | PARENT PTR                                 |
+    // +--------+--------+--------+--------+--------+--------+
+    // |  8+i*7 | FLD i NAME CPI  |
+    // +--------+--------+--------+--------+--------+--------+
+    // | 10+i*7 | FLD i VALUE PTR                            |
+    // +--------+--------+--------+--------+--------+--------+
+    // :        :                                            :
+    pub fn allocate_object(&mut self, class: &ConstantPoolIndex, parent: &Pointer,
+                           fields: Vec<(&ConstantPoolIndex, &Pointer)>) -> HeapIndex {
+        let index = HeapIndex::from(self.pointer);
+        self.write_byte(0x01);
+        self.write_constant_pool_index(class);
+        self.write_pointer(parent);
+        fields.into_iter().for_each(|(name, value)| {
+            self.write_constant_pool_index(name);
+            self.write_pointer(value);
+        });
         index
     }
 }

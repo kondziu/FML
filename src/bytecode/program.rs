@@ -422,7 +422,8 @@ impl SerializableWithContext for ProgramObject {
         }
     }
 }
-
+// FIXME error message should include parameter list:
+// Call method error: no method `*` in object `2`', src/main.rs:158:14
 impl ProgramObject {
 
     #[allow(dead_code)]

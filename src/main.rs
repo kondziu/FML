@@ -50,6 +50,10 @@ impl Action {
 struct RunAction {
     #[clap(name="FILE", parse(from_os_str))]
     pub input: Option<PathBuf>,
+    #[clap(long="heap-size", name="MBs", about = "Maximum heap size in megabytes")]
+    pub heap_size: Option<usize>,
+    #[clap(long="heap-log", name="FILE", about = "Path to heap log, if none, the log is not produced")]
+    pub heap_log: Option<PathBuf>,
 }
 
 #[derive(Clap, Debug)]
@@ -64,6 +68,10 @@ struct BytecodeDisassemblyAction {
 struct BytecodeInterpreterAction {
     #[clap(name="FILE", parse(from_os_str))]
     pub input: Option<PathBuf>,
+    #[clap(long="heap-size", name="MBs", about = "Maximum heap size in megabytes")]
+    pub heap_size: Option<usize>,
+    #[clap(long="heap-log", name="FILE", about = "Path to heap log, if none, the log is not produced")]
+    pub heap_log: Option<PathBuf>,
 }
 
 #[derive(Clap, Debug)]

@@ -52,7 +52,7 @@ struct RunAction {
     pub input: Option<PathBuf>,
     #[clap(long="heap-size", name="MBs", about = "Maximum heap size in megabytes")]
     pub heap_size: Option<usize>,
-    #[clap(long="heap-log", name="FILE", about = "Path to heap log, if none, the log is not produced")]
+    #[clap(long="heap-log", name="LOG_FILE", about = "Path to heap log, if none, the log is not produced", parse(from_os_str), parse(from_os_str))]
     pub heap_log: Option<PathBuf>,
 }
 
@@ -70,7 +70,7 @@ struct BytecodeInterpreterAction {
     pub input: Option<PathBuf>,
     #[clap(long="heap-size", name="MBs", about = "Maximum heap size in megabytes")]
     pub heap_size: Option<usize>,
-    #[clap(long="heap-log", name="FILE", about = "Path to heap log, if none, the log is not produced")]
+    #[clap(long="heap-log", name="LOG_FILE", about = "Path to heap log, if none, the log is not produced", parse(from_os_str))]
     pub heap_log: Option<PathBuf>,
 }
 

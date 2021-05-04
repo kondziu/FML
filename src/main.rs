@@ -21,7 +21,7 @@ use crate::fml::TopLevelParser;
 
 use crate::bytecode::program::Program;
 use crate::bytecode::serializable::Serializable;
-use crate::bytecode::interpreter::evaluate;
+use crate::bytecode::interpreter::evaluate_with_memory_config;
 
 #[derive(Clap, Debug)]
 #[clap(version = crate_version!(), author = crate_authors!())]
@@ -50,8 +50,8 @@ impl Action {
 struct RunAction {
     #[clap(name="FILE", parse(from_os_str))]
     pub input: Option<PathBuf>,
-    #[clap(long="heap-size", name="MBs", about = "Maximum heap size in megabytes")]
-    pub heap_size: Option<usize>,
+    #[clap(long="heap-size", name="MBs", about = "Maximum heap size in megabytes", default_value = "0")]
+    pub heap_size: usize,
     #[clap(long="heap-log", name="LOG_FILE", about = "Path to heap log, if none, the log is not produced", parse(from_os_str), parse(from_os_str))]
     pub heap_log: Option<PathBuf>,
 }
@@ -68,8 +68,8 @@ struct BytecodeDisassemblyAction {
 struct BytecodeInterpreterAction {
     #[clap(name="FILE", parse(from_os_str))]
     pub input: Option<PathBuf>,
-    #[clap(long="heap-size", name="MBs", about = "Maximum heap size in megabytes")]
-    pub heap_size: Option<usize>,
+    #[clap(long="heap-size", name="MBs", about = "Maximum heap size in megabytes", default_value = "0")]
+    pub heap_size: usize,
     #[clap(long="heap-log", name="LOG_FILE", about = "Path to heap log, if none, the log is not produced", parse(from_os_str))]
     pub heap_log: Option<PathBuf>,
 }
@@ -145,7 +145,7 @@ impl RunAction {
         let program = bytecode::compile(&ast)
             .expect("Compiler error");
 
-        evaluate(&program)
+        evaluate_with_memory_config(&program, self.heap_size, self.heap_log.clone())
             .expect("Interpreter error")
     }
 
@@ -162,7 +162,7 @@ impl BytecodeInterpreterAction {
         let program = BCSerializer::BYTES.deserialize(&mut source)
             .expect("Cannot parse bytecode from input.");
 
-        evaluate(&program)
+        evaluate_with_memory_config(&program, self.heap_size, self.heap_log.clone())
             .expect("Interpreter error")
     }
 

@@ -13,6 +13,7 @@ use crate::veccat;
 use crate::bytecode::program::*;
 use crate::bytecode::state::*;
 use indexmap::map::IndexMap;
+use std::path::PathBuf;
 
 
 trait OpCodeEvaluationResult<T> {
@@ -26,8 +27,19 @@ impl<T> OpCodeEvaluationResult<T> for Result<T> {
     }
 }
 
+#[allow(dead_code)]
 pub fn evaluate(program: &Program) -> Result<()> {
     let mut state = State::from(program)?;
+    let mut output = Output::new();
+    evaluate_with(program, &mut state, &mut output)
+}
+
+pub fn evaluate_with_memory_config(program: &Program, heap_size: usize, heap_log: Option<PathBuf>) -> Result<()> {
+    let mut state = State::from(program)?;
+    state.heap.set_size(heap_size);
+    if let Some(log) = heap_log {
+        state.heap.set_log(log);
+    }
     let mut output = Output::new();
     evaluate_with(program, &mut state, &mut output)
 }

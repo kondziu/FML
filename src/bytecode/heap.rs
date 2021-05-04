@@ -2,33 +2,91 @@ use anyhow::*;
 use indexmap::IndexMap;
 
 use crate::bytecode::state::OperandStack;
-use crate::bytecode::program::ProgramObject;
+use crate::bytecode::program::{ProgramObject, ConstantPoolIndex, AddressRange, Arity, Size};
+use std::path::PathBuf;
+use std::fs::{File, create_dir_all};
+use std::time::SystemTime;
+use std::io::Write;
+use std::mem::size_of;
 
-#[derive(Eq, PartialEq, Debug)]
-pub struct Heap(Vec<HeapObject>);
+macro_rules! heap_log {
+    (START -> $file:expr) => {
+        if let Some(file) = &mut $file {
+            let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+            write!(file, "{},S,0\n", timestamp).unwrap();
+        }
+    };
+    (ALLOCATE -> $file:expr, $memory:expr) => {
+        if let Some(file) = &mut $file {
+            let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+            write!(file, "{},A,{}\n", timestamp, $memory).unwrap();
+        }
+    };
+    (GC -> $file:expr, $memory:expr) => {
+        if let Some(file) = &mut $file {
+            let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+            write!(file, "{},G,{}\n", timestamp, $memory).unwrap();
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Heap{ max_size: usize, size: usize, log: Option<File>, memory: Vec<HeapObject> }
+
+impl Eq for Heap {}
+impl PartialEq for Heap {
+    fn eq(&self, other: &Self) -> bool {
+        self.memory.eq(&other.memory)
+    }
+}
+
 impl Heap {
+    pub fn set_size(&mut self, size: usize /* in MB */) {
+        self.max_size = size * 1024 * 1024 /* in B */
+    }
+    pub fn set_log(&mut self, path: PathBuf) {
+
+        let mut dir = path.clone();
+        dir.pop();
+        create_dir_all(dir).unwrap();
+
+        let mut file = File::create(path).unwrap();
+        write!(file, "timestamp,event,memory\n").unwrap();
+
+        heap_log!(START -> Some(&mut file));
+        self.log = Some(file)
+    }
     pub fn new() -> Self {
-        Heap(Vec::new())
+        Heap { max_size: 0, log: None, memory: Vec::new(), size: 0 }
     }
     pub fn allocate(&mut self, object: HeapObject) -> HeapIndex {
-        let index = HeapIndex::from(self.0.len());
-        self.0.push(object);
+        self.size += object.size();
+        heap_log!(ALLOCATE -> self.log, self.size);
+        let index = HeapIndex::from(self.memory.len());
+        self.memory.push(object);
         index
     }
     pub fn dereference(&self, index: &HeapIndex) -> Result<&HeapObject> {
-        self.0.get(index.as_usize())
+        self.memory.get(index.as_usize())
             .with_context(||
                 format!("Cannot dereference object from the heap at index: `{}`", index))
     }
     pub fn dereference_mut(&mut self, index: &HeapIndex) -> Result<&mut HeapObject> {
-        self.0.get_mut(index.as_usize())
+        self.memory.get_mut(index.as_usize())
             .with_context(||
                 format!("Cannot dereference object from the heap at index: `{}`", index))
     }
 }
 
 impl From<Vec<HeapObject>> for Heap {
-    fn from(objects: Vec<HeapObject>) -> Self { Heap(objects) }
+    fn from(objects: Vec<HeapObject>) -> Self {
+        Heap {
+            size: objects.iter().map(|o| o.size()).sum(),
+            max_size: 0,
+            log: None,
+            memory: objects
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -73,6 +131,28 @@ impl HeapObject {
         match self {
             HeapObject::Array(array) => array.evaluate_as_string(heap),
             HeapObject::Object(object) => object.evaluate_as_string(heap),
+        }
+    }
+    pub fn size(&self) -> usize {
+        match self {
+            HeapObject::Array(array) => {
+                size_of::<ArrayInstance>() + array.length() * size_of::<Pointer>()
+            }
+            HeapObject::Object(object) => {
+                let header = size_of::<ObjectInstance>();
+                let fields: usize =
+                    object.fields.iter().map(|(string, _pointer)| string.len() + size_of::<Pointer>()).sum();
+                let methods: usize =
+                    object.methods.iter().map(|(string, program_object)| string.len() + match program_object {
+                        ProgramObject::Method { .. } =>
+                            size_of::<ConstantPoolIndex>() +
+                                size_of::<Arity>() +
+                                size_of::<Size>() +
+                                size_of::<AddressRange>(),
+                        _ => unreachable!()
+                    }).sum();
+                header + fields + methods
+            }
         }
     }
 }

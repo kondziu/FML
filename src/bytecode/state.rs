@@ -205,7 +205,7 @@ impl GlobalFrame {
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Debug)]
 pub struct State {
     pub operand_stack: OperandStack,
     pub frame_stack: FrameStack,
@@ -222,8 +222,15 @@ pub struct State {
 //     pub memory: Heap,
 // }
 
-
 impl State {
+    // pub fn set_heap_size (mut self, heap_size: usize) -> Self {
+    //     self.heap.set_size(heap_size);
+    //     self
+    // }
+    // pub fn set_heap_log(mut self, heap_log: PathBuf) -> Self {
+    //     self.heap.set_log(heap_log);
+    //     self
+    // }
     pub fn from(program: &Program) -> Result<Self> {                                                // TODO error handling is a right mess here.
 
         let entry_index = program.entry.get()

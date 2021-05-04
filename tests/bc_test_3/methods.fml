@@ -1,0 +1,34 @@
+begin
+  let obj = object
+  begin
+    let x = 1;
+    let y = 2;
+    function get_x() -> this.x;
+    function set_x(v) -> this.x <- v;
+    function set_all(vx, vy) -> begin
+      this.set_x(vx);
+      this.y <- vy;
+      null
+    end;
+  end;
+
+  print("obj.x=~\n", obj.get_x());
+  obj.x <- 42;
+  print("obj.x=~\n", obj.get_x());
+  print("obj.x=~\n", obj.set_x(13));
+  print("obj.x=~\n", obj.get_x());
+  print("obj.y=~\n", obj.y);
+  // > obj.x=1
+  // > obj.x=42
+  // > obj.x=13
+  // > obj.x=13
+  // > obj.y=2
+
+  print("null=~\n", obj.set_all(false, null));
+  print("obj.x=~\n", obj.x);
+  print("obj.y=~\n", obj.y);
+  // > null=null
+  // > obj.x=false
+  // > obj.x=null
+end;
+

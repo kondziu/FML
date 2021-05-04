@@ -1,0 +1,69 @@
+12
+-2
+35
+0
+5
+true
+false
+true
+false
+false
+true
+false
+true
+false
+true
+null
+ahoj przygodo!
+1 and 2 and 3 and 4
+2 2
+2 2
+null
+42
+1 2
+3
+2
+1
+true
+true
+true
+p & q = 0
+true
+null
+true
+true
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+5
+[null, null, null, null, null, null, null]
+size: 7
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+1..10
+[1, 2, 3, 4, 5, -1, 7, 8, 9, 10]
+[null, -42, null]
+[null, -42, null]
+[null, -42, null]
+object()
+object()
+object(..=1)
+object(x=0, y=1, z=2)
+x=0, y=1, z=2
+x=0, y=1, z=2
+object(inner=3)
+object(inner=3)
+true
+true
+true
+false
+3
+Cannot set value: immutable array
+object(..=[42, 42, 42, 42, 42, 42, 42, 42, 42, 42])
+[7, 6, 6, 6, 6, 6, 6, 6, 6, 6]

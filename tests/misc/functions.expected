@@ -1,0 +1,6 @@
+left(true, false)    = true
+right(true, false)   = false
+neither(true, false) = null
+scope before: x=1, y=2, z=3
+scope inside: x=6, y=7, z=3
+scope after:  x=1, y=2, z=5

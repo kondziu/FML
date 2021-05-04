@@ -1,0 +1,1 @@
+{"Top":[{"Print":{"format":"~ ~ ~\\n","arguments":[{"Integer":1},{"Integer":2},{"Integer":3}]}},{"Print":{"format":"~ ~ ~\\n","arguments":[{"Integer":-1},{"Integer":-2},{"Integer":-3}]}},{"Print":{"format":"~\\n","arguments":["Null"]}},{"Print":{"format":"~ ~\\n","arguments":[{"Boolean":true},{"Boolean":false}]}}]}

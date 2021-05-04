@@ -1,0 +1,13 @@
+let x = 1;
+let y = 2;
+let z = 3;
+
+function f(y) ->
+begin
+   let z = 5;
+   print("x=~\n", x);
+   print("y=~\n", y);
+   print("z=~\n", z);
+end;
+
+print("~\n", f(4))

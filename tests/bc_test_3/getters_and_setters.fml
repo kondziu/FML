@@ -1,0 +1,25 @@
+begin
+  let obj = object
+  begin
+    let a = 3;
+    let b = 2;
+    let c = 1;
+  end;
+
+  print("~\n", obj);
+  // > object(a=3, b=2, c=1)
+
+  print("obj.a=~\n", obj.a);
+  print("obj.b=~\n", obj.b);
+  print("obj.c=~\n", obj.c);
+  // > obj.a=3
+  // > obj.b=2
+  // > obj.c=1
+
+  print("obj.a=~\n", obj.a <- 42);
+  print("obj.b=~\n", obj.b <- 13);
+  print("obj.c=~\n", obj.c <- 666);
+  // > obj.a=42
+  // > obj.b=13
+  // > obj.c=666
+end;

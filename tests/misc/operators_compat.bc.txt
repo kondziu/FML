@@ -1,0 +1,386 @@
+Constant Pool:
+0: "λ:"
+1: "~.add(~) => ~\n"
+2: 1
+3: -2
+4: "add"
+5: "~.sub(~) => ~\n"
+6: "sub"
+7: "~.mul(~) => ~\n"
+8: "mul"
+9: "~.div(~) => ~\n"
+10: "div"
+11: "~.mod(%) ~ => ~\n"
+12: "mod"
+13: "~.le(~) => ~\n"
+14: "le"
+15: "~.lt(~) => ~\n"
+16: "lt"
+17: "~.ge(~) => ~\n"
+18: "ge"
+19: "~.gt(~) => ~\n"
+20: "gt"
+21: "~.eq(~) => ~\n"
+22: "eq"
+23: "~.neq(~) => ~\n"
+24: "neq"
+25: null
+26: true
+27: class 
+28: "~.and(~) => ~\n"
+29: false
+30: "and"
+31: "~.or(~) => ~\n"
+32: "or"
+33: method #0 args:0 locals:0 0000-0307
+Entry: #33
+Globals:
+Code:
+0: lit #2
+1: lit #3
+2: lit #2
+3: lit #3
+4: call slot #4 2
+5: printf #1 3
+6: drop
+7: lit #2
+8: lit #3
+9: lit #2
+10: lit #3
+11: call slot #6 2
+12: printf #5 3
+13: drop
+14: lit #2
+15: lit #3
+16: lit #2
+17: lit #3
+18: call slot #8 2
+19: printf #7 3
+20: drop
+21: lit #2
+22: lit #3
+23: lit #2
+24: lit #3
+25: call slot #10 2
+26: printf #9 3
+27: drop
+28: lit #2
+29: lit #3
+30: lit #2
+31: lit #3
+32: call slot #12 2
+33: printf #11 3
+34: drop
+35: lit #2
+36: lit #3
+37: lit #2
+38: lit #3
+39: call slot #14 2
+40: printf #13 3
+41: drop
+42: lit #2
+43: lit #3
+44: lit #2
+45: lit #3
+46: call slot #16 2
+47: printf #15 3
+48: drop
+49: lit #2
+50: lit #3
+51: lit #2
+52: lit #3
+53: call slot #18 2
+54: printf #17 3
+55: drop
+56: lit #2
+57: lit #3
+58: lit #2
+59: lit #3
+60: call slot #20 2
+61: printf #19 3
+62: drop
+63: lit #2
+64: lit #3
+65: lit #2
+66: lit #3
+67: call slot #22 2
+68: printf #21 3
+69: drop
+70: lit #2
+71: lit #3
+72: lit #2
+73: lit #3
+74: call slot #24 2
+75: printf #23 3
+76: drop
+77: lit #2
+78: lit #25
+79: lit #2
+80: lit #25
+81: call slot #22 2
+82: printf #21 3
+83: drop
+84: lit #2
+85: lit #25
+86: lit #2
+87: lit #25
+88: call slot #22 2
+89: printf #23 3
+90: drop
+91: lit #2
+92: lit #26
+93: lit #2
+94: lit #26
+95: call slot #22 2
+96: printf #21 3
+97: drop
+98: lit #2
+99: lit #26
+100: lit #2
+101: lit #26
+102: call slot #22 2
+103: printf #23 3
+104: drop
+105: lit #2
+106: lit #25
+107: object #27
+108: lit #2
+109: lit #25
+110: object #27
+111: call slot #22 2
+112: printf #21 3
+113: drop
+114: lit #2
+115: lit #25
+116: object #27
+117: lit #2
+118: lit #25
+119: object #27
+120: call slot #24 2
+121: printf #23 3
+122: drop
+123: lit #2
+124: lit #2
+125: lit #2
+126: array
+127: lit #2
+128: lit #2
+129: lit #2
+130: array
+131: call slot #22 2
+132: printf #21 3
+133: drop
+134: lit #2
+135: lit #2
+136: lit #2
+137: array
+138: lit #2
+139: lit #2
+140: lit #2
+141: array
+142: call slot #24 2
+143: printf #23 3
+144: drop
+145: lit #26
+146: lit #29
+147: lit #26
+148: lit #29
+149: call slot #30 2
+150: printf #28 3
+151: drop
+152: lit #26
+153: lit #29
+154: lit #26
+155: lit #29
+156: call slot #32 2
+157: printf #31 3
+158: drop
+159: lit #26
+160: lit #29
+161: lit #26
+162: lit #29
+163: call slot #22 2
+164: printf #21 3
+165: drop
+166: lit #26
+167: lit #29
+168: lit #26
+169: lit #29
+170: call slot #24 2
+171: printf #23 3
+172: drop
+173: lit #26
+174: lit #3
+175: lit #26
+176: lit #3
+177: call slot #22 2
+178: printf #21 3
+179: drop
+180: lit #26
+181: lit #3
+182: lit #26
+183: lit #3
+184: call slot #24 2
+185: printf #23 3
+186: drop
+187: lit #26
+188: lit #25
+189: lit #26
+190: lit #25
+191: call slot #22 2
+192: printf #21 3
+193: drop
+194: lit #26
+195: lit #25
+196: lit #26
+197: lit #25
+198: call slot #22 2
+199: printf #23 3
+200: drop
+201: lit #26
+202: lit #25
+203: object #27
+204: lit #26
+205: lit #25
+206: object #27
+207: call slot #22 2
+208: printf #21 3
+209: drop
+210: lit #26
+211: lit #25
+212: object #27
+213: lit #26
+214: lit #25
+215: object #27
+216: call slot #24 2
+217: printf #23 3
+218: drop
+219: lit #26
+220: lit #2
+221: lit #26
+222: array
+223: lit #26
+224: lit #2
+225: lit #26
+226: array
+227: call slot #22 2
+228: printf #21 3
+229: drop
+230: lit #26
+231: lit #2
+232: lit #26
+233: array
+234: lit #26
+235: lit #2
+236: lit #26
+237: array
+238: call slot #24 2
+239: printf #23 3
+240: drop
+241: lit #25
+242: lit #3
+243: lit #25
+244: lit #3
+245: call slot #22 2
+246: printf #21 3
+247: drop
+248: lit #25
+249: lit #3
+250: lit #25
+251: lit #3
+252: call slot #24 2
+253: printf #23 3
+254: drop
+255: lit #25
+256: lit #25
+257: lit #25
+258: lit #25
+259: call slot #22 2
+260: printf #21 3
+261: drop
+262: lit #25
+263: lit #25
+264: lit #25
+265: lit #25
+266: call slot #22 2
+267: printf #23 3
+268: drop
+269: lit #25
+270: lit #25
+271: object #27
+272: lit #25
+273: lit #25
+274: object #27
+275: call slot #22 2
+276: printf #21 3
+277: drop
+278: lit #25
+279: lit #25
+280: object #27
+281: lit #25
+282: lit #25
+283: object #27
+284: call slot #24 2
+285: printf #23 3
+286: drop
+287: lit #25
+288: lit #2
+289: lit #25
+290: array
+291: lit #25
+292: lit #2
+293: lit #25
+294: array
+295: call slot #22 2
+296: printf #21 3
+297: drop
+298: lit #25
+299: lit #2
+300: lit #25
+301: array
+302: lit #25
+303: lit #2
+304: lit #25
+305: array
+306: call slot #24 2
+307: printf #23 3
+
+// > 1.add(-2) => -1
+// > 1.sub(-2) => 3
+// > 1.mul(-2) => -2
+// > 1.div(-2) => 0
+// > 1.mod(%) -2 => 1
+// > 1.le(-2) => false
+// > 1.lt(-2) => false
+// > 1.ge(-2) => true
+// > 1.gt(-2) => true
+// > 1.eq(-2) => false
+// > 1.neq(-2) => true
+// > 1.eq(null) => false
+// > 1.neq(null) => false
+// > 1.eq(true) => false
+// > 1.neq(true) => false
+// > 1.eq(object()) => false
+// > 1.neq(object()) => true
+// > 1.eq([1]) => false
+// > 1.neq([1]) => true
+// > true.and(false) => false
+// > true.or(false) => true
+// > true.eq(false) => false
+// > true.neq(false) => true
+// > true.eq(-2) => false
+// > true.neq(-2) => true
+// > true.eq(null) => false
+// > true.neq(null) => false
+// > true.eq(object()) => false
+// > true.neq(object()) => true
+// > true.eq([true]) => false
+// > true.neq([true]) => true
+// > null.eq(-2) => false
+// > null.neq(-2) => true
+// > null.eq(null) => true
+// > null.neq(null) => true
+// > null.eq(object()) => false
+// > null.neq(object()) => true
+// > null.eq([null]) => false
+// > null.neq([null]) => true

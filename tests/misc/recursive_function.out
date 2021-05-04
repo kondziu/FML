@@ -1,0 +1,6 @@
+decide(true)
+invert(true)
+decide(false)
+false
+decide(false)
+false

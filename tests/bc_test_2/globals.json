@@ -1,0 +1,1 @@
+{"Top":[{"Variable":{"name":"x","value":{"Integer":1}}},{"Variable":{"name":"y","value":{"Boolean":true}}},{"Variable":{"name":"z","value":"Null"}},{"Print":{"format":"x=~ y=~ z=~\\n","arguments":[{"AccessVariable":{"name":"z"}},{"AccessVariable":{"name":"y"}},{"AccessVariable":{"name":"x"}}]}}]}

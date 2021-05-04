@@ -1,0 +1,100 @@
+Constant Pool:
+0: "λ:"
+1: 10
+2: null
+3: 0
+4: "loop:body:0"
+5: "loop:condition:0"
+6: "if:consequent:1"
+7: "if:end:1"
+8: "=="
+9: "*"
+10: 2
+11: "-"
+12: 1
+13: "get"
+14: "set"
+15: "+"
+16: "<"
+17: "loop:body:2"
+18: "loop:condition:2"
+19: "arr[~]: ~ \n"
+20: method #0 args:0 locals:4 0000-0063
+Entry: #20
+Globals:
+Code:
+0: lit #1
+1: set local ::0
+2: drop
+3: get local ::0
+4: lit #2
+5: array
+6: set local ::1
+7: drop
+8: lit #3
+9: set local ::2
+10: drop
+11: goto #5
+12: label #4
+13: get local ::1
+14: get local ::2
+15: get local ::2
+16: lit #3
+17: call slot #8 2
+18: branch #6
+19: lit #10
+20: get local ::1
+21: get local ::2
+22: lit #12
+23: call slot #11 2
+24: call slot #13 2
+25: call slot #9 2
+26: goto #7
+27: label #6
+28: lit #12
+29: label #7
+30: call slot #14 3
+31: drop
+32: get local ::2
+33: lit #12
+34: call slot #15 2
+35: set local ::2
+36: drop
+37: label #5
+38: get local ::2
+39: get local ::0
+40: call slot #16 2
+41: branch #4
+42: lit #3
+43: set local ::3
+44: drop
+45: goto #18
+46: label #17
+47: get local ::3
+48: get local ::1
+49: get local ::3
+50: call slot #13 2
+51: printf #19 2
+52: drop
+53: get local ::3
+54: lit #12
+55: call slot #15 2
+56: set local ::3
+57: drop
+58: label #18
+59: get local ::3
+60: get local ::0
+61: call slot #16 2
+62: branch #17
+63: lit #2
+
+// > arr[0]: 1 
+// > arr[1]: 2 
+// > arr[2]: 4 
+// > arr[3]: 8 
+// > arr[4]: 16 
+// > arr[5]: 32 
+// > arr[6]: 64 
+// > arr[7]: 128 
+// > arr[8]: 256 
+// > arr[9]: 512 

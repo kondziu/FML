@@ -1,0 +1,21 @@
+Constant Pool:
+0: "λ:"
+1: "loop:body:0"
+2: "loop:condition:0"
+3: "nothing\n"
+4: false
+5: "something\n"
+6: method #0 args:0 locals:0 0000-0007
+Entry: #6
+Globals:
+Code:
+0: goto #2
+1: label #1
+2: printf #3 0
+3: drop
+4: label #2
+5: lit #4
+6: branch #1
+7: printf #5 0
+
+// > something

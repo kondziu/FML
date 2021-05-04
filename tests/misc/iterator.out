@@ -1,0 +1,23 @@
+collection: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+gimme more: 10
+gimme more: 11
+gimme more: 12
+gimme more: 13
+gimme more: 14
+gimme more: 15
+gimme more: 16
+gimme more: 17
+gimme more: 18
+gimme more: 19
+gimme too much: null
+0: 10
+1: 11
+2: 12
+3: 13
+4: 14
+5: 15
+6: 16
+7: 17
+8: 18
+9: 19
+incremented collection: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]

@@ -1,0 +1,96 @@
+Constant Pool:
+0: "λ:"
+1: null
+2: 1
+3: "x"
+4: slot #3
+5: 2
+6: "y"
+7: slot #6
+8: "get_x"
+9: method #8 args:1 locals:0 0000-0002
+10: "set_x"
+11: method #10 args:2 locals:0 0003-0006
+12: "set_all"
+13: method #12 args:3 locals:0 0007-0016
+14: class #4,#7,#9,#11,#13
+15: "obj.x=~\n"
+16: 42
+17: 13
+18: "obj.y=~\n"
+19: "null=~\n"
+20: false
+21: method #0 args:0 locals:1 0017-0060
+Entry: #21
+Globals:
+Code:
+0: get local ::0
+1: get slot #3
+2: return
+3: get local ::0
+4: get local ::1
+5: set slot #3
+6: return
+7: get local ::0
+8: get local ::1
+9: call slot #10 2
+10: drop
+11: get local ::0
+12: get local ::2
+13: set slot #6
+14: drop
+15: lit #1
+16: return
+17: lit #1
+18: lit #2
+19: lit #5
+20: object #14
+21: set local ::0
+22: drop
+23: get local ::0
+24: call slot #8 1
+25: printf #15 1
+26: drop
+27: get local ::0
+28: lit #16
+29: set slot #3
+30: drop
+31: get local ::0
+32: call slot #8 1
+33: printf #15 1
+34: drop
+35: get local ::0
+36: lit #17
+37: call slot #10 2
+38: printf #15 1
+39: drop
+40: get local ::0
+41: call slot #8 1
+42: printf #15 1
+43: drop
+44: get local ::0
+45: get slot #6
+46: printf #18 1
+47: drop
+48: get local ::0
+49: lit #20
+50: lit #1
+51: call slot #12 3
+52: printf #19 1
+53: drop
+54: get local ::0
+55: get slot #3
+56: printf #15 1
+57: drop
+58: get local ::0
+59: get slot #6
+60: printf #18 1
+
+// > obj.x=1
+// > obj.x=42
+// > obj.x=13
+// > obj.x=13
+// > obj.y=2
+// > null=null
+// > obj.x=false
+// > obj.y=null

@@ -1,0 +1,18 @@
+Constant Pool:
+0: "λ:"
+1: "one"
+2: method #1 args:1 locals:0 0000-0001
+3: "~\n"
+4: 1
+5: method #0 args:0 locals:0 0002-0004
+Entry: #5
+Globals:
+0: #2
+Code:
+0: get local ::0
+1: return
+2: lit #4
+3: call #1 1
+4: printf #3 1
+
+// > 1

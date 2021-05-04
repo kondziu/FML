@@ -1,0 +1,29 @@
+print("~\n", object begin end);
+// > object()
+
+print("~\n", object begin let x = 1; let y = 2; end);
+// > object(x=1, y=2)
+
+print("~\n", object extends object begin end begin let x = 1; let y = 2; end);
+// > object(..=object(), x=1, y=2)
+
+begin
+  let objx = object
+  begin
+    function self() -> this
+  end;
+  print("~\n", objx);
+end;
+// > object()
+
+begin
+  let objy = object extends object begin end
+  begin
+    let x = 3;
+    let z = 2;
+    function self() -> this ;
+    let y = 4;
+  end;
+  print("~\n", objy);
+end;
+// > object(..=object(), x=3, z=2, y=4)

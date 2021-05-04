@@ -1,0 +1,15 @@
+true things are true
+false things are not true
+null is not true
+zero is true
+one is true
+x is true
+y is not true
+true-false block is not true
+false-true block is true
+z is not true
+now z is true
+consequent is true
+alternative is false
+consequent is always true
+alternative is sometimes null

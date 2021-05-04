@@ -1,0 +1,56 @@
+Constant Pool:
+0: "λ:"
+1: 1
+2: "x"
+3: slot #2
+4: 2
+5: "y"
+6: slot #5
+7: 3
+8: "z"
+9: slot #8
+10: 5
+11: "x=~\n"
+12: "y=~\n"
+13: "z=~\n"
+14: "f"
+15: method #14 args:1 locals:1 0000-0011
+16: "~\n"
+17: 4
+18: method #0 args:0 locals:0 0012-0023
+Entry: #18
+Globals:
+0: #3
+1: #6
+2: #9
+3: #15
+Code:
+0: lit #10
+1: set local ::1
+2: drop
+3: get global #2
+4: printf #11 1
+5: drop
+6: get local ::0
+7: printf #12 1
+8: drop
+9: get local ::1
+10: printf #13 1
+11: return
+12: lit #1
+13: set global #2
+14: drop
+15: lit #4
+16: set global #5
+17: drop
+18: lit #7
+19: set global #8
+20: drop
+21: lit #17
+22: call #14 1
+23: printf #16 1
+
+// > x=1
+// > y=4
+// > z=5
+// > null

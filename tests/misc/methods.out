@@ -1,0 +1,8 @@
+obj.x=1
+obj.x=42
+obj.x=13
+obj.x=13
+obj.y=2
+null=null
+obj.x=false
+obj.y=null

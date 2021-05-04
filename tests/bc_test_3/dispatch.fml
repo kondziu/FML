@@ -1,0 +1,48 @@
+function ref_cell(v) -> object extends null
+begin
+  let value = v;
+  function set(v) -> this.value <- v;
+  function get() -> this.value;
+  function ==(v) -> this.value == v;
+  function !=(v) -> this.value != v;
+end;
+
+function math_cell(v) ->
+object extends ref_cell(v)
+begin
+  function increment() -> this.set(this.get() + 1);
+  function +(v) -> pretty_cell(this.get() + v);
+end;
+
+function pretty_cell(v) ->
+object extends math_cell(v)
+begin
+  function pretty_print() -> print("[!~]\n", this.get())
+end;
+
+begin
+  let cell = pretty_cell(0);
+
+  print("~\n", cell);
+  // > object(..=object(..=object(value=0)))
+  cell.pretty_print();
+  // > [!1]
+  cell.set(42);
+  print("~\n", cell.get());
+  // > 42
+  cell.pretty_print();
+  // > [!42]
+  cell.increment();
+  cell.pretty_print();
+  // > [!43]
+  let new_cell = cell + 13;
+  cell.pretty_print();
+  // > [!43]
+  new_cell.pretty_print();
+  // > [!56]
+  print("~ == ~ => ~\n", cell, 43, cell == 43);
+  // > object(..=object(..=object(value=43))) == 43 => true
+  print("~ != ~ => ~\n", cell, 43, cell != 43);
+  // > object(..=object(..=object(value=43))) == 43 => false
+end;
+

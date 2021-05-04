@@ -1,0 +1,34 @@
+begin
+  let obj = object
+  begin
+    let a = 3;
+    let b = 2;
+    let c = 1;
+  end;
+
+  let same_obj = obj;
+
+  print("~\n", obj);
+  // > object(a=3, b=2, c=1)
+
+  print("obj.a=~\n", obj.a);
+  print("obj.b=~\n", obj.b);
+  print("obj.c=~\n", obj.c);
+  // > obj.a=3
+  // > obj.b=2
+  // > obj.c=1
+
+  print("obj.a=~\n", obj.a <- 42);
+  print("obj.b=~\n", obj.b <- 13);
+  print("obj.c=~\n", obj.c <- 666);
+  // > obj.a=42
+  // > obj.b=13
+  // > obj.c=666
+
+  print("same_obj.a=~\n", obj.a);
+  print("same_obj.b=~\n", obj.b);
+  print("same_obj.c=~\n", obj.c);
+  // > same_obj.a=42
+  // > same_obj.b=13
+  // > same_obj.c=666
+end;

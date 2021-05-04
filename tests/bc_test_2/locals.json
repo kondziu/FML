@@ -1,0 +1,1 @@
+{"Top":[{"Block":[{"Variable":{"name":"x","value":{"Integer":1}}},{"Variable":{"name":"y","value":{"Integer":2}}},{"Variable":{"name":"z","value":{"Integer":3}}},{"Print":{"format":"x=~ y=~ z=~\\n","arguments":[{"AccessVariable":{"name":"z"}},{"AccessVariable":{"name":"y"}},{"AccessVariable":{"name":"x"}}]}}]}]}

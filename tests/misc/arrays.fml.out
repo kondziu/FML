@@ -1,0 +1,2 @@
+thread 'main' panicked at 'Cannot deserialize value: unrecognized value tag: 110', src/bytecode/program.rs:481:21
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,0 +1,5 @@
+object()
+object(x=1, y=2)
+object(..=object(), x=1, y=2)
+object()
+object(..=object(), x=3, z=2, y=4)

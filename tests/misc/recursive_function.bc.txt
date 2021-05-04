@@ -1,0 +1,60 @@
+Constant Pool:
+0: "λ:"
+1: "decide(~)\n"
+2: "if:consequent:0"
+3: "if:end:0"
+4: false
+5: "invert"
+6: true
+7: "decide"
+8: method #7 args:1 locals:0 0000-0011
+9: "invert(~)\n"
+10: "if:consequent:1"
+11: "if:end:1"
+12: method #5 args:1 locals:0 0012-0024
+13: "~\n"
+14: method #0 args:0 locals:0 0025-0031
+Entry: #14
+Globals:
+0: #8
+1: #12
+Code:
+0: get local ::0
+1: printf #1 1
+2: drop
+3: get local ::0
+4: branch #2
+5: lit #4
+6: goto #3
+7: label #2
+8: lit #6
+9: call #5 1
+10: label #3
+11: return
+12: get local ::0
+13: printf #9 1
+14: drop
+15: get local ::0
+16: branch #10
+17: lit #6
+18: call #7 1
+19: goto #11
+20: label #10
+21: lit #4
+22: call #7 1
+23: label #11
+24: return
+25: lit #6
+26: call #7 1
+27: printf #13 1
+28: drop
+29: lit #4
+30: call #7 1
+31: printf #13 1
+
+// > decide(true)
+// > invert(true)
+// > decide(false)
+// > false
+// > decide(false)
+// > false

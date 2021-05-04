@@ -1,0 +1,14 @@
+function decide (x) ->
+begin
+    print("decide(~)\n", x);
+    if x then invert(true) else false
+end;
+
+function invert (x) ->
+begin
+    print("invert(~)\n", x);
+    if x then decide(false) else decide(true)
+end;
+
+print("~\n", decide(true));
+print("~\n", decide(false))

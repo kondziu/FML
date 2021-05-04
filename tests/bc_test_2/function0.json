@@ -1,0 +1,1 @@
+{"Top":[{"Function":{"name":"zero","parameters":[],"body":{"Integer":0}}},{"Print":{"format":"~\\n","arguments":[{"CallFunction":{"name":"zero","arguments":[]}}]}}]}

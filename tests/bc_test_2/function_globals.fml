@@ -1,0 +1,7 @@
+function f() ->
+ let d = 5;
+ let a = 1;
+ let b = 2;
+ let c = 3;
+ print("~ ~ ~ ~\n", a, b, c, d);
+f()

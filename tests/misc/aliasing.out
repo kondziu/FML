@@ -1,0 +1,10 @@
+object(a=3, b=2, c=1)
+obj.a=3
+obj.b=2
+obj.c=1
+obj.a=42
+obj.b=13
+obj.c=666
+same_obj.a=42
+same_obj.b=13
+same_obj.c=666

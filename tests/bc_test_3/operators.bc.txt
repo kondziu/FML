@@ -1,0 +1,384 @@
+Constant Pool:
+0: "λ:"
+1: "~ + ~ => ~\n"
+2: 1
+3: -2
+4: "+"
+5: "~ - ~ => ~\n"
+6: "-"
+7: "~ * ~ => ~\n"
+8: "*"
+9: "~ / ~ => ~\n"
+10: "/"
+11: "~ % ~ => ~\n"
+12: "%"
+13: "~ <= ~ => ~\n"
+14: "<="
+15: "~ < ~ => ~\n"
+16: "<"
+17: ">="
+18: ">"
+19: "~ == ~ => ~\n"
+20: "=="
+21: "~ != ~ => ~\n"
+22: "!="
+23: null
+24: true
+25: class 
+26: "~ & ~ => ~\n"
+27: false
+28: "&"
+29: "~ | ~ => ~\n"
+30: "|"
+31: method #0 args:0 locals:0 0000-0307
+Entry: #31
+Globals:
+Code:
+0: lit #2
+1: lit #3
+2: lit #2
+3: lit #3
+4: call slot #4 2
+5: printf #1 3
+6: drop
+7: lit #2
+8: lit #3
+9: lit #2
+10: lit #3
+11: call slot #6 2
+12: printf #5 3
+13: drop
+14: lit #2
+15: lit #3
+16: lit #2
+17: lit #3
+18: call slot #8 2
+19: printf #7 3
+20: drop
+21: lit #2
+22: lit #3
+23: lit #2
+24: lit #3
+25: call slot #10 2
+26: printf #9 3
+27: drop
+28: lit #2
+29: lit #3
+30: lit #2
+31: lit #3
+32: call slot #12 2
+33: printf #11 3
+34: drop
+35: lit #2
+36: lit #3
+37: lit #2
+38: lit #3
+39: call slot #14 2
+40: printf #13 3
+41: drop
+42: lit #2
+43: lit #3
+44: lit #2
+45: lit #3
+46: call slot #16 2
+47: printf #15 3
+48: drop
+49: lit #2
+50: lit #3
+51: lit #2
+52: lit #3
+53: call slot #17 2
+54: printf #13 3
+55: drop
+56: lit #2
+57: lit #3
+58: lit #2
+59: lit #3
+60: call slot #18 2
+61: printf #15 3
+62: drop
+63: lit #2
+64: lit #3
+65: lit #2
+66: lit #3
+67: call slot #20 2
+68: printf #19 3
+69: drop
+70: lit #2
+71: lit #3
+72: lit #2
+73: lit #3
+74: call slot #22 2
+75: printf #21 3
+76: drop
+77: lit #2
+78: lit #23
+79: lit #2
+80: lit #23
+81: call slot #20 2
+82: printf #19 3
+83: drop
+84: lit #2
+85: lit #23
+86: lit #2
+87: lit #23
+88: call slot #20 2
+89: printf #21 3
+90: drop
+91: lit #2
+92: lit #24
+93: lit #2
+94: lit #24
+95: call slot #20 2
+96: printf #19 3
+97: drop
+98: lit #2
+99: lit #24
+100: lit #2
+101: lit #24
+102: call slot #20 2
+103: printf #21 3
+104: drop
+105: lit #2
+106: lit #23
+107: object #25
+108: lit #2
+109: lit #23
+110: object #25
+111: call slot #20 2
+112: printf #19 3
+113: drop
+114: lit #2
+115: lit #23
+116: object #25
+117: lit #2
+118: lit #23
+119: object #25
+120: call slot #22 2
+121: printf #21 3
+122: drop
+123: lit #2
+124: lit #2
+125: lit #2
+126: array
+127: lit #2
+128: lit #2
+129: lit #2
+130: array
+131: call slot #20 2
+132: printf #19 3
+133: drop
+134: lit #2
+135: lit #2
+136: lit #2
+137: array
+138: lit #2
+139: lit #2
+140: lit #2
+141: array
+142: call slot #22 2
+143: printf #21 3
+144: drop
+145: lit #24
+146: lit #27
+147: lit #24
+148: lit #27
+149: call slot #28 2
+150: printf #26 3
+151: drop
+152: lit #24
+153: lit #27
+154: lit #24
+155: lit #27
+156: call slot #30 2
+157: printf #29 3
+158: drop
+159: lit #24
+160: lit #27
+161: lit #24
+162: lit #27
+163: call slot #20 2
+164: printf #19 3
+165: drop
+166: lit #24
+167: lit #27
+168: lit #24
+169: lit #27
+170: call slot #22 2
+171: printf #21 3
+172: drop
+173: lit #24
+174: lit #3
+175: lit #24
+176: lit #3
+177: call slot #20 2
+178: printf #19 3
+179: drop
+180: lit #24
+181: lit #3
+182: lit #24
+183: lit #3
+184: call slot #22 2
+185: printf #21 3
+186: drop
+187: lit #24
+188: lit #23
+189: lit #24
+190: lit #23
+191: call slot #20 2
+192: printf #19 3
+193: drop
+194: lit #24
+195: lit #23
+196: lit #24
+197: lit #23
+198: call slot #20 2
+199: printf #21 3
+200: drop
+201: lit #24
+202: lit #23
+203: object #25
+204: lit #24
+205: lit #23
+206: object #25
+207: call slot #20 2
+208: printf #19 3
+209: drop
+210: lit #24
+211: lit #23
+212: object #25
+213: lit #24
+214: lit #23
+215: object #25
+216: call slot #22 2
+217: printf #21 3
+218: drop
+219: lit #24
+220: lit #2
+221: lit #24
+222: array
+223: lit #24
+224: lit #2
+225: lit #24
+226: array
+227: call slot #20 2
+228: printf #19 3
+229: drop
+230: lit #24
+231: lit #2
+232: lit #24
+233: array
+234: lit #24
+235: lit #2
+236: lit #24
+237: array
+238: call slot #22 2
+239: printf #21 3
+240: drop
+241: lit #23
+242: lit #3
+243: lit #23
+244: lit #3
+245: call slot #20 2
+246: printf #19 3
+247: drop
+248: lit #23
+249: lit #3
+250: lit #23
+251: lit #3
+252: call slot #22 2
+253: printf #21 3
+254: drop
+255: lit #23
+256: lit #23
+257: lit #23
+258: lit #23
+259: call slot #20 2
+260: printf #19 3
+261: drop
+262: lit #23
+263: lit #23
+264: lit #23
+265: lit #23
+266: call slot #20 2
+267: printf #21 3
+268: drop
+269: lit #23
+270: lit #23
+271: object #25
+272: lit #23
+273: lit #23
+274: object #25
+275: call slot #20 2
+276: printf #19 3
+277: drop
+278: lit #23
+279: lit #23
+280: object #25
+281: lit #23
+282: lit #23
+283: object #25
+284: call slot #22 2
+285: printf #21 3
+286: drop
+287: lit #23
+288: lit #2
+289: lit #23
+290: array
+291: lit #23
+292: lit #2
+293: lit #23
+294: array
+295: call slot #20 2
+296: printf #19 3
+297: drop
+298: lit #23
+299: lit #2
+300: lit #23
+301: array
+302: lit #23
+303: lit #2
+304: lit #23
+305: array
+306: call slot #22 2
+307: printf #21 3
+
+// > 1 + -2 => -1
+// > 1 - -2 => 3
+// > 1 * -2 => -2
+// > 1 / -2 => 0
+// > 1 % -2 => 1
+// > 1 <= -2 => false
+// > 1 < -2 => false
+// > 1 <= -2 => true
+// > 1 < -2 => true
+// > 1 == -2 => false
+// > 1 != -2 => true
+// > 1 == null => false
+// > 1 != null => false
+// > 1 == true => false
+// > 1 != true => false
+// > 1 == object() => false
+// > 1 != object() => true
+// > 1 == [1] => false
+// > 1 != [1] => true
+// > true & false => false
+// > true | false => true
+// > true == false => false
+// > true != false => true
+// > true == -2 => false
+// > true != -2 => true
+// > true == null => false
+// > true != null => false
+// > true == object() => false
+// > true != object() => true
+// > true == [true] => false
+// > true != [true] => true
+// > null == -2 => false
+// > null != -2 => true
+// > null == null => true
+// > null != null => true
+// > null == object() => false
+// > null != object() => true
+// > null == [null] => false
+// > null != [null] => true

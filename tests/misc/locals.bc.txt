@@ -1,0 +1,25 @@
+Constant Pool:
+0: "λ:"
+1: 1
+2: 2
+3: 3
+4: "x=~ y=~ z=~\n"
+5: method #0 args:0 locals:3 0000-0012
+Entry: #5
+Globals:
+Code:
+0: lit #1
+1: set local ::0
+2: drop
+3: lit #2
+4: set local ::1
+5: drop
+6: lit #3
+7: set local ::2
+8: drop
+9: get local ::2
+10: get local ::1
+11: get local ::0
+12: printf #4 3
+
+// > x=3 y=2 z=1

@@ -1,0 +1,1 @@
+{"Top":[{"Function":{"name":"one","parameters":["x"],"body":{"AccessVariable":{"name":"x"}}}},{"Print":{"format":"~\\n","arguments":[{"CallFunction":{"name":"one","arguments":[{"Integer":1}]}}]}}]}

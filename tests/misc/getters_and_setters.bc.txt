@@ -1,0 +1,83 @@
+Constant Pool:
+0: "λ:"
+1: null
+2: 3
+3: "a"
+4: slot #3
+5: 2
+6: "b"
+7: slot #6
+8: 1
+9: "c"
+10: slot #9
+11: class #4,#7,#10
+12: "~\n"
+13: "obj.a=~\n"
+14: "obj.b=~\n"
+15: "obj.c=~\n"
+16: 42
+17: 13
+18: 666
+19: method #0 args:0 locals:1 0000-0047
+Entry: #19
+Globals:
+Code:
+0: lit #1
+1: lit #2
+2: lit #5
+3: lit #8
+4: object #11
+5: set local ::0
+6: drop
+7: get local ::0
+8: printf #12 1
+9: drop
+10: get local ::0
+11: get slot #3
+12: printf #13 1
+13: drop
+14: get local ::0
+15: get slot #6
+16: printf #14 1
+17: drop
+18: get local ::0
+19: get slot #9
+20: printf #15 1
+21: drop
+22: get local ::0
+23: lit #16
+24: set slot #3
+25: printf #13 1
+26: drop
+27: get local ::0
+28: lit #17
+29: set slot #6
+30: printf #14 1
+31: drop
+32: get local ::0
+33: lit #18
+34: set slot #9
+35: printf #15 1
+36: drop
+37: get local ::0
+38: get slot #3
+39: printf #13 1
+40: drop
+41: get local ::0
+42: get slot #6
+43: printf #14 1
+44: drop
+45: get local ::0
+46: get slot #9
+47: printf #15 1
+
+// > object(a=3, b=2, c=1)
+// > obj.a=3
+// > obj.b=2
+// > obj.c=1
+// > obj.a=42
+// > obj.b=13
+// > obj.c=666
+// > obj.a=42
+// > obj.b=13
+// > obj.c=666

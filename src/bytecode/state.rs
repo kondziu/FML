@@ -248,7 +248,7 @@ pub struct State {
 impl State {
     pub fn gc_and_allocate(&mut self, object: HeapObject) -> HeapIndex {
         if !self.heap.will_fit(&object) {
-            self.heap.gc(&self.operand_stack, &self.frame_stack)
+            self.heap.gc(&self.operand_stack, &self.frame_stack);
         }
         self.heap.allocate(object)
     }

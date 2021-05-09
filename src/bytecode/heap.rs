@@ -32,7 +32,14 @@ macro_rules! heap_log {
 }
 
 #[derive(Debug)]
-pub struct Heap{ max_size: usize, size: usize, log: Option<File>, memory: Vec<HeapObject>, holes: usize }
+pub struct Heap{
+    max_size: usize,
+    size: usize,
+    log: Option<File>,
+    memory: Vec<HeapObject>,
+    holes: usize,
+    protected_indices: Vec<HeapIndex>
+}
 
 impl Eq for Heap {}
 impl PartialEq for Heap {
@@ -58,10 +65,17 @@ impl Heap {
         self.log = Some(file)
     }
     pub fn new() -> Self {
-        Heap { max_size: 0, log: None, memory: Vec::new(), size: 0, holes: 0 }
+        Heap {
+            max_size: 0,
+            log: None,
+            memory: Vec::new(),
+            size: 0,
+            holes: 0,
+            protected_indices: Vec::new()
+        }
     }
     pub fn will_fit(&self, object: &HeapObject) -> bool {
-        self.size + object.size() > self.max_size && self.max_size != 0
+        (self.size + object.size() <= self.max_size) || (self.max_size == 0)
     }
     pub fn allocate(&mut self, object: HeapObject) -> HeapIndex {
         self.size += object.size();
@@ -70,6 +84,7 @@ impl Heap {
             Current heap size: {}. Max heap size: {}. Object size: {}",
                    object, self.size - object.size(), self.max_size, object.size())
         }
+        // println!("ALLOCATE {}: {}", object.size(), object);
         heap_log!(ALLOCATE -> self.log, self.size);
         if self.holes == 0 {
             self.bump_allocate(object)
@@ -87,6 +102,7 @@ impl Heap {
             if self.memory[i].is_free() {
                 self.holes -= 1;
                 self.size -= HeapObject::Free.size();
+                self.memory.insert(i, object);
                 return HeapIndex::from(i)
             }
         }
@@ -122,7 +138,16 @@ impl Heap {
                 format!("Cannot dereference object from the heap at index: `{}`", index))
     }
     pub fn gc(&mut self, stack: &OperandStack, frames: &FrameStack) {
-        let roots: BTreeSet<HeapIndex> = stack.find_roots().chain(frames.find_roots()).collect();
+        //println!("STARTING GC {}/{}", self.size, self.max_size);
+
+        let roots: BTreeSet<HeapIndex> = stack.find_roots()
+            .chain(frames.find_roots())
+            .chain(self.protected_indices.clone().into_iter())
+            .collect();
+
+        // println!("STACK: {:?}\n", stack);
+        // println!("FRAME_STACK: {:?}\n", frames);
+        // println!("ROOTS {:?}", roots);
 
         // Mark
         let mut visited: HashSet<HeapIndex> = HashSet::new();
@@ -146,10 +171,31 @@ impl Heap {
         let unreachable =
             (0..self.memory.len()).into_iter()
                 .map(|i| HeapIndex::from(i))
-                .filter(|index| reachable.contains(&index))
-                .collect();
+                .filter(|index| !reachable.contains(&index))
+                .collect::<BTreeSet<HeapIndex>>();
+
+        // println!("UNREACHABLE: {:?}\n\n",
+        //          unreachable.iter()
+        //              .map(|index| (index.as_usize(), self.memory.get(index.as_usize()).unwrap()))
+        //              .collect::<Vec<(usize, &HeapObject)>>());
+        //
+        // println!("REACHABLE:   {:?}\n\n",
+        //          reachable.iter()
+        //              .map(|index| (index.as_usize(), self.memory.get(index.as_usize()).unwrap()))
+        //              .collect::<Vec<(usize, &HeapObject)>>());
 
         self.free_all(unreachable);
+
+        // println!("any reachable objects free? {}",
+        //          reachable.iter().any(|index| self.memory[index.as_usize()].is_free()));
+    }
+
+    pub fn gc_protect(&mut self, index: HeapIndex) {
+        self.protected_indices.push(index)
+    }
+
+    pub fn gc_unprotect_all(&mut self) {
+        self.protected_indices.drain(..);
     }
 }
 
@@ -160,7 +206,8 @@ impl From<Vec<HeapObject>> for Heap {
             max_size: 0,
             holes: 0,
             log: None,
-            memory: objects
+            memory: objects,
+            protected_indices: vec![]
         }
     }
 }

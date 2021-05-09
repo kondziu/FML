@@ -161,6 +161,9 @@ pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolInd
     let mut fields = IndexMap::new();
     for name in slots.into_iter().rev() {
         let pointer = state.operand_stack.pop()?;
+        if pointer.is_heap_reference() {
+            state.heap.gc_protect(pointer.into_heap_reference().unwrap());
+        }
         let previous = fields.insert(name.to_owned(), pointer);
         ensure!(previous.is_none(), "Member field `{}` has a non-unique name in object", name)
     }
@@ -171,6 +174,7 @@ pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolInd
     let heap_index = state.gc_and_allocate(HeapObject::new_object(parent, fields, methods)); // TODO simplify
     state.operand_stack.push(Pointer::from(heap_index));
     state.instruction_pointer.bump(program);
+    state.heap.gc_unprotect_all();
     Ok(())
 }
 
@@ -178,6 +182,14 @@ pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolInd
 pub fn eval_array(program: &Program, state: &mut State) -> Result<()> {
     let initializer = state.operand_stack.pop()?;
     let size = state.operand_stack.pop()?;
+
+    if initializer.is_heap_reference() {
+        state.heap.gc_protect(initializer.into_heap_reference().unwrap())
+    }
+
+    if size.is_heap_reference() {
+        state.heap.gc_protect(size.into_heap_reference().unwrap())
+    }
 
     let n = size.as_i32()?;
     bail_if!(n < 0, "Negative value `{}` cannot be used to specify the size of an array.", n);
@@ -188,6 +200,8 @@ pub fn eval_array(program: &Program, state: &mut State) -> Result<()> {
     let heap_index = state.gc_and_allocate(array);
     state.operand_stack.push(Pointer::from(heap_index));
     state.instruction_pointer.bump(program);
+
+    state.heap.gc_unprotect_all();
     Ok(())
 }
 

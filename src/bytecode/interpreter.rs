@@ -168,7 +168,7 @@ pub fn eval_object(program: &Program, state: &mut State, index: &ConstantPoolInd
 
     let parent = state.operand_stack.pop()?;
 
-    let heap_index = state.heap.allocate(HeapObject::new_object(parent, fields, methods)); // TODO simplify
+    let heap_index = state.gc_and_allocate(HeapObject::new_object(parent, fields, methods)); // TODO simplify
     state.operand_stack.push(Pointer::from(heap_index));
     state.instruction_pointer.bump(program);
     Ok(())
@@ -185,7 +185,7 @@ pub fn eval_array(program: &Program, state: &mut State) -> Result<()> {
     let elements = repeat(initializer).take(n as usize).collect();
     let array = HeapObject::from_pointers(elements);
 
-    let heap_index = state.heap.allocate(array);
+    let heap_index = state.gc_and_allocate(array);
     state.operand_stack.push(Pointer::from(heap_index));
     state.instruction_pointer.bump(program);
     Ok(())
@@ -256,6 +256,9 @@ fn dispatch_method(program: &Program, state: &mut State, receiver_pointer: Point
         }
         Pointer::Reference(index) =>
             match state.heap.dereference_mut(&index)? {
+                HeapObject::Free => {
+                    bail!("Attempting to make a reference to freed memory at {}", index)
+                }
                 HeapObject::Array(array) => {
                     dispatch_array_method(array, method_name, argument_pointers)?
                         .push_onto(&mut state.operand_stack);

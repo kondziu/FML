@@ -57,6 +57,11 @@ impl OperandStack {
     pub fn pop_reverse_sequence(&mut self, n: usize) -> Result<Vec<Pointer>> {
         (0..n).map(|_| self.pop()).collect::<Result<Vec<Pointer>>>()
     }
+    pub fn find_roots<'a>(&'a self) -> impl Iterator<Item=HeapIndex> + 'a {
+        self.0.iter()
+            .filter(|pointer| pointer.is_heap_reference())
+            .map(|pointer| pointer.into_heap_reference().unwrap())
+    }
 }
 
 impl From<Vec<Pointer>> for OperandStack {
@@ -92,6 +97,12 @@ impl Frame {
         self.locals[index] = pointer;
         Ok(())
     }
+    // May contain duplicates
+    pub fn find_roots<'a>(&'a self) -> impl Iterator<Item=HeapIndex> + 'a {
+        self.locals.iter()
+            .filter(|pointer| pointer.is_heap_reference())
+            .map(|pointer| pointer.into_heap_reference().unwrap())
+    }
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -116,6 +127,12 @@ impl FrameStack {
     pub fn get_locals_mut(&mut self) -> Result<&mut Frame> {
         self.frames.last_mut()
             .with_context(|| format!("Attempting to access frame from empty stack."))
+    }
+    // May contain duplicates
+    pub fn find_roots<'a>(&'a self) -> impl Iterator<Item=HeapIndex> + 'a {
+        self.frames.iter()
+            .flat_map(|frame| frame.find_roots())
+            .chain(self.globals.find_roots())
     }
 }
 
@@ -203,6 +220,12 @@ impl GlobalFrame {
             .collect::<Result<HashMap<String, Pointer>>>()?;
         Ok(GlobalFrame(globals))
     }
+    // May contain duplicates
+    pub fn find_roots<'a>(&'a self) -> impl Iterator<Item=HeapIndex> + 'a {
+        self.0.iter()
+            .filter(|(_, pointer)| pointer.is_heap_reference())
+            .map(|(_, pointer)| pointer.into_heap_reference().unwrap())
+    }
 }
 
 #[derive(Debug)]
@@ -223,6 +246,13 @@ pub struct State {
 // }
 
 impl State {
+    pub fn gc_and_allocate(&mut self, object: HeapObject) -> HeapIndex {
+        if !self.heap.will_fit(&object) {
+            self.heap.gc(&self.operand_stack, &self.frame_stack)
+        }
+        self.heap.allocate(object)
+    }
+
     // pub fn set_heap_size (mut self, heap_size: usize) -> Self {
     //     self.heap.set_size(heap_size);
     //     self

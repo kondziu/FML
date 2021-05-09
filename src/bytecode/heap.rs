@@ -1,13 +1,14 @@
 use anyhow::*;
 use indexmap::IndexMap;
 
-use crate::bytecode::state::OperandStack;
+use crate::bytecode::state::{OperandStack, FrameStack};
 use crate::bytecode::program::{ProgramObject, ConstantPoolIndex, AddressRange, Arity, Size};
 use std::path::PathBuf;
 use std::fs::{File, create_dir_all};
 use std::time::SystemTime;
 use std::io::Write;
 use std::mem::size_of;
+use std::collections::{HashSet, BTreeSet};
 
 macro_rules! heap_log {
     (START -> $file:expr) => {
@@ -31,7 +32,7 @@ macro_rules! heap_log {
 }
 
 #[derive(Debug)]
-pub struct Heap{ max_size: usize, size: usize, log: Option<File>, memory: Vec<HeapObject> }
+pub struct Heap{ max_size: usize, size: usize, log: Option<File>, memory: Vec<HeapObject>, holes: usize }
 
 impl Eq for Heap {}
 impl PartialEq for Heap {
@@ -57,14 +58,58 @@ impl Heap {
         self.log = Some(file)
     }
     pub fn new() -> Self {
-        Heap { max_size: 0, log: None, memory: Vec::new(), size: 0 }
+        Heap { max_size: 0, log: None, memory: Vec::new(), size: 0, holes: 0 }
+    }
+    pub fn will_fit(&self, object: &HeapObject) -> bool {
+        self.size + object.size() > self.max_size && self.max_size != 0
     }
     pub fn allocate(&mut self, object: HeapObject) -> HeapIndex {
         self.size += object.size();
+        if self.size > self.max_size && self.max_size != 0 {
+            panic!("Cannot allocate object {}. \
+            Current heap size: {}. Max heap size: {}. Object size: {}",
+                   object, self.size - object.size(), self.max_size, object.size())
+        }
         heap_log!(ALLOCATE -> self.log, self.size);
+        if self.holes == 0 {
+            self.bump_allocate(object)
+        } else {
+            self.first_fit_allocate(object)
+        }
+    }
+    fn bump_allocate(&mut self, object: HeapObject) -> HeapIndex {
         let index = HeapIndex::from(self.memory.len());
         self.memory.push(object);
         index
+    }
+    fn first_fit_allocate(&mut self, object: HeapObject) -> HeapIndex {
+        for i in 0..self.memory.len() {
+            if self.memory[i].is_free() {
+                self.holes -= 1;
+                self.size -= HeapObject::Free.size();
+                return HeapIndex::from(i)
+            }
+        }
+        return self.bump_allocate(object);
+    }
+    #[allow(dead_code)]
+    pub fn free(&mut self, index: HeapIndex) {
+        self.size -= self.memory.get(index.as_usize()).unwrap().size();
+        let free_node = HeapObject::Free;
+        self.size += free_node.size();
+        self.holes += 1;
+        self.memory.insert(index.as_usize(), free_node);
+    }
+    pub fn free_all(&mut self, indices: BTreeSet<HeapIndex>) {
+        let removed_size: usize =
+            indices.iter().map(|index| self.memory.get(index.as_usize()).unwrap().size()).sum();
+        self.size -= removed_size;
+        self.size += HeapObject::Free.size() * indices.len();
+        self.holes += indices.len();
+        for index in indices.into_iter() {
+            self.memory.insert(index.as_usize(), HeapObject::Free);
+        }
+        // TODO coalesce at the end of the vector
     }
     pub fn dereference(&self, index: &HeapIndex) -> Result<&HeapObject> {
         self.memory.get(index.as_usize())
@@ -76,6 +121,36 @@ impl Heap {
             .with_context(||
                 format!("Cannot dereference object from the heap at index: `{}`", index))
     }
+    pub fn gc(&mut self, stack: &OperandStack, frames: &FrameStack) {
+        let roots: BTreeSet<HeapIndex> = stack.find_roots().chain(frames.find_roots()).collect();
+
+        // Mark
+        let mut visited: HashSet<HeapIndex> = HashSet::new();
+        let mut todo: Vec<HeapIndex> = roots.into_iter().collect();
+
+        while !todo.is_empty() {
+            let index = todo.pop().unwrap();
+            if visited.contains(&index) {
+                continue;
+            }
+
+            let object = self.dereference(&index).unwrap();
+            let references = object.find_all_heap_references();
+            todo.extend(references.into_iter());
+
+            visited.insert(index);
+        }
+
+        // Sweep
+        let reachable = visited;
+        let unreachable =
+            (0..self.memory.len()).into_iter()
+                .map(|i| HeapIndex::from(i))
+                .filter(|index| reachable.contains(&index))
+                .collect();
+
+        self.free_all(unreachable);
+    }
 }
 
 impl From<Vec<HeapObject>> for Heap {
@@ -83,6 +158,7 @@ impl From<Vec<HeapObject>> for Heap {
         Heap {
             size: objects.iter().map(|o| o.size()).sum(),
             max_size: 0,
+            holes: 0,
             log: None,
             memory: objects
         }
@@ -92,7 +168,8 @@ impl From<Vec<HeapObject>> for Heap {
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum HeapObject {
     Array(ArrayInstance),
-    Object(ObjectInstance)
+    Object(ObjectInstance),
+    Free
 }
 
 impl HeapObject {
@@ -129,12 +206,22 @@ impl HeapObject {
     }
     pub fn evaluate_as_string(&self, heap: &Heap) -> Result<String> {
         match self {
+            HeapObject::Free => Ok("<free>".to_owned()),
             HeapObject::Array(array) => array.evaluate_as_string(heap),
             HeapObject::Object(object) => object.evaluate_as_string(heap),
         }
     }
+    pub fn is_free(&self) -> bool {
+        match self {
+            HeapObject::Free => true,
+            _ => false,
+        }
+    }
     pub fn size(&self) -> usize {
         match self {
+            HeapObject::Free => {
+                size_of::<HeapObject>()
+            }
             HeapObject::Array(array) => {
                 size_of::<ArrayInstance>() + array.length() * size_of::<Pointer>()
             }
@@ -155,11 +242,19 @@ impl HeapObject {
             }
         }
     }
+    pub fn find_all_heap_references(&self) -> BTreeSet<HeapIndex> {
+        match self {
+            HeapObject::Array(instance) => instance.find_all_heap_references(),
+            HeapObject::Object(instance) => instance.find_all_heap_references(),
+            HeapObject::Free => panic!("Attempting to mark area of free memory"),
+        }
+    }
 }
 
 impl std::fmt::Display for HeapObject {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            HeapObject::Free => write!(f, "<free>"),
             HeapObject::Array(array) => write!(f, "{}", array),
             HeapObject::Object(object) => write!(f, "{}", object),
         }
@@ -203,6 +298,12 @@ impl ArrayInstance {
             .map(|element| element.evaluate_as_string(heap))
             .collect::<Result<Vec<String>>>()?;
         Ok(format!("[{}]", elements.join(", ")))
+    }
+    pub fn find_all_heap_references(&self) -> BTreeSet<HeapIndex> {
+        self.0.iter()
+            .filter(|pointer| pointer.is_heap_reference())
+            .map(|pointer| pointer.into_heap_reference().unwrap())
+            .collect()
     }
 }
 
@@ -264,6 +365,12 @@ impl ObjectInstance {
                 Ok(format!("object(..={})", parent)),
             None => Ok(format!("object({})", fields.join(", "))),
         }
+    }
+    pub fn find_all_heap_references(&self) -> BTreeSet<HeapIndex> {
+        self.fields.iter().map(|(_, pointer)| pointer).chain(vec![self.parent].iter())
+            .filter(|pointer| pointer.is_heap_reference())
+            .map(|pointer| pointer.into_heap_reference().unwrap())
+            .collect()
     }
 }
 

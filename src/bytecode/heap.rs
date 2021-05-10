@@ -23,6 +23,12 @@ macro_rules! heap_log {
             write!(file, "{},A,{}\n", timestamp, $memory).unwrap();
         }
     };
+    (PREGC -> $file:expr, $memory:expr) => {
+        if let Some(file) = &mut $file {
+            let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+            write!(file, "{},P,{}\n", timestamp, $memory).unwrap();
+        }
+    };
     (GC -> $file:expr, $memory:expr) => {
         if let Some(file) = &mut $file {
             let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
@@ -140,6 +146,7 @@ impl Heap {
     pub fn gc(&mut self, stack: &OperandStack, frames: &FrameStack) {
         //println!("STARTING GC {}/{}", self.size, self.max_size);
 
+        heap_log!(PREGC -> self.log, self.size);
         let roots: BTreeSet<HeapIndex> = stack.find_roots()
             .chain(frames.find_roots())
             .chain(self.protected_indices.clone().into_iter())
@@ -185,6 +192,7 @@ impl Heap {
         //              .collect::<Vec<(usize, &HeapObject)>>());
 
         self.free_all(unreachable);
+        heap_log!(GC -> self.log, self.size);
 
         // println!("any reachable objects free? {}",
         //          reachable.iter().any(|index| self.memory[index.as_usize()].is_free()));

@@ -51,7 +51,7 @@ impl Heap {
         create_dir_all(dir).unwrap();
 
         let mut file = File::create(path).unwrap();
-        write!(file, "timestamp,event,memory\n").unwrap();
+        write!(file, "timestamp,event,heap\n").unwrap();
 
         heap_log!(START -> Some(&mut file));
         self.log = Some(file)

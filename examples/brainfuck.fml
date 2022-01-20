@@ -1,0 +1,813 @@
+let MEMORY_SIZE = 1024;
+
+/*<*/ let LEFT = 0;
+/*>*/ let RIGHT = 1;
+/*+*/ let PLUS = 2;
+/*-*/ let MINUS = 3;
+/*[*/ let BLOCK_START = 4;
+/*]*/ let BLOCK_END = 5;
+/*.*/ let OUTPUT = 6;
+/*,*/ let INPUT = 7; // unsupported
+
+function interpreter(operations, verbose) ->
+object begin
+    let verbose = verbose;
+
+    // [op, op, op, op, op, op, ..., null]
+    //  ^
+    let operations = operations;
+    let operation_pointer = 0;
+
+    // [..0000000000000000000000000000..|
+    //                 ^
+    let memory = array(MEMORY_SIZE, 0);
+    let memory_pointer = MEMORY_SIZE / 2;
+
+    function current_operation() ->
+    begin
+        let operation = this.operations[this.operation_pointer];
+        this.operation_pointer <- this.operation_pointer + 1;
+        operation
+    end;
+
+    function eval() -> 
+    begin
+        let keep_looping = true;
+        while keep_looping
+        do begin            
+            let result = this.eval_op();
+            if null == result then keep_looping <- false
+            else if false == result 
+            then begin
+                print("ERROR: unmatched end block operation `]` (5).");
+                keep_looping <- false;
+            end;
+        end;
+        if this.verbose then this.print_state();
+    end;
+
+    function eval_op() ->
+    // -> true      continue in current block
+    // -> false     end of block
+    // -> null      end of program or error
+    begin
+        let result = true;
+
+        if this.verbose then this.print_state();
+
+        let op = this.current_operation();  
+        if op == LEFT then this.eval_left()
+        else if op == RIGHT then this.eval_right()
+        else if op == PLUS then this.eval_plus()
+        else if op == MINUS then this.eval_minus()
+        else if op == BLOCK_START then this.eval_block()
+        else if op == BLOCK_END then result <- false
+        else if op == OUTPUT then this.eval_output()
+        else if op == INPUT then this.eval_input()
+        else if op == null then result <- null
+        else begin
+            print("ERROR: unknown operation ~\n", op);
+            result <- null
+        end;
+        result
+    end;
+
+    function eval_left() -> 
+        this.memory_pointer <- this.memory_pointer - 1;
+
+    function eval_right() -> 
+        this.memory_pointer <- this.memory_pointer + 1;
+
+    function eval_plus() -> 
+        this.memory[this.memory_pointer] <- this.memory[this.memory_pointer] + 1;
+
+    function eval_minus() -> 
+        this.memory[this.memory_pointer] <- this.memory[this.memory_pointer] - 1;
+
+    function eval_block() ->    
+    begin        
+        let next_operation_pointer = this.operation_pointer;
+        let keep_looping = true;
+        let result = null;
+        while keep_looping 
+        do begin
+            if 0 != this.memory[this.memory_pointer]
+            then begin 
+                result <- this.really_eval_block();
+                this.operation_pointer <- next_operation_pointer;
+            end
+            else begin 
+                keep_looping <- false;
+                result <- this.fake_eval_block();                       
+            end;
+            
+        end;
+        result  
+    end;
+
+    function really_eval_block() -> 
+    begin
+        let keep_consuming = true;                
+        let result = null;
+
+        while keep_consuming do
+        begin
+            result <- this.eval_op();
+
+            if false == result | null == result
+            then keep_consuming <- false;
+
+            if false == result
+            then result <- true;                
+        end;
+        result
+    end;
+
+    function fake_eval_block() ->
+    begin
+        let keep_consuming = true;                
+        let result = true;
+        let depth = 0;
+
+        while keep_consuming do
+        begin
+            let op = this.current_operation();     
+            if op == null 
+            then begin
+                result <- null;
+                keep_consuming <- false;
+            end
+            else if op == BLOCK_END & depth == 0 
+            then keep_consuming <- false
+            else if op == BLOCK_START 
+            then depth <- depth + 1
+            else if op == BLOCK_END 
+            then depth <- depth - 1;
+        end;
+
+        result
+    end;
+
+    function eval_output() -> 
+    begin
+        let character = this.memory[this.memory_pointer];
+        
+             if character == 10  then print("\n")
+        else if character == 11  then print("\t")
+        else if character == 13  then print("\r")
+        else if character == 32  then print(" ")
+        else if character == 33  then print("!")
+        else if character == 34  then print("\"")
+        else if character == 35  then print("#")
+        else if character == 36  then print("$")
+        else if character == 37  then print("%")
+        else if character == 38  then print("&")
+        else if character == 39  then print("'")
+        else if character == 40  then print("(")
+        else if character == 41  then print(")")
+        else if character == 42  then print("*")
+        else if character == 43  then print("+")
+        else if character == 44  then print(",")
+        else if character == 45  then print("-")
+        else if character == 46  then print(".")
+        else if character == 47  then print("/")
+        else if character == 48  then print("0")
+        else if character == 49  then print("1")
+        else if character == 50  then print("2")
+        else if character == 51  then print("3")
+        else if character == 52  then print("4")
+        else if character == 53  then print("5")
+        else if character == 54  then print("6")
+        else if character == 55  then print("7")
+        else if character == 56  then print("8")
+        else if character == 57  then print("9")
+        else if character == 58  then print(":")
+        else if character == 59  then print(";")
+        else if character == 60  then print("<")
+        else if character == 61  then print("=")
+        else if character == 62  then print(">")
+        else if character == 63  then print("?")
+        else if character == 64  then print("@")
+        else if character == 65  then print("A")
+        else if character == 66  then print("B")
+        else if character == 67  then print("C")
+        else if character == 68  then print("D")
+        else if character == 69  then print("E")
+        else if character == 70  then print("F")
+        else if character == 71  then print("G")
+        else if character == 72  then print("H")
+        else if character == 73  then print("I")
+        else if character == 74  then print("J")
+        else if character == 75  then print("K")
+        else if character == 76  then print("L")
+        else if character == 77  then print("M")
+        else if character == 78  then print("N")
+        else if character == 79  then print("O")
+        else if character == 80  then print("P")
+        else if character == 81  then print("Q")
+        else if character == 82  then print("R")
+        else if character == 83  then print("S")
+        else if character == 84  then print("T")
+        else if character == 85  then print("U")
+        else if character == 86  then print("V")
+        else if character == 87  then print("W")
+        else if character == 88  then print("X")
+        else if character == 89  then print("Y")
+        else if character == 80  then print("Z")
+        else if character == 91  then print("[")
+        else if character == 92  then print("\\")
+        else if character == 93  then print("]")
+        else if character == 94  then print("^")
+        else if character == 95  then print("_")
+        else if character == 96  then print("`")
+        else if character == 97  then print("a")
+        else if character == 98  then print("b")
+        else if character == 99  then print("c")
+        else if character == 100 then print("d")
+        else if character == 101 then print("e")
+        else if character == 102 then print("f")
+        else if character == 103 then print("g")
+        else if character == 104 then print("h")
+        else if character == 105 then print("i")
+        else if character == 106 then print("j")
+        else if character == 107 then print("k")
+        else if character == 108 then print("l")
+        else if character == 109 then print("m")
+        else if character == 110 then print("n")
+        else if character == 111 then print("o")
+        else if character == 112 then print("p")
+        else if character == 113 then print("q")
+        else if character == 114 then print("r")
+        else if character == 115 then print("s")
+        else if character == 116 then print("t")
+        else if character == 117 then print("u")
+        else if character == 118 then print("v")
+        else if character == 119 then print("w")
+        else if character == 120 then print("x")
+        else if character == 121 then print("y")
+        else if character == 122 then print("z")
+        else if character == 123 then print("{")
+        else if character == 124 then print("|")
+        else if character == 125 then print("}")
+        else if character == 126 then print("\~") 
+        // That's as much as I feel like putting in.        
+        else print("<~>", character);
+    end;
+
+    function eval_input() ->
+    begin
+        print("Input operation `,` (7) not supported.");
+        null
+    end;
+
+    function print_state() -> 
+    begin
+        print("\nOPs [");
+
+        let i = 0;
+        let keep_looping = true;
+
+        while keep_looping
+        do begin                        
+            if i != 0 then print("|");
+            if i == this.operation_pointer then print("*");
+
+            let op = this.operations[i];
+
+                 if LEFT == op then print("<")
+            else if RIGHT == op then print(">")
+            else if PLUS == op then print("+")
+            else if MINUS == op then print("-")
+            else if BLOCK_START == op then print("[")
+            else if BLOCK_END == op then print("]")
+            else if OUTPUT == op then print(".")
+            else if INPUT == op then print(",")
+            else if null == op then begin print("null"); keep_looping <- false; end
+            else print("~", op);
+
+            i <- i + 1;            
+        end;
+
+        print("]\n");
+
+        print("MEM [");
+
+        i <- 0;        
+        while i < MEMORY_SIZE 
+        do begin
+            if i != 0 then print("|");
+            if i == this.memory_pointer then print("*");
+            print("~", this.memory[i]);
+            i <- i + 1;            
+        end;
+
+        print("]\n");
+
+    end;
+end;
+
+/***********************************
+Yukko's second haiku
++++++ [ > +++++ [ > ++++ <- ] <- ]
++++++ [ > ++++++ <- ] > ++ <         
++++++ +++++                           
+
+>> ++ ++                         .   
+   ++ ++ +++                     .
+   ++++ ++++                     .
+<                                .
+>  - - -                         .
+   -----                         .
+<                                .
+>  ++ ++                         .
+   - - -                         .
+   --- ----- ---                 .
+   ++  +++++  ++                 .
+   --- -- --  ---                .
+<<                               .
+>  .  .  .                       .
+>  ++++ +++ ++ +++ ++++          .
+   - -- - - -- - - -- -          .
+   +                             .
+   ++ ++   +  +   ++ ++          .
+<                                .
+>  +                             .
+   ---- --- ----                 .
+   +    + +    +                 .
+   --  -- --  --                 .
+<<                               .
+>  .  .  .  .  .  .  .           .
+>  ++ ++ ++ ++                   .
+   ++                            .
+   -- -- -- --                   .
+   - - - - - -                   .
+   ++++ ++++ ++++                . 
+             ----                .
+<                                .
+>  ++   +   +++   +   ++         .
+   ---      ---      ---         .
+   +  +++++  +  +++++  +         .
+   -- ------ - ------ --         .
+         +++++ +++ +++++         .
+<<                               .
+                                 .
+>  . ..  .. . .. .. .            .
+   ++++  ++ + ++ ++++            .
+                                 .
+   ----  -- - -- ----            .
+>  +++      +     +++            .
+   ---      -                    .
+   ----------                   ..
+   + + + +                      .
+<<                              ..
+**********************************/
+/* Bash pipeline to convert bf program to vector.
+ * tr -cd '].,+[<>-' | fold -w1 | gawk '$0=="-"{print "MINUS"; next}$0=="+"{print "PLUS"; next}$0=="."{print "OUTPUT"; next}$0==","{print "INPUT"; next}$0=="["{print "BLOCK_START"; next}$0=="]"{print "BLOCK_END"; next}$0=="<"{print "LEFT"; next}$0==">"{print "RIGHT"; next}' | gawk '{print "program[i <- i + 1] <- " $1 ";"}'
+ */
+function program() ->
+begin
+    let program = array(430, null);
+    let i = -1;
+
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- BLOCK_START;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- BLOCK_START;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- BLOCK_END;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- BLOCK_END;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- BLOCK_START;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- BLOCK_END;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- RIGHT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- MINUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- PLUS;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- LEFT;
+    program[i <- i + 1] <- OUTPUT;
+    program[i <- i + 1] <- OUTPUT;
+    
+    program[i <- i + 1] <- null;
+
+    program
+end;
+
+interpreter(program(), false).eval();
+
+// > how to spend
+// >     this time
+// >         mogami river
+// > 
+// >             -- yukko
+// > 

@@ -333,6 +333,12 @@ impl ProgramObject {
             pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
         }
     }
+    pub fn get_method_length(&self) -> anyhow::Result<usize> {
+        match self {                                                                                // FIXME there's gotta be a way to do this cleaner. perhaps locally defined function?
+            ProgramObject::Method { code, .. } => Ok(code.length),
+            pointer => Err(anyhow::anyhow!("Expected a Method but found `{}`", pointer)),
+        }
+    }
     pub fn as_slot_index(&self) -> anyhow::Result<&ConstantPoolIndex> {
         match self {
             ProgramObject::Slot { name } => Ok(name),
@@ -480,7 +486,7 @@ impl Code {
     pub fn extend(&mut self, code: Code) -> (Address, usize) {
         let first = self.upcoming_address();
         let length = code.length();
-        //println!("code {} {:?}", length, code.0);
+        // println!("code {} {} {:?}", first, length, code.0);
         self.0.extend(code.0.into_iter());
         (first, length)
     }

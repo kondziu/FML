@@ -238,9 +238,14 @@ impl State {
         let entry_method = program.constant_pool.get(&entry_index)
             .with_context(|| format!("Cannot find entry method."))?;
         let entry_address = entry_method.get_method_start_address()?;
+        let entry_length = entry_method.get_method_length()?;
         let entry_locals = entry_method.get_method_locals()?;
 
-        let instruction_pointer = InstructionPointer::from(*entry_address);
+        let instruction_pointer = if entry_length > 0 { 
+            InstructionPointer::from(*entry_address) 
+        } else { 
+            InstructionPointer::new()
+        };
 
         let global_objects = program.globals.iter()
             .map(|index| {

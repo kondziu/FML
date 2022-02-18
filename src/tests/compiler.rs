@@ -450,12 +450,13 @@ use crate::bytecode::compiler::*;
 
     let program = ast.compile(&mut global_environment, &mut current_frame).unwrap();
 
-    let expected_global_environment = Environment::new();
+    let mut expected_global_environment = Environment::new();    
+    expected_global_environment.generate_unique_number();
     let expected_current_frame = Frame::from_locals_at(
         vec![
-            "::size".to_string(),
-            "::array".to_string(),
-            "::i".to_string()
+            "::size_0".to_string(),
+            "::array_0".to_string(),
+            "::i_0".to_string()
         ], 0);
 
     let expected_code = Code::from(vec!(

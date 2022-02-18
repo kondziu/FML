@@ -126,11 +126,12 @@ pub struct Environment {
     locals: HashMap<(Scope, String), LocalFrameIndex>,
     scopes: Vec<Scope>,
     scope_sequence: Scope,
+    unique_number: usize,
 }
 
 impl Environment {
     pub fn new() -> Self {
-        Environment { locals: HashMap::new(), scopes: vec!(0), scope_sequence: 0 }
+        Environment { locals: HashMap::new(), scopes: vec!(0), scope_sequence: 0, unique_number: 0 }
     }
 
     pub fn from_locals(locals: Vec<String>) -> Self {
@@ -140,7 +141,7 @@ impl Environment {
             local_map.insert((0, local), LocalFrameIndex::from_usize(i));
         }
 
-        Environment { locals: local_map, scopes: vec!(0), scope_sequence: 0 }
+        Environment { locals: local_map, scopes: vec!(0), scope_sequence: 0, unique_number: 0 }
     }
 
 
@@ -151,11 +152,17 @@ impl Environment {
             local_map.insert((level, local), LocalFrameIndex::from_usize(i));
         }
 
-        Environment { locals: local_map, scopes: vec!(0), scope_sequence: level + 1 }
+        Environment { locals: local_map, scopes: vec!(0), scope_sequence: level + 1, unique_number: 0 }
     }
 
     fn current_scope(&self) -> Scope {
         *self.scopes.last().expect("Cannot pop from empty scope stack")
+    }
+
+    pub fn generate_unique_number(&mut self) -> usize {
+        let number = self.unique_number;
+        self.unique_number +=1 ;
+        number
     }
 
     fn register_new_local(&mut self, id: &str) -> Result<LocalFrameIndex, String> {
@@ -372,9 +379,10 @@ impl Compiled for AST {
                         active_buffer.emit_unless(OpCode::Drop, keep_result);
                     },
                     _ => {
-                        let i_id = Identifier::from("::i");
-                        let size_id = Identifier::from("::size");
-                        let array_id = Identifier::from("::array");
+                        let unique_number = global_environment.generate_unique_number();
+                        let i_id = Identifier::from(format!("::i_{}", unique_number));
+                        let size_id = Identifier::from(format!("::size_{}", unique_number));
+                        let array_id = Identifier::from(format!("::array_{}", unique_number));
 
                         // let ::size = eval SIZE;
                         let size_definition =

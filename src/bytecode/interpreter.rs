@@ -320,6 +320,14 @@ fn dispatch_integer_method(receiver: &i32, method_name: &str, argument_pointers:
         ("eq", _) => Pointer::from(false),
         ("neq", _) => Pointer::from(true),
 
+        (method, argument) if method == "+" || method == "-" || method == "*" || method == "/" 
+        || method == "%" || method == "<=" || method == ">=" || method == "<" || method == ">" 
+        || method == "add" || method == "sub" || method == "mul" || method == "div" 
+        || method == "mod" || method == "le" || method == "ge" || method == "lt" || method == "le" => {
+            bail!("Call method error: method {} is not defined in object `{}` for argument `{}` (expecting integer argument)", 
+                  method, receiver, argument)
+        }
+
         _ => bail!("Call method error: no method `{}` in object `{}`", method_name, receiver),
     };
     Ok(result)
@@ -345,6 +353,11 @@ fn dispatch_boolean_method(receiver: &bool, method_name: &str, argument_pointers
         ("neq", Pointer::Boolean(argument)) => Pointer::from(*receiver != *argument),
         ("eq",  _) => Pointer::from(false),
         ("neq", _) => Pointer::from(true),
+
+        (method, argument) if method == "&" || method == "|" || method == "and" || method == "or" => {
+            bail!("Call method error: method {} is not defined in object `{}` for argument `{}` (expecting boolean argument)", 
+                  method, receiver, argument)
+        }
 
         _ => bail!("Call method error: no method `{}` in object `{}`",  method_name, receiver),
     };

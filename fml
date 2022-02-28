@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Some basic usage of the runtime
+CMD="rlwrap target/release/fml"
+
+# Some boolean logic
+function is_defined {
+    [ -z $1 ] && echo false || echo true
+}
+function not {
+    $1 && echo false || echo true
+}
+function with_default {
+    case $# in
+    0) echo -n "";;
+    1) echo -n "$1";;
+    2) $(is_defined "$1") && echo -n "$1" || echo -n "$2";;
+    *) echo "with_default accepts 2 arguments, but $# were given" &>2; exit 2;;
+    esac
+}
+
+# Check if either the compiler or parser are defined by environemntal variables.
+parser_defined=$(is_defined ${PARSER})
+compiler_defined=$(is_defined ${COMPILER})
+interpreter_defined=$(is_defined ${INTERPRETER})
+
+# Fill in the blanks
+parser=$(with_default "$PARSER" "$CMD")
+compiler=$(with_default "$COMPILER" "$CMD")
+interpreter=$(with_default "$INTERPRETER" "$CMD")
+
+# WARNING: does not take additional arguments
+function run {
+    input="$1"
+    basename=$(with_default "${input%.*}" "program")
+
+    parse "$input" -o "${basename}.json" --format=JSON && \
+    compile "${basename}.json" -o "${basename}.bc" && \
+    execute "${basename}.bc"
+}
+
+function parse {
+    $parser parse $@        # XXX: this might not work if there are spaces in filenames
+}
+
+function compile {
+    $compiler compile $@    # XXX: this might not work if there are spaces in filenames
+}
+
+function execute {
+    $interpreter execute $@ # XXX: this might not work if there are spaces in filenames
+}
+
+# If no command given, print help and exit.
+if [ -z $1 ] 
+then
+    $CMD --help
+    exit $?
+fi
+
+# No custom processors specified: run the underlying command without changes
+if $(not $parser_defined) && $(not $compiler_defined) && $(not interpreter_defined)
+then
+    $CMD $@
+fi
+
+# Run with substituted elements, first extract command and input file (if any)
+command="$1"; shift
+input="$1"; shift
+
+case $command in
+    run) run "$input";;
+    parse) parse "$input" "$@";;
+    compile) compile "$input" "$@";;
+    execute) execute "$input" "$@";;
+    *) echo "Unknown command $command: with a specified custom parser, compiler, or interpreter I understand commands: run, parse, compile, and execute"
+esac

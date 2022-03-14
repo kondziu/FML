@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 
 use crate::bytecode::state::OperandStack;
 use crate::bytecode::program::{ProgramObject, ConstantPoolIndex, AddressRange, Arity, Size};
+
 use std::path::PathBuf;
 use std::fs::{File, create_dir_all};
 use std::time::SystemTime;
@@ -251,7 +252,11 @@ impl ObjectInstance {
             parent => Some(parent.evaluate_as_string(heap)?),
         };
 
-        let fields = self.fields.iter()
+        // Sort fields in lexographical order
+        let mut sorted_fields: Vec<(&String, &Pointer)> = self.fields.iter().collect();
+        sorted_fields.sort_by_key(|(name, _)| *name);
+
+        let fields = sorted_fields.into_iter()
             .map(|(name, value)| {
                 value.evaluate_as_string(heap).map(|value| format!("{}={}", name, value))
             })

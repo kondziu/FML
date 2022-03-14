@@ -59,7 +59,7 @@ then
 fi
 
 # No custom processors specified: run the underlying command without changes
-if $(not $parser_defined) && $(not $compiler_defined) && $(not interpreter_defined)
+if $(not $parser_defined) && $(not $compiler_defined) && $(not $interpreter_defined)
 then
     $CMD $@
 fi

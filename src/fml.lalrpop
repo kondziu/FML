@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use std::collections::VecDeque;
 
 use crate::parser::AST;
 use crate::parser::Operator;
@@ -67,13 +66,7 @@ pub TopLevel: AST = {
                                        => AST::top(vec![AST::null()]),
 }
 
-TopLevelExpressions: Vec<AST> = {
-    <element: TopLevelExpression<"open">> <elements: (SEMICOLON <TopLevelExpression<"open">>)*> SEMICOLON? => {
-        let mut all = VecDeque::from(elements);
-        all.push_front(element);
-        Vec::from(all)
-    }
-}
+TopLevelExpressions = SeparatedOnePlus<TopLevelExpression<"open">,  SEMICOLON>;
 
 TopLevelExpression<openness>: AST = {
     FunctionDefinition<openness>      => <>, // Feeny-style function definition, returns unit?
@@ -87,13 +80,7 @@ TopLevelExpression<openness>: AST = {
     Operation                         => <>, // operations, but this also leads to Accessible
 }
 
-Expressions: Vec<AST> = {
-    <element: Expression<"open">> <elements: (SEMICOLON <Expression<"open">>)*> SEMICOLON? => {
-        let mut all = VecDeque::from(elements);
-        all.push_front(element);
-        Vec::from(all)
-    }
-}
+Expressions = SeparatedOnePlus<Expression<"open">, SEMICOLON>;
 
 Expression<openness>: AST = {
     //FunctionDefinition<openness>      => <>, // Feeny-style function definition, returns unit?
@@ -221,10 +208,6 @@ Conditional<openness>: AST = {
 
 Print: AST = { // TODO format string check
     PRINT LPAREN <format: String> <arguments: (COMMA <Arguments>)?> RPAREN => {
-        // let boxed_arguments: Vec<Box<AST>> = match arguments {
-        //     Some(arguments) => arguments.into_iter().map( | e | Box::new(e)).collect(),
-        //     None => vec!(),
-        // };
         AST::print(format, arguments.unwrap_or(vec![]))
     }
 }
@@ -234,12 +217,7 @@ ObjectDefinition: AST = {
         AST::object(extends.unwrap_or(AST::Null), members)
 }
 
-Members: Vec<AST> = {
-    BEGIN <elements: (<Member> SEMICOLON)*> <element: Member?> END => match element {
-        None => elements,
-        Some(e) => { let mut elements = elements; elements.push(e); elements }
-    }
-}
+Members = BEGIN <Separated<Member, SEMICOLON>> END;
 
 Field: AST = {
     <object: Accessible> DOT <objects: (<Ident> DOT)*> <field: Ident> => {
@@ -280,13 +258,7 @@ OperatorDefinition<openness>: AST = {
         AST::operator(operator, parameters, body)
 }
 
-Parameters: Vec<Identifier> = {
-    LPAREN <elements: (<Ident> COMMA)*> <element: Ident?> RPAREN =>
-        match element {
-            None => elements,
-            Some(e) => { let mut elements = elements; elements.push(e); elements }
-        }
-}
+Parameters = LPAREN <Separated<Ident, COMMA>> RPAREN;
 
 IdentOrPrint: Identifier = {
     Ident => <>,
@@ -295,30 +267,21 @@ IdentOrPrint: Identifier = {
 
 Application: AST = {
     <function: Ident> LPAREN <arguments: Arguments> RPAREN => {
-        // let boxed_arguments: Vec<Box<AST>> =
-        //     arguments.into_iter().map(|e| Box::new(e)).collect();
         AST::call_function(function, arguments)
     },
     <object: Accessible> DOT <fields: (<Ident> DOT)*> <method: IdentOrPrint> LPAREN <arguments: Arguments> RPAREN => {
         let tail = Vec::from(fields);
         let host: AST = tail.into_iter().fold(object, |left, right| AST::access_field(left, right));
-        // let boxed_arguments: Vec<Box<AST>> = arguments.into_iter().map(|e| Box::new(e)).collect();
         AST::call_method(host, method, arguments)
     },
     <object: Accessible> DOT <fields: (<Ident> DOT)*> <operator: Operator> LPAREN <arguments: Arguments> RPAREN => {
         let tail = Vec::from(fields);
         let host: AST = tail.into_iter().fold(object, |left, right| AST::access_field (left, right));
-        //let boxed_arguments: Vec<Box<AST>> = arguments.into_iter().map(|e| Box::new(e)).collect();
         AST::call_operator(host, operator, arguments)
     }
 }
 
-Arguments: Vec<AST> = {
-    <elements: (<Expression<"open">> COMMA)*> <element: Expression<"open">?> => match element {
-        None => elements,
-        Some(e) => { let mut elements = elements; elements.push(e); elements }
-    }
-}
+Arguments = Separated<Expression<"open">, COMMA>;
 
 Assignment<openness>: AST = {
     LET <id: Ident> BE <v: Expression<openness>> =>
@@ -364,3 +327,15 @@ Boolean: AST = {
 Unit: AST = {
     UNIT                                 => AST::null(),
 }
+
+// Macros
+Separated<T, S>: Vec<T> = {
+    <mut v: (<T> S)*> <e: T?> => match e {
+        None => v,
+        Some(e) => { v.push(e); v }
+    }
+}
+
+SeparatedOnePlus<T, S>: Vec<T> = {
+    <mut v: (<T> S)*> <e: T> S? => { v.push(e); v }
+};

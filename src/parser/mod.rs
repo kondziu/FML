@@ -1,8 +1,8 @@
-use std::fmt::Debug;
+use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
-use serde::{Serialize, Deserialize};
+use std::fmt::Debug;
 
-#[derive(PartialEq,Debug,Serialize,Deserialize,Clone)]
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum AST {
     Integer(i32),
     Boolean(bool),
@@ -22,14 +22,12 @@ pub enum AST {
 
     Function { name: Identifier, parameters: Vec<Identifier>, body: Box<AST> },
     //Operator { operator: Operator, parameters: Vec<Identifier>, body: Box<AST> },    // TODO Consider merging with function
-
     CallFunction { name: Identifier, arguments: Vec<Box<AST>> },
     CallMethod { object: Box<AST>, name: Identifier, arguments: Vec<Box<AST>> },
     //CallOperator { object: Box<AST>, operator: Operator, arguments: Vec<Box<AST>> }, // TODO Consider removing
     //Operation { operator: Operator, left: Box<AST>, right: Box<AST> },               // TODO Consider removing
-
-    Top (Vec<Box<AST>>),
-    Block (Vec<Box<AST>>),
+    Top(Vec<Box<AST>>),
+    Block(Vec<Box<AST>>),
     Loop { condition: Box<AST>, body: Box<AST> },
     Conditional { condition: Box<AST>, consequent: Box<AST>, alternative: Box<AST> },
 
@@ -39,7 +37,6 @@ pub enum AST {
 impl AST {
     pub fn integer(i: i32) -> Self {
         Self::Integer(i)
-
     }
     pub fn boolean(b: bool) -> Self {
         Self::Boolean(b)
@@ -78,18 +75,14 @@ impl AST {
     }
 
     pub fn assign_field(object: AST, field: Identifier, value: AST) -> Self {
-        Self::AssignField {
-            object: object.into_boxed(),
-            field,
-            value: value.into_boxed()
-        }
+        Self::AssignField { object: object.into_boxed(), field, value: value.into_boxed() }
     }
 
     pub fn assign_array(array: AST, index: AST, value: AST) -> Self {
         Self::AssignArray {
             array: array.into_boxed(),
             index: index.into_boxed(),
-            value: value.into_boxed()
+            value: value.into_boxed(),
         }
     }
 
@@ -106,17 +99,14 @@ impl AST {
     }
 
     pub fn call_method(object: AST, name: Identifier, arguments: Vec<AST>) -> Self {
-        Self::CallMethod {
-            object: object.into_boxed(),
-            name,
-            arguments: arguments.into_boxed() }
+        Self::CallMethod { object: object.into_boxed(), name, arguments: arguments.into_boxed() }
     }
 
     pub fn call_operator(object: AST, operator: Operator, arguments: Vec<AST>) -> Self {
         Self::CallMethod {
             object: object.into_boxed(),
             name: Identifier::from(operator),
-            arguments: arguments.into_boxed()
+            arguments: arguments.into_boxed(),
         }
     }
 
@@ -125,11 +115,11 @@ impl AST {
         Self::CallMethod {
             object: left.into_boxed(),
             name: Identifier::from(operator),
-            arguments: vec![right.into_boxed()]
+            arguments: vec![right.into_boxed()],
         }
     }
 
-    pub fn top (statements: Vec<AST>) -> Self {
+    pub fn top(statements: Vec<AST>) -> Self {
         Self::Top(statements.into_boxed())
     }
 
@@ -145,7 +135,7 @@ impl AST {
         Self::Conditional {
             condition: condition.into_boxed(),
             consequent: consequent.into_boxed(),
-            alternative: alternative.into_boxed()
+            alternative: alternative.into_boxed(),
         }
     }
 
@@ -154,7 +144,7 @@ impl AST {
     }
 }
 
-#[derive(PartialEq,Eq,Hash,Debug,Clone,Serialize,Deserialize)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Serialize, Deserialize)]
 pub struct Identifier(pub String);
 
 impl From<Operator> for Identifier {
@@ -182,10 +172,12 @@ impl std::fmt::Display for Identifier {
 }
 
 impl Identifier {
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
-#[derive(PartialEq,Debug,Copy,Clone,Serialize,Deserialize)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Operator {
     Multiplication,
     Division,
@@ -206,18 +198,18 @@ impl Operator {
     pub fn as_str(&self) -> &str {
         match self {
             Operator::Multiplication => "*",
-            Operator::Division       => "/",
-            Operator::Module         => "%",
-            Operator::Addition       => "+",
-            Operator::Subtraction    => "-",
-            Operator::Inequality     => "!=",
-            Operator::Equality       => "==",
-            Operator::Less           => "<",
-            Operator::LessEqual      => "<=",
-            Operator::Greater        => ">",
-            Operator::GreaterEqual   => ">=",
-            Operator::Disjunction    => "|",
-            Operator::Conjunction    => "&",
+            Operator::Division => "/",
+            Operator::Module => "%",
+            Operator::Addition => "+",
+            Operator::Subtraction => "-",
+            Operator::Inequality => "!=",
+            Operator::Equality => "==",
+            Operator::Less => "<",
+            Operator::LessEqual => "<=",
+            Operator::Greater => ">",
+            Operator::GreaterEqual => ">=",
+            Operator::Disjunction => "|",
+            Operator::Conjunction => "&",
         }
     }
 }
@@ -225,19 +217,19 @@ impl Operator {
 impl From<&str> for Operator {
     fn from(s: &str) -> Self {
         match s {
-            "*"  => Operator::Multiplication,
-            "/"  => Operator::Division,
-            "%"  => Operator::Module,
-            "+"  => Operator::Addition,
-            "-"  => Operator::Subtraction,
+            "*" => Operator::Multiplication,
+            "/" => Operator::Division,
+            "%" => Operator::Module,
+            "+" => Operator::Addition,
+            "-" => Operator::Subtraction,
             "!=" => Operator::Inequality,
             "==" => Operator::Equality,
-            "<"  => Operator::Less,
+            "<" => Operator::Less,
             "<=" => Operator::LessEqual,
-            ">"  => Operator::Greater,
+            ">" => Operator::Greater,
             ">=" => Operator::GreaterEqual,
-            "|"  => Operator::Disjunction,
-            "&"  => Operator::Conjunction,
+            "|" => Operator::Disjunction,
+            "&" => Operator::Conjunction,
 
             other => panic!("Cannot parse {} as Operator", other),
         }
@@ -261,20 +253,19 @@ macro_rules! make_operator_ast {
     ( $head:expr, $tail:expr ) => {
         ($tail).into_iter().fold($head, |left, right| {
             let (operator, value) = right;
-            AST::Operation {
-                operator: operator,
-                left: Box::new(left),
-                right: Box::new(value)}
+            AST::Operation { operator: operator, left: Box::new(left), right: Box::new(value) }
         })
-    }
+    };
 }
 
 impl AST {
-    pub fn from_binary_expression(first_operand: AST, other_operators_and_operands: Vec<(Operator, AST)>) -> Self {
-        other_operators_and_operands.into_iter()
-            .fold(first_operand, |left, (operator, right)| {
-                AST::operation(operator, left, right)
-            })
+    pub fn from_binary_expression(
+        first_operand: AST,
+        other_operators_and_operands: Vec<(Operator, AST)>,
+    ) -> Self {
+        other_operators_and_operands
+            .into_iter()
+            .fold(first_operand, |left, (operator, right)| AST::operation(operator, left, right))
     }
 }
 

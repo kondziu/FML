@@ -1,5 +1,5 @@
-use crate::bytecode::program::*;
 use crate::bytecode::heap::*;
+use crate::bytecode::program::*;
 use std::collections::{HashMap, HashSet};
 
 use anyhow::*;
@@ -10,7 +10,9 @@ use std::io::Write as IOWrite;
 #[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Copy)]
 pub struct InstructionPointer(Option<Address>);
 impl InstructionPointer {
-    pub fn new() -> Self { InstructionPointer(None) }
+    pub fn new() -> Self {
+        InstructionPointer(None)
+    }
     pub fn bump(&mut self, program: &Program) {
         if let Some(address) = self.0 {
             self.0 = program.code.next(address)
@@ -24,22 +26,32 @@ impl InstructionPointer {
     }
 }
 impl From<Address> for InstructionPointer {
-    fn from(address: Address) -> Self { InstructionPointer(Some(address)) }
+    fn from(address: Address) -> Self {
+        InstructionPointer(Some(address))
+    }
 }
 impl From<&Address> for InstructionPointer {
-    fn from(address: &Address) -> Self { InstructionPointer(Some(address.clone())) }
+    fn from(address: &Address) -> Self {
+        InstructionPointer(Some(address.clone()))
+    }
 }
 impl From<u32> for InstructionPointer {
-    fn from(n: u32) -> Self { InstructionPointer(Some(Address::from_u32(n))) }
+    fn from(n: u32) -> Self {
+        InstructionPointer(Some(Address::from_u32(n)))
+    }
 }
 impl From<usize> for InstructionPointer {
-    fn from(n: usize) -> Self { InstructionPointer(Some(Address::from_usize(n))) }
+    fn from(n: usize) -> Self {
+        InstructionPointer(Some(Address::from_usize(n)))
+    }
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone)]
 pub struct OperandStack(Vec<Pointer>);
 impl OperandStack {
-    pub fn new() -> Self { OperandStack(Vec::new()) }
+    pub fn new() -> Self {
+        OperandStack(Vec::new())
+    }
     pub fn push(&mut self, pointer: Pointer) {
         self.0.push(pointer)
     }
@@ -52,7 +64,10 @@ impl OperandStack {
     #[allow(dead_code)]
     pub fn pop_sequence(&mut self, n: usize) -> Result<Vec<Pointer>> {
         let result = (0..n).map(|_| self.pop()).collect::<Result<Vec<Pointer>>>();
-        result.map(|mut sequence| {sequence.reverse(); sequence})
+        result.map(|mut sequence| {
+            sequence.reverse();
+            sequence
+        })
     }
     pub fn pop_reverse_sequence(&mut self, n: usize) -> Result<Vec<Pointer>> {
         (0..n).map(|_| self.pop()).collect::<Result<Vec<Pointer>>>()
@@ -66,7 +81,10 @@ impl From<Vec<Pointer>> for OperandStack {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct Frame { pub(crate) return_address: Option<Address>, locals: Vec<Pointer> }
+pub struct Frame {
+    pub(crate) return_address: Option<Address>,
+    locals: Vec<Pointer>,
+}
 impl Frame {
     pub fn new() -> Self {
         Frame { locals: Vec::new(), return_address: None }
@@ -95,13 +113,18 @@ impl Frame {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct FrameStack { pub globals: GlobalFrame, pub functions: GlobalFunctions, frames: Vec<Frame> }
+pub struct FrameStack {
+    pub globals: GlobalFrame,
+    pub functions: GlobalFunctions,
+    frames: Vec<Frame>,
+}
 impl FrameStack {
     pub fn new() -> Self {
         FrameStack {
             globals: GlobalFrame::new(),
             functions: GlobalFunctions::new(),
-            frames: Vec::new()}
+            frames: Vec::new(),
+        }
     }
     pub fn pop(&mut self) -> Result<Frame> {
         self.frames.pop().with_context(|| format!("Attempting to pop frame from empty stack."))
@@ -110,11 +133,11 @@ impl FrameStack {
         self.frames.push(frame)
     }
     pub fn get_locals(&self) -> Result<&Frame> {
-        self.frames.last()
-            .with_context(|| format!("Attempting to access frame from empty stack."))
+        self.frames.last().with_context(|| format!("Attempting to access frame from empty stack."))
     }
     pub fn get_locals_mut(&mut self) -> Result<&mut Frame> {
-        self.frames.last_mut()
+        self.frames
+            .last_mut()
             .with_context(|| format!("Attempting to access frame from empty stack."))
     }
 }
@@ -130,7 +153,7 @@ impl From<Frame> for FrameStack {
         FrameStack {
             globals: GlobalFrame::new(),
             functions: GlobalFunctions::new(),
-            frames: vec![frame]
+            frames: vec![frame],
         }
     }
 }
@@ -138,10 +161,11 @@ impl From<Frame> for FrameStack {
 #[derive(Eq, PartialEq, Debug)]
 pub struct GlobalFunctions(HashMap<String, ConstantPoolIndex>);
 impl GlobalFunctions {
-    pub fn new() -> Self { GlobalFunctions(HashMap::new()) }
+    pub fn new() -> Self {
+        GlobalFunctions(HashMap::new())
+    }
     pub fn get(&self, name: &str) -> Result<&ConstantPoolIndex> {
-        self.0.get(name)
-            .with_context(|| format!("No such function `{}`.", name))
+        self.0.get(name).with_context(|| format!("No such function `{}`.", name))
     }
     #[allow(dead_code)]
     pub fn update(&mut self, name: String, index: ConstantPoolIndex) -> Result<()> {
@@ -157,7 +181,8 @@ impl GlobalFunctions {
     }
     pub fn from(methods: Vec<(String, ConstantPoolIndex)>) -> Result<Self> {
         let mut unique = HashSet::new();
-        let functions = methods.into_iter()
+        let functions = methods
+            .into_iter()
             .map(|(name, index)| {
                 if unique.insert(name.clone()) {
                     Ok((name, index))
@@ -173,10 +198,11 @@ impl GlobalFunctions {
 #[derive(Eq, PartialEq, Debug)]
 pub struct GlobalFrame(HashMap<String, Pointer>);
 impl GlobalFrame {
-    pub fn new() -> Self { GlobalFrame(HashMap::new()) }
+    pub fn new() -> Self {
+        GlobalFrame(HashMap::new())
+    }
     pub fn get(&self, name: &str) -> Result<&Pointer> {
-        self.0.get(name)
-            .with_context(|| format!("No such global `{}`.", name))
+        self.0.get(name).with_context(|| format!("No such global `{}`.", name))
     }
     #[allow(dead_code)]
     pub fn update(&mut self, name: String, pointer: Pointer) -> Result<()> {
@@ -192,7 +218,8 @@ impl GlobalFrame {
     }
     pub fn from(names: Vec<String>, initial: Pointer) -> Result<Self> {
         let mut unique = HashSet::new();
-        let globals = names.into_iter()
+        let globals = names
+            .into_iter()
             .map(|name| {
                 if unique.insert(name.clone()) {
                     Ok((name, initial.clone()))
@@ -210,7 +237,7 @@ pub struct State {
     pub operand_stack: OperandStack,
     pub frame_stack: FrameStack,
     pub instruction_pointer: InstructionPointer,
-    pub heap: Heap
+    pub heap: Heap,
 }
 
 // pub struct State {
@@ -231,30 +258,35 @@ impl State {
     //     self.heap.set_log(heap_log);
     //     self
     // }
-    pub fn from(program: &Program) -> Result<Self> {                                                // TODO error handling is a right mess here.
+    pub fn from(program: &Program) -> Result<Self> {
+        // TODO error handling is a right mess here.
 
-        let entry_index = program.entry.get()
-            .with_context(|| format!("Cannot find entry method."))?;
-        let entry_method = program.constant_pool.get(&entry_index)
+        let entry_index =
+            program.entry.get().with_context(|| format!("Cannot find entry method."))?;
+        let entry_method = program
+            .constant_pool
+            .get(&entry_index)
             .with_context(|| format!("Cannot find entry method."))?;
         let entry_address = entry_method.get_method_start_address()?;
         let entry_length = entry_method.get_method_length()?;
         let entry_locals = entry_method.get_method_locals()?;
 
-        let instruction_pointer = if entry_length > 0 { 
-            InstructionPointer::from(*entry_address) 
-        } else { 
+        let instruction_pointer = if entry_length > 0 {
+            InstructionPointer::from(*entry_address)
+        } else {
             InstructionPointer::new()
         };
 
-        let global_objects = program.globals.iter()
-            .map(|index| {
-                program.constant_pool.get(&index).map(|object| (index, object))
-            })
+        let global_objects = program
+            .globals
+            .iter()
+            .map(|index| program.constant_pool.get(&index).map(|object| (index, object)))
             .collect::<Result<Vec<(ConstantPoolIndex, &ProgramObject)>>>()?;
 
-        ensure!(global_objects.iter().all(|(_, object)| object.is_slot() || object.is_method()),
-                "Illegal global constant: expecting Method or Slot.");
+        ensure!(
+            global_objects.iter().all(|(_, object)| object.is_slot() || object.is_method()),
+            "Illegal global constant: expecting Method or Slot."
+        );
 
         fn extract_slot(program: &Program, slot: &ProgramObject) -> Result<String> {
             let name_index = slot.as_slot_index()?;
@@ -263,19 +295,25 @@ impl State {
             Ok(name.to_owned())
         }
 
-        let globals = global_objects.iter()
+        let globals = global_objects
+            .iter()
             .filter(|(_, program_object)| program_object.is_slot())
             .map(|(_, slot)| extract_slot(program, slot))
             .collect::<Result<Vec<String>>>()?;
 
-        fn extract_function(program: &Program, index: &ConstantPoolIndex, method: &ProgramObject) -> Result<(String, ConstantPoolIndex)> {
+        fn extract_function(
+            program: &Program,
+            index: &ConstantPoolIndex,
+            method: &ProgramObject,
+        ) -> Result<(String, ConstantPoolIndex)> {
             let name_index = method.get_method_name()?;
             let name_object = program.constant_pool.get(name_index)?;
             let name = name_object.as_str()?;
             Ok((name.to_owned(), index.clone()))
         }
 
-        let functions = global_objects.iter()
+        let functions = global_objects
+            .iter()
             .filter(|(_, program_object)| program_object.is_method())
             .map(|(index, method)| extract_function(program, index, method))
             .collect::<Result<Vec<(String, ConstantPoolIndex)>>>()?;
@@ -297,7 +335,7 @@ impl State {
             operand_stack: OperandStack::new(),
             frame_stack: FrameStack::new(),
             instruction_pointer: InstructionPointer::new(),
-            heap: Heap::new()
+            heap: Heap::new(),
         }
     }
 
@@ -307,7 +345,7 @@ impl State {
             operand_stack: OperandStack::new(),
             frame_stack: FrameStack::from(Frame::new()),
             instruction_pointer: InstructionPointer::from(Address::from_usize(0)),
-            heap: Heap::new()
+            heap: Heap::new(),
         }
     }
 
@@ -436,7 +474,6 @@ impl State {
     // }
 }
 
-
 // #[derive(PartialEq,Debug)]
 // pub struct LocalFrame {
 //     locals: Vec<Pointer>, /* ProgramObject::Slot */
@@ -492,7 +529,9 @@ impl State {
 pub struct Output();
 
 impl Output {
-    pub fn new() -> Self { Output() }
+    pub fn new() -> Self {
+        Output()
+    }
 }
 
 impl std::fmt::Write for Output {

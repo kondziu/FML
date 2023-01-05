@@ -20,7 +20,7 @@ fn parse_ok(input: &str, correct: AST) {
         }
     }
     println!();
-    assert_eq!(TopLevelParser::new().parse(input), Ok(AST::Top(vec!(Box::new(correct)))));
+    assert_eq!(TopLevelParser::new().parse(input), Ok(AST::Top(vec!(correct))));
 }
 
 #[allow(dead_code)]

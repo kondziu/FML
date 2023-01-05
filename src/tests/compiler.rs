@@ -595,7 +595,7 @@ fn array_mutation_test() {
 fn print_test() {
     let ast = AST::Print {
         format: "~ + ~".to_string(),
-        arguments: vec![Box::new(AST::Integer(2)), Box::new(AST::Integer(5))],
+        arguments: vec![AST::Integer(2), AST::Integer(5)],
     };
 
     let mut global_environment = Environment::new();
@@ -634,11 +634,7 @@ fn print_test() {
 fn function_application_test_three() {
     let ast = AST::CallFunction {
         name: Identifier("f".to_string()),
-        arguments: vec![
-            Box::new(AST::Null),
-            Box::new(AST::Integer(0)),
-            Box::new(AST::Boolean(true)),
-        ],
+        arguments: vec![AST::Null, AST::Integer(0), AST::Boolean(true)],
     };
 
     let mut global_environment = Environment::new();
@@ -677,10 +673,8 @@ fn function_application_test_three() {
 
 #[test]
 fn function_application_test_one() {
-    let ast = AST::CallFunction {
-        name: Identifier("f".to_string()),
-        arguments: vec![Box::new(AST::Integer(42))],
-    };
+    let ast =
+        AST::CallFunction { name: Identifier("f".to_string()), arguments: vec![AST::Integer(42)] };
 
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
@@ -799,49 +793,43 @@ fn object_with_methods_and_fields() {
     let ast = AST::Object {
         extends: Box::new(AST::Boolean(true)),
         members: vec![
-            Box::new(AST::Function {
+            AST::Function {
                 name: Identifier::from("implies"),
                 parameters: vec![Identifier::from("x")],
                 body: Box::new(AST::Boolean(true)),
-            }),
-            Box::new(AST::Variable {
-                name: Identifier::from("id"),
-                value: Box::new(AST::Integer(1)),
-            }),
-            Box::new(AST::Function {
+            },
+            AST::Variable { name: Identifier::from("id"), value: Box::new(AST::Integer(1)) },
+            AST::Function {
                 name: Identifier::from("identity"),
                 parameters: vec![],
                 body: Box::new(AST::Boolean(true)),
-            }),
-            Box::new(AST::Function {
+            },
+            AST::Function {
                 name: Identifier::from("or"),
                 parameters: vec![Identifier::from("x")],
                 body: Box::new(AST::Boolean(true)),
-            }),
-            Box::new(AST::Function {
+            },
+            AST::Function {
                 name: Identifier::from("and"),
                 parameters: vec![Identifier::from("x")],
                 body: Box::new(AST::AccessVariable { name: Identifier::from("x") }),
-            }),
-            Box::new(AST::Variable {
-                name: Identifier::from("hash"),
-                value: Box::new(AST::Integer(1)),
-            }),
-            Box::new(AST::Function {
+            },
+            AST::Variable { name: Identifier::from("hash"), value: Box::new(AST::Integer(1)) },
+            AST::Function {
                 name: Identifier::from(Operator::Addition),
                 parameters: vec![Identifier::from("x")],
                 body: Box::new(AST::Boolean(true)),
-            }),
-            Box::new(AST::Function {
+            },
+            AST::Function {
                 name: Identifier::from(Operator::Multiplication),
                 parameters: vec![Identifier::from("x")],
                 body: Box::new(AST::AccessVariable { name: Identifier::from("x") }),
-            }),
-            Box::new(AST::Function {
+            },
+            AST::Function {
                 name: Identifier::from("me"),
                 parameters: vec![],
                 body: Box::new(AST::AccessVariable { name: Identifier::from("this") }),
-            }),
+            },
         ],
     };
 
@@ -974,12 +962,12 @@ fn object_with_methods_and_fields() {
 #[test]
 fn block_many() {
     let ast = AST::Block(vec![
-        Box::new(AST::Null),
-        Box::new(AST::Integer(1)),
-        Box::new(AST::Integer(42)),
-        Box::new(AST::Integer(0)),
-        Box::new(AST::Boolean(true)),
-        Box::new(AST::Integer(42)),
+        AST::Null,
+        AST::Integer(1),
+        AST::Integer(42),
+        AST::Integer(0),
+        AST::Boolean(true),
+        AST::Integer(42),
     ]);
 
     let mut global_environment = Environment::new();
@@ -1032,7 +1020,7 @@ fn block_many() {
 
 #[test]
 fn block_one() {
-    let ast = AST::Block(vec![Box::new(AST::Null)]);
+    let ast = AST::Block(vec![AST::Null]);
 
     let mut global_environment = Environment::new();
     let mut current_frame = Frame::new();
@@ -1177,11 +1165,7 @@ fn field_mutation_test() {
 fn method_call_test_three() {
     let ast = AST::CallMethod {
         name: Identifier::from("f"),
-        arguments: vec![
-            Box::new(AST::Integer(1)),
-            Box::new(AST::Integer(2)),
-            Box::new(AST::Integer(3)),
-        ],
+        arguments: vec![AST::Integer(1), AST::Integer(2), AST::Integer(3)],
         object: Box::new(AST::AccessVariable { name: Identifier::from("obj") }),
     };
 
@@ -1223,7 +1207,7 @@ fn method_call_test_three() {
 fn method_call_test_one() {
     let ast = AST::CallMethod {
         name: Identifier::from("f"),
-        arguments: vec![Box::new(AST::Integer(42))],
+        arguments: vec![AST::Integer(42)],
         object: Box::new(AST::AccessVariable { name: Identifier::from("obj") }),
     };
 
@@ -1297,7 +1281,7 @@ fn method_call_test_zero() {
 fn operator_call_test() {
     let ast = AST::CallMethod {
         name: Identifier::from(Operator::Subtraction),
-        arguments: vec![Box::new(AST::Integer(1))],
+        arguments: vec![AST::Integer(1)],
         object: Box::new(AST::Integer(7)),
     };
 
@@ -1337,7 +1321,7 @@ fn operation_test() {
     let ast = AST::CallMethod {
         name: Identifier::from(Operator::Subtraction),
         object: Box::new(AST::Integer(1)),
-        arguments: vec![Box::new(AST::Integer(7))],
+        arguments: vec![AST::Integer(7)],
     };
 
     let mut global_environment = Environment::new();

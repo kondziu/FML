@@ -763,7 +763,6 @@ impl Compiled for AST {
 
                 let slots: Result<Vec<ConstantPoolIndex>> = members
                     .iter()
-                    .map(|m| m.deref())
                     .map(|m| match m {
                         AST::Function { name, parameters, body } => compile_function_definition(
                             name.as_str(),

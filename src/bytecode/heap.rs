@@ -59,7 +59,7 @@ impl Heap {
         create_dir_all(dir).unwrap();
 
         let mut file = File::create(path).unwrap();
-        write!(file, "timestamp,event,heap\n").unwrap();
+        writeln!(file, "timestamp,event,heap").unwrap();
 
         heap_log!(START -> Some(&mut file));
         self.log = Some(file)
@@ -201,7 +201,7 @@ impl ArrayInstance {
         ArrayInstance(vec![])
     }
     #[allow(dead_code)]
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = &Pointer> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = &Pointer> + '_ {
         self.0.iter()
     }
     #[allow(dead_code)]
@@ -297,7 +297,7 @@ impl ObjectInstance {
             .collect::<Result<Vec<String>>>()?;
 
         match parent {
-            Some(parent) if fields.len() > 0 => {
+            Some(parent) if !fields.is_empty() => {
                 Ok(format!("object(..={}, {})", parent, fields.join(", ")))
             }
             Some(parent) => Ok(format!("object(..={})", parent)),
@@ -338,7 +338,7 @@ impl From<usize> for HeapIndex {
 impl From<&Pointer> for HeapIndex {
     fn from(p: &Pointer) -> Self {
         match p {
-            Pointer::Reference(p) => p.clone(),
+            Pointer::Reference(p) => *p,
             Pointer::Null => panic!("Cannot create heap reference from a null-tagged pointer"),
             Pointer::Integer(_) => {
                 panic!("Cannot create heap reference from an integer-tagged pointer")

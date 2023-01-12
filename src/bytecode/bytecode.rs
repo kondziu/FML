@@ -322,7 +322,7 @@ impl Serializable for OpCode {
 }
 
 impl OpCode {
-    pub fn to_hex(&self) -> u8 {
+    pub fn to_hex(self) -> u8 {
         use OpCode::*;
         match self {
             Label { name: _ } => 0x00,

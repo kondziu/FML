@@ -26,4 +26,4 @@ begin
   end;
   print("~\n", objy);
 end;
-// > object(..=object(), x=3, z=2, y=4)
+// > object(..=object(), x=3, y=4, z=2)

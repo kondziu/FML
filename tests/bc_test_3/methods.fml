@@ -29,6 +29,6 @@ begin
   print("obj.y=~\n", obj.y);
   // > null=null
   // > obj.x=false
-  // > obj.x=null
+  // > obj.y=null
 end;
 

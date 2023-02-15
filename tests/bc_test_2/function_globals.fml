@@ -1,7 +1,10 @@
+let d = null;
+
 function f() ->
  let d = 5;
  let a = 1;
  let b = 2;
  let c = 3;
+ // > 1 2 3 null
  print("~ ~ ~ ~\n", a, b, c, d);
 f()

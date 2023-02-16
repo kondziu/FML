@@ -897,7 +897,7 @@ fn object_with_methods_and_fields() {
         /* 07 */
         ProgramObject::Method {
             name: ConstantPoolIndex::new(6), // identity
-            parameters: Arity::new(0 + 1),
+            parameters: Arity::new(1),
             locals: Size::new(0),
             code: AddressRange::from(2, 2), // addresses: 2, 3
         },

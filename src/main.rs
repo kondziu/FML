@@ -251,8 +251,7 @@ impl CompilerAction {
             self.selected_input()
                 .unwrap()
                 .extension()
-                .map(|s| ASTSerializer::from_extension(s.as_str()))
-                .flatten()
+                .and_then(|s| ASTSerializer::from_extension(s.as_str()))
         }
     }
 
@@ -285,12 +284,9 @@ impl ParserAction {
         self.format.unwrap_or_else(|| {
             self.output
                 .as_ref()
-                .map(|path| path.extension())
-                .flatten()
-                .map(|extension| extension.to_str().map(|s| s.to_owned()))
-                .flatten()
-                .map(|extension| ASTSerializer::from_extension(extension.as_str()))
-                .flatten()
+                .and_then(|path| path.extension())
+                .and_then(|extension| extension.to_str().map(|s| s.to_owned()))
+                .and_then(|extension| ASTSerializer::from_extension(extension.as_str()))
                 .unwrap_or(ASTSerializer::INTERNAL)
         })
     }
@@ -484,7 +480,7 @@ impl std::fmt::Debug for NamedSource {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str("<")?;
         match &self.name {
-            Stream::File(file) => f.write_str(&file),
+            Stream::File(file) => f.write_str(file),
             Stream::Console => f.write_str("stdin"),
         }?;
         Ok(())
@@ -542,7 +538,7 @@ impl std::fmt::Debug for NamedSink {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str(">")?;
         match &self.name {
-            Stream::File(file) => f.write_str(&file),
+            Stream::File(file) => f.write_str(file),
             Stream::Console => f.write_str("stout"),
         }?;
         Ok(())

@@ -64,10 +64,11 @@ impl Globals {
             "Cannot register global `{}`, index is already registered as a global.",
             name_index
         );
-        Ok(self.0.push(name_index))
+        self.0.push(name_index);
+        Ok(())
     }
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = ConstantPoolIndex> + 'a {
-        self.0.iter().map(|index| index.clone())
+        self.0.iter().copied()
     }
 }
 
@@ -97,7 +98,7 @@ impl Entry {
             self.0.is_none(),
             "Entry point was read, but it was not set yet.", /*bad macro*/
         );
-        Ok(self.0.as_ref().unwrap().clone())
+        Ok(*self.0.as_ref().unwrap())
     }
     pub fn set(&mut self, index: ConstantPoolIndex) {
         self.0 = Some(index)
@@ -170,7 +171,7 @@ impl ConstantPool {
         self.0
             .iter()
             .position(|c| c == program_object)
-            .map(|position| ConstantPoolIndex::from_usize(position))
+            .map(ConstantPoolIndex::from_usize)
     }
     pub fn register(&mut self, program_object: ProgramObject) -> ConstantPoolIndex {
         let index = self.find(&program_object);
@@ -205,19 +206,19 @@ impl From<Vec<ProgramObject>> for ConstantPool {
 
 impl From<Vec<i32>> for ConstantPool {
     fn from(vector: Vec<i32>) -> Self {
-        ConstantPool(vector.into_iter().map(|n| ProgramObject::from_i32(n)).collect())
+        ConstantPool(vector.into_iter().map(ProgramObject::from_i32).collect())
     }
 }
 
 impl From<Vec<&str>> for ConstantPool {
     fn from(vector: Vec<&str>) -> Self {
-        ConstantPool(vector.into_iter().map(|s| ProgramObject::from_str(s)).collect())
+        ConstantPool(vector.into_iter().map(ProgramObject::from_str).collect())
     }
 }
 
 impl From<Vec<bool>> for ConstantPool {
     fn from(vector: Vec<bool>) -> Self {
-        ConstantPool(vector.into_iter().map(|b| ProgramObject::from_bool(b)).collect())
+        ConstantPool(vector.into_iter().map(ProgramObject::from_bool).collect())
     }
 }
 
@@ -747,7 +748,7 @@ impl Serializable for Program {
 impl SerializableWithContext for ConstantPool {
     fn serialize<W: Write>(&self, sink: &mut W, code: &Code) -> Result<()> {
         serializable::write_usize_as_u16(sink, self.0.len())?;
-        self.0.iter().map(|program_object| program_object.serialize(sink, code)).collect()
+        self.0.iter().try_for_each(|program_object| program_object.serialize(sink, code))
     }
 
     fn from_bytes<R: Read>(input: &mut R, code: &mut Code) -> Self {

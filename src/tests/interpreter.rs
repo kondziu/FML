@@ -1144,7 +1144,7 @@ fn set_slot() {
 fn call_method_zero() {
     let code = Code::from(vec![
         OpCode::Return,
-        OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(0 + 1) },
+        OpCode::CallMethod { name: ConstantPoolIndex::new(0), arguments: Arity::new(1) },
         OpCode::Return,
     ]);
 
@@ -1163,7 +1163,7 @@ fn call_method_zero() {
             "f".to_string(),
             ProgramObject::Method {
                 name: ConstantPoolIndex::new(0),
-                parameters: Arity::new(0 + 1),
+                parameters: Arity::new(1),
                 locals: Size::new(0),
                 code: AddressRange::from(0, 1)
             }
@@ -1380,8 +1380,8 @@ fn call_method_on_pointers(receiver: Pointer, argument: Pointer, operation: &str
     let mut output: String = String::new();
 
     state.instruction_pointer.set(Some(Address::from_usize(0)));
-    state.operand_stack.push(Pointer::from(receiver));
-    state.operand_stack.push(Pointer::from(argument));
+    state.operand_stack.push(receiver);
+    state.operand_stack.push(argument);
 
     step_with(&program, &mut state, &mut output).unwrap();
 

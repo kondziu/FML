@@ -353,7 +353,7 @@ impl From<&Pointer> for HeapIndex {
 impl From<Pointer> for HeapIndex {
     fn from(p: Pointer) -> Self {
         match p {
-            Pointer::Reference(p) => p.clone(),
+            Pointer::Reference(p) => p,
             Pointer::Null => panic!("Cannot create heap reference from a null-tagged pointer"),
             Pointer::Integer(_) => {
                 panic!("Cannot create heap reference from an integer-tagged pointer")
@@ -540,7 +540,7 @@ impl From<ProgramObject> for Pointer {
 
 impl From<&HeapIndex> for Pointer {
     fn from(p: &HeapIndex) -> Self {
-        Pointer::Reference(p.clone())
+        Pointer::Reference(*p)
     }
 }
 

@@ -24,11 +24,11 @@ print("~ != ~ => ~\n", 1, -2, 1 != -2);
 // > 1 != -2 => true
 print("~ == ~ => ~\n", 1, null, 1 == null);
 // > 1 == null => false
-print("~ != ~ => ~\n", 1, null, 1 == null);
+print("~ != ~ => ~\n", 1, null, 1 != null);
 // > 1 != null => true
 print("~ == ~ => ~\n", 1, true, 1 == true);
 // > 1 == true => false
-print("~ != ~ => ~\n", 1, true, 1 == true);
+print("~ != ~ => ~\n", 1, true, 1 != true);
 // > 1 != true => true
 print("~ == ~ => ~\n", 1, (object begin end), 1 == (object begin end));
 // > 1 == object() => false
@@ -54,7 +54,7 @@ print("~ != ~ => ~\n", true, -2, true != -2);
 // > true != -2 => true
 print("~ == ~ => ~\n", true, null, true == null);
 // > true == null => false
-print("~ != ~ => ~\n", true, null, true == null);
+print("~ != ~ => ~\n", true, null, true != null);
 // > true != null => true
 print("~ == ~ => ~\n", true, (object begin end), true == (object begin end));
 // > true == object() => false
@@ -71,12 +71,12 @@ print("~ != ~ => ~\n", null, -2, null != -2);
 // > null != -2 => true
 print("~ == ~ => ~\n", null, null, null == null);
 // > null == null => true
-print("~ != ~ => ~\n", null, null, null == null);
+print("~ != ~ => ~\n", null, null, null != null);
 // > null != null => false
 print("~ == ~ => ~\n", null, (object begin end), null == (object begin end));
 // > null == object() => false
 print("~ != ~ => ~\n", null, (object begin end), null != (object begin end));
-// > null != object() => null
+// > null != object() => true
 print("~ == ~ => ~\n", null, array(1,null), null == array(1,null));
 // > null == [null] => false
 print("~ != ~ => ~\n", null, array(1,null), null != array(1,null));

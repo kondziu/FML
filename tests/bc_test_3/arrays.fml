@@ -16,7 +16,7 @@ begin
     let index = 0;
     while index < length do
     begin
-      print("arr[~]: ~ \n", index, arr[index]);
+      print("arr[~]: ~\n", index, arr[index]);
       index <- index + 1;
     end;
   end;

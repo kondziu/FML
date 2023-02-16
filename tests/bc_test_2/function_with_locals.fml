@@ -1,5 +1,7 @@
 function left (x, y) -> x;
 function right (x, y) -> y;
 
+// > true
 print("~\n", left(true, false));
+// > true
 print("~\n", right(false, true));

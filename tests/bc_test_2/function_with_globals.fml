@@ -5,9 +5,13 @@ let z = 3;
 function f(y) ->
 begin
    let z = 5;
+   // > x=1
    print("x=~\n", x);
+   // > y=4
    print("y=~\n", y);
+   // > z=5
    print("z=~\n", z);
 end;
 
+// > null
 print("~\n", f(4))

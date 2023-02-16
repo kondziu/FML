@@ -26,7 +26,7 @@ begin
   print("~\n", cell);
   // > object(..=object(..=object(value=0)))
   cell.pretty_print();
-  // > [!1]
+  // > [!0]
   cell.set(42);
   print("~\n", cell.get());
   // > 42
@@ -43,6 +43,6 @@ begin
   print("~ == ~ => ~\n", cell, 43, cell == 43);
   // > object(..=object(..=object(value=43))) == 43 => true
   print("~ != ~ => ~\n", cell, 43, cell != 43);
-  // > object(..=object(..=object(value=43))) == 43 => false
+  // > object(..=object(..=object(value=43))) != 43 => false
 end;
 

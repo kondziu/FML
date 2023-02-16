@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use super::bytecode::OpCode;
-use super::program::{Program, Code};
+use super::program::{Code, Program};
 use crate::bytecode::program::*;
 
 pub trait PrettyPrint: UglyPrint {
@@ -29,7 +29,12 @@ pub trait PrettyPrintWithContext: UglyPrintWithContext {
     fn pretty_print_no_indent<W: Write>(&self, sink: &mut W, code: &Code) {
         self.ugly_print(sink, code, 0, false);
     }
-    fn pretty_print_no_first_line_indent<W: Write>(&self, sink: &mut W, code: &Code, indent: usize) {
+    fn pretty_print_no_first_line_indent<W: Write>(
+        &self,
+        sink: &mut W,
+        code: &Code,
+        indent: usize,
+    ) {
         self.ugly_print(sink, code, indent, false);
     }
 }
@@ -48,7 +53,13 @@ pub trait UglyPrint {
 }
 
 pub trait UglyPrintWithContext {
-    fn ugly_print<W: Write>(&self, sink: &mut W, code: &Code, indent: usize, indent_first_line: bool);
+    fn ugly_print<W: Write>(
+        &self,
+        sink: &mut W,
+        code: &Code,
+        indent: usize,
+        indent_first_line: bool,
+    );
 }
 
 macro_rules! write_string {
@@ -56,17 +67,23 @@ macro_rules! write_string {
         if ($indent == 0) {
             $sink.write_all(format!("{}", $value).as_bytes()).unwrap()
         } else {
-            $sink.write_all(format!("{:indent$}{}"," ", $value, indent=$indent).as_bytes()).unwrap()
+            $sink
+                .write_all(format!("{:indent$}{}", " ", $value, indent = $indent).as_bytes())
+                .unwrap()
         }
     };
     ($sink: expr, $indent: expr, $fmt: expr, $value: expr) => {
         if ($indent == 0) {
             $sink.write_all(format!($fmt, $value).as_bytes()).unwrap()
         } else {
-            $sink.write_all(format!("{:indent$}{}"," ", format!($fmt, $value),
-                                                        indent=$indent).as_bytes()).unwrap()
+            $sink
+                .write_all(
+                    format!("{:indent$}{}", " ", format!($fmt, $value), indent = $indent)
+                        .as_bytes(),
+                )
+                .unwrap()
         }
-    }
+    };
 }
 
 macro_rules! in_margin {
@@ -76,20 +93,29 @@ macro_rules! in_margin {
         } else {
             $indent - 3
         }
-    }
+    };
 }
 
 macro_rules! further {
-    ($indent: expr) => {$indent + 4}
+    ($indent: expr) => {
+        $indent + 4
+    };
 }
 
 macro_rules! big_further {
-    ($indent: expr) => {$indent + 6}
+    ($indent: expr) => {
+        $indent + 6
+    };
 }
 
-
 macro_rules! first {
-    ($indent: expr, $condition: expr) => {if $condition {$indent} else {0}}
+    ($indent: expr, $condition: expr) => {
+        if $condition {
+            $indent
+        } else {
+            0
+        }
+    };
 }
 
 impl UglyPrint for ConstantPoolIndex {
@@ -123,39 +149,50 @@ impl UglyPrint for Address {
 }
 
 impl UglyPrintWithContext for ProgramObject {
-    fn ugly_print<W: Write>(&self, sink: &mut W, code: &Code, indent: usize, prefix_first_line: bool) {
+    fn ugly_print<W: Write>(
+        &self,
+        sink: &mut W,
+        code: &Code,
+        indent: usize,
+        prefix_first_line: bool,
+    ) {
         match self {
-            ProgramObject::Null  =>
-                write_string!(sink, first!(indent, prefix_first_line), "Null"),
+            ProgramObject::Null => write_string!(sink, first!(indent, prefix_first_line), "Null"),
 
-            ProgramObject::Integer(value) =>
-                write_string!(sink, first!(indent, prefix_first_line), "Int({})", value),
+            ProgramObject::Integer(value) => {
+                write_string!(sink, first!(indent, prefix_first_line), "Int({})", value)
+            }
 
-            ProgramObject::Boolean(value) =>
-                write_string!(sink, first!(indent, prefix_first_line), "Bool({})", value),
+            ProgramObject::Boolean(value) => {
+                write_string!(sink, first!(indent, prefix_first_line), "Bool({})", value)
+            }
 
             ProgramObject::String(value) => {
                 let string = value.escape_default().to_string();
                 write_string!(sink, first!(indent, prefix_first_line), "String(\"{}\")", string)
             }
 
-            ProgramObject::Slot {name} => {
+            ProgramObject::Slot { name } => {
                 write_string!(sink, first!(indent, prefix_first_line), "Slot(");
                 name.pretty_print_no_indent(sink);
                 write_string!(sink, 0, ")");
-            },
+            }
 
             ProgramObject::Class(slots) => {
                 write_string!(sink, first!(indent, prefix_first_line), "Class(");
                 let mut first = true;
                 for slot in slots {
-                    if !first { write_string!(sink, 0, ", "); } else { first = false; }
+                    if !first {
+                        write_string!(sink, 0, ", ");
+                    } else {
+                        first = false;
+                    }
                     slot.pretty_print_no_indent(sink)
                 }
                 write_string!(sink, 0, ")");
-            },
+            }
 
-            ProgramObject::Method {name, parameters: arguments, locals, code: range} => {
+            ProgramObject::Method { name, parameters: arguments, locals, code: range } => {
                 write_string!(sink, first!(indent, prefix_first_line), "Method(");
                 name.pretty_print_no_indent(sink);
                 write_string!(sink, 0, ", nargs:");
@@ -164,12 +201,13 @@ impl UglyPrintWithContext for ProgramObject {
                 locals.pretty_print_no_indent(sink);
                 write_string!(sink, 0, ") :");
 
-                for opcode in code.materialize(range).unwrap() {                           // TODO error handling
+                for opcode in code.materialize(range).unwrap() {
+                    // TODO error handling
                     write_string!(sink, 0, "\n");
                     //println!("indent {:?} {} -> {} ", self, indent, further!(indent));
                     opcode.pretty_print_indent(sink, further!(indent))
                 }
-            },
+            }
         }
     }
 }
@@ -180,71 +218,71 @@ impl UglyPrint for OpCode {
             OpCode::Literal { index } => {
                 write_string!(sink, indent, "lit ");
                 index.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::GetLocal { index } => {
                 write_string!(sink, indent, "get local ");
                 index.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::SetLocal { index } => {
                 write_string!(sink, indent, "set local ");
                 index.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::GetGlobal { name } => {
                 write_string!(sink, indent, "get global ");
                 name.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::SetGlobal { name } => {
                 write_string!(sink, indent, "set global ");
                 name.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::Object { class } => {
                 write_string!(sink, indent, "object ");
                 class.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::Array => {
                 write_string!(sink, indent, "array");
-            },
+            }
             OpCode::GetField { name } => {
                 write_string!(sink, indent, "get slot ");
                 name.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::SetField { name } => {
                 write_string!(sink, indent, "set slot ");
                 name.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::CallMethod { name, arguments } => {
                 write_string!(sink, indent, "call slot ");
                 name.pretty_print_no_indent(sink);
                 arguments.pretty_print_indent(sink, 1);
-            },
+            }
             OpCode::CallFunction { name, arguments } => {
                 write_string!(sink, indent, "call ");
                 name.pretty_print_no_indent(sink);
                 arguments.pretty_print_indent(sink, 1);
-            },
+            }
             OpCode::Print { format, arguments } => {
                 write_string!(sink, indent, "printf ");
                 format.pretty_print_no_indent(sink);
                 arguments.pretty_print_indent(sink, 1);
-            },
+            }
             OpCode::Label { name } => {
                 write_string!(sink, in_margin!(indent), "label ");
                 name.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::Jump { label } => {
                 write_string!(sink, indent, "goto ");
                 label.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::Branch { label } => {
                 write_string!(sink, indent, "branch ");
                 label.pretty_print_no_indent(sink);
-            },
+            }
             OpCode::Return => {
                 write_string!(sink, indent, "return");
-            },
+            }
             OpCode::Drop => {
                 write_string!(sink, indent, "drop");
-            },
+            }
         }
     }
 }
@@ -264,6 +302,6 @@ impl UglyPrint for Program {
             write_string!(sink, 0, "\n");
         }
         write_string!(sink, indent, "Entry : ");
-        self.entry.get().unwrap().pretty_print_no_indent(sink);                                     // TODO error handling
+        self.entry.get().unwrap().pretty_print_no_indent(sink); // TODO error handling
     }
 }

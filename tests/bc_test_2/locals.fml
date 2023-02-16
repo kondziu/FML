@@ -3,5 +3,6 @@ let x = 1;
 let y = 2;
 let z = 3;
 
+// > x=3 y=2 z=1
 print("x=~ y=~ z=~\n", z, y, x);
 end;

@@ -10,5 +10,11 @@ begin
     if x then decide(false) else decide(true)
 end;
 
+// > decide(true)
+// > invert(true)
+// > decide(false)
+// > false
 print("~\n", decide(true));
+// > decide(false)
+// > false
 print("~\n", decide(false))

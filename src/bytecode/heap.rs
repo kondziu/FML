@@ -17,16 +17,23 @@ macro_rules! heap_log {
             write!(file, "{},S,0\n", timestamp).unwrap();
         }
     };
-    (ALLOCATE -> $file:expr, $memory:expr) => {
+    (BEFORE_GC -> $file:expr, $memory:expr) => {
+        if let Some(file) = &mut $file {
+            let timestamp =
+                SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+            write!(file, "{},B,{}\n", timestamp, $memory).unwrap();
+        }
+    };
+    (AFTER_GC -> $file:expr, $memory:expr) => {
         if let Some(file) = &mut $file {
             let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
             write!(file, "{},A,{}\n", timestamp, $memory).unwrap();
         }
     };
-    (GC -> $file:expr, $memory:expr) => {
+    (END -> $file:expr, $memory:expr) => {
         if let Some(file) = &mut $file {
             let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
-            write!(file, "{},G,{}\n", timestamp, $memory).unwrap();
+            write!(file, "{},E,{}\n", timestamp, $memory).unwrap();
         }
     }
 }
@@ -62,7 +69,6 @@ impl Heap {
     }
     pub fn allocate(&mut self, object: HeapObject) -> HeapIndex {
         self.size += object.size();
-        heap_log!(ALLOCATE -> self.log, self.size);
         let index = HeapIndex::from(self.memory.len());
         self.memory.push(object);
         index
@@ -76,6 +82,12 @@ impl Heap {
         self.memory.get_mut(index.as_usize())
             .with_context(||
                 format!("Cannot dereference object from the heap at index: `{}`", index))
+    }
+}
+
+impl Drop for Heap {
+    fn drop(&mut self) {
+        heap_log!(END -> self.log, self.size);
     }
 }
 
